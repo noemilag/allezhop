@@ -1,0 +1,42 @@
+# Allez Hop : notification push du matin (voir README, section Notification du matin).
+name: Notification du matin
+
+on:
+  schedule:
+    # Les horaires de GitHub sont en UTC et partent parfois en retard : la tâche démarre
+    # 45 min avant l'heure d'envoi, puis attend. Une ligne pour l'heure d'été (HAE),
+    # une pour l'heure normale (HNE) ; le script ignore celle qui ne correspond pas à la saison.
+    - cron: "15 10 * * 1-5"
+    - cron: "15 11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Envoyer une notification test maintenant"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notification-matin
+
+jobs:
+  envoyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save web-push@3.6.7 firebase-admin@12.7.0
+      - run: node scripts/notifier.js
+        env:
+          HEURE: "07:00"
+          CRON: ${{ github.event.schedule }}
+          TEST: ${{ inputs.test && '1' || '' }}
+          VAPID_PUBLIC: ""   # à remplir : même clé publique que dans app.js
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE_KEY }}
+          PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

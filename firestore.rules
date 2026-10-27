@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Seuls les membres de la famille peuvent lire et modifier les données.
+    // Remplace les adresses par celles des comptes créés dans Firebase Authentication
+    // (les vraies adresses sont seulement dans la console Firebase, pas dans ce dépôt public).
+    function estParent() {
+      return request.auth != null
+        && request.auth.token.email in ['parent1@exemple.com', 'parent2@exemple.com'];
+    }
+    // Fiche de l'enfant : prénom, classe, école, ville, calendrier et horaire du cycle.
+    match /enfants/{id} {
+      allow read, create, update, delete: if estParent();
+    }
+    match /rappels/{id} {
+      allow read, delete: if estParent();
+      allow create, update: if estParent()
+        && request.resource.data.titre is string && request.resource.data.titre.size() <= 80
+        && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 500;
+    }
+  }
+}

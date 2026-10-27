@@ -1,0 +1,6 @@
+{
+  "name": "allez-hop",
+  "private": true,
+  "type": "module",
+  "description": "Notification du matin : node scripts/notifier.js (voir README)"
+}
