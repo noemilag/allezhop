@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610272018"></script>
+<script src="config.js?v=202610272040"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -43,7 +43,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .app{height:100%;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);max-width:480px;margin:0 auto;display:flex;flex-direction:column}
 .pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
-header{display:flex;align-items:center;gap:4px;padding-block:20px 14px;flex:none;position:relative;z-index:10;background:var(--bg)}
+header{display:flex;align-items:center;gap:4px;padding-block:14px 10px;flex:none;position:relative;z-index:10;background:var(--bg)}
 /* Ouverte depuis l'icône (sans barre d'adresse) : la page monte sous l'heure et la batterie,
    où l'iPhone ajoute un flou. On descend l'en-tête ; la fiche se resserre dessous. */
 @media (display-mode: standalone){ header{padding-top:38px} }
@@ -93,41 +93,41 @@ html.st-loading .kid, html.st-loading .ibtn, html.st-loading .stage, html.st-loa
 .row-top .when{color:var(--accent-ink)}
 .card.off .row-top .when{color:var(--muted)}
 
-.hero{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:14px 18px;border-bottom:1px solid var(--line)}
-.dname{font-weight:800;font-size:clamp(28px,8.5vw,38px);letter-spacing:-.04em;line-height:1}
-.dnum{font-weight:800;font-size:clamp(96px,30vw,136px);letter-spacing:-.07em;line-height:.86;margin-top:4px;font-variant-numeric:tabular-nums;
+.hero{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:10px 14px;border-bottom:1px solid var(--line)}
+.dname{font-weight:800;font-size:clamp(26px,8vw,34px);letter-spacing:-.04em;line-height:1}
+.dnum{font-weight:800;font-size:clamp(80px,25vw,116px);letter-spacing:-.07em;line-height:.86;margin-top:4px;font-variant-numeric:tabular-nums;
   background:linear-gradient(170deg,var(--accent-2),var(--accent) 75%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;padding-right:.06em}
 .cyc.off .dnum{font-size:clamp(46px,14vw,60px);letter-spacing:-.04em;line-height:1;background:none;-webkit-text-fill-color:currentColor;color:var(--ink)}
 .dmonth{font-weight:600;font-size:17px;color:var(--muted);margin-top:8px;text-wrap:balance}
 /* tuile date : page de calendrier */
-.tile{flex:none;width:clamp(110px,31vw,136px);aspect-ratio:1/1.08;border-radius:24px;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;padding:8px 6px}
+.tile{flex:none;width:clamp(100px,28vw,124px);aspect-ratio:1/1.08;border-radius:24px;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;padding:8px 6px}
 .tile small{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff}
-.tile b{font-weight:800;font-size:clamp(52px,16vw,68px);line-height:.95;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.tile b{font-weight:800;font-size:clamp(46px,14vw,60px);line-height:.95;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
 .tile span{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.9)}
 
-.sec{padding-top:16px;display:flex;flex-direction:column}
+.sec{padding-top:12px;display:flex;flex-direction:column}
 .sec-h{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-variant-numeric:tabular-nums}
-.line{display:flex;align-items:center;gap:14px;padding-block:7px;min-width:0;border:0;background:none;text-align:left;width:100%}
+.line{display:flex;align-items:center;gap:12px;padding-block:5px;min-width:0;border:0;background:none;text-align:left;width:100%}
 button.line{cursor:pointer}
-.line .ic{width:44px;height:44px;border-radius:13px;background:var(--pool);display:grid;place-items:center;flex:none}
+.line .ic{width:40px;height:40px;border-radius:13px;background:var(--pool);display:grid;place-items:center;flex:none}
 .line .tx{flex:1;min-width:0}
-.line .tx b{display:block;font-weight:700;font-size:18px;letter-spacing:-.02em;line-height:1.2}
+.line .tx b{display:block;font-weight:700;font-size:17px;letter-spacing:-.02em;line-height:1.2}
 .line .tx span{display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--accent-ink);margin-top:1px}
 .line .tx span svg.i{width:15px;height:15px;stroke-width:2}
 .line .tx span.note{color:var(--muted);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .line time{font-size:17px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .offtxt{font-size:18px;font-weight:600;padding-block:6px}
 
-.wx{margin-top:12px;background:var(--pool);border-radius:22px;padding:14px 16px;text-decoration:none;color:inherit;display:block}
+.wx{margin-top:10px;background:var(--pool);border-radius:20px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
 .wx-a{display:flex;align-items:center;gap:10px}
 .wx-a svg.i{color:var(--accent);width:26px;height:26px}
-.wx-t{font-weight:700;font-size:26px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wx-t{font-weight:700;font-size:24px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .wx-t i{font-style:normal;color:var(--muted);font-weight:500;font-size:18px;margin:0 6px;vertical-align:3px}
 .wx-p{margin-left:auto;font-size:15px;color:var(--muted);text-align:right;min-width:0}
 .wx-sub{font-size:15px;color:var(--muted);margin:6px 0 0 36px}
-.wx-c{display:flex;align-items:center;gap:10px;border-top:1px solid var(--pool-line);margin-top:12px;padding-top:11px;font-size:16px;font-weight:500}
+.wx-c{display:flex;align-items:center;gap:10px;border-top:1px solid var(--pool-line);margin-top:10px;padding-top:9px;font-size:15px;font-weight:500}
 
-.foot{margin-top:auto;display:flex;align-items:center;gap:14px;padding-block:14px 16px;border:0;background:none;width:100%;text-align:left;cursor:pointer;min-width:0}
+.foot{margin-top:auto;display:flex;align-items:center;gap:14px;padding-block:12px 14px;border:0;background:none;width:100%;text-align:left;cursor:pointer;min-width:0}
 .foot small{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);flex:none}
 .foot span{flex:1;min-width:0;font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .foot svg.i{width:20px;height:20px;color:var(--muted)}
@@ -135,7 +135,7 @@ button.line{cursor:pointer}
 /* carte trop remplie : on resserre */
 .card.tight .hero{padding-block:10px 12px}
 .card.tight .dname{font-size:28px}
-.card.tight .cyc:not(.off) .dnum{font-size:80px}
+.card.tight .cyc:not(.off) .dnum{font-size:72px}
 .card.tight .dmonth{font-size:16px;margin-top:5px}
 .card.tight .tile{width:96px}
 .card.tight .tile b{font-size:48px}
@@ -154,13 +154,37 @@ button.line{cursor:pointer}
 .card.tighter .line .ic{width:34px;height:34px}
 .card.tighter .line .tx b{font-size:16px}
 .card.tightest .foot{display:none}
+.card.tightest .hero{padding-block:6px 10px}
+.card.tightest .sec{padding-top:8px}
+.card.tightest .line{padding-block:3px}
+.card.tightest .wx-c{font-size:14px}
+/* « mini » : en-tête de la fiche sur une ligne, éléments plus petits */
+.card.mini .row-top{font-size:11px}
+.card.mini .hero{padding-block:4px 8px}
+.card.mini .cyc:not(.off){display:flex;align-items:baseline;gap:8px}
+.card.mini .cyc:not(.off) .dnum{font-size:52px;margin-top:0}
+.card.mini .dname{font-size:22px}
+.card.mini .tile{width:72px;border-radius:18px;gap:0;padding:6px 4px}
+.card.mini .tile small{font-size:10px;letter-spacing:.1em}
+.card.mini .tile b{font-size:32px}
+.card.mini .sec-h{margin-bottom:2px;font-size:11px}
+.card.mini .line{gap:10px;padding-block:2px}
+.card.mini .line .ic{width:30px;height:30px;border-radius:10px}
+.card.mini .line .ic svg.i{width:18px;height:18px}
+.card.mini .line .tx b{font-size:15px}
+.card.mini .line .tx span, .card.mini .line time{font-size:13px}
+.card.mini .wx{padding:9px 12px;margin-top:6px;border-radius:16px}
+.card.mini .wx-t{font-size:20px}
+.card.mini .wx-c{margin-top:7px;padding-top:6px;font-size:13px}
+/* dernier niveau : titres des rappels et températures seulement */
+.card.micro .line .tx span.note, .card.micro .wx-c{display:none}
 
 /* bas d'écran */
-.dock{flex:none;padding-block:0 12px}
+.dock{flex:none;padding-block:0 10px}
 .bar{display:flex;align-items:center;gap:10px;width:100%}
 /* barre du haut, plus compacte : Aujourd'hui à gauche, Rappel à droite */
-.dock .add{height:44px;font-size:16px;padding:0 18px 0 14px;margin-left:auto;box-shadow:0 8px 18px -10px rgba(255,91,0,.6)}
-.dock .today-btn{height:44px;font-size:15px;padding:0 16px 0 12px}
+.dock .add{height:40px;font-size:16px;padding:0 18px 0 14px;margin-left:auto;box-shadow:0 8px 18px -10px rgba(255,91,0,.6)}
+.dock .today-btn{height:40px;font-size:15px;padding:0 16px 0 12px}
 .dock .add svg.i, .dock .today-btn svg.i{width:18px;height:18px}
 .add{height:58px;border-radius:999px;border:0;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:var(--on-accent);display:flex;align-items:center;gap:8px;padding:0 24px 0 20px;font-weight:700;font-size:17px;cursor:pointer;box-shadow:0 12px 24px -10px rgba(255,91,0,.5)}
 .add svg.i{stroke-width:2.6}
@@ -355,6 +379,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610272018"></script>
+<script type="module" src="app.js?v=202610272040"></script>
 </body>
 </html>

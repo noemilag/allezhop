@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272018";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272040";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610272018";
+const VERSION = "202610272040";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -383,8 +383,8 @@ function paint(){
 }
 function fit(el){
   const over=()=>el.scrollHeight>el.clientHeight+1;
-  el.classList.remove("tight","tighter","tightest");
-  for(const c of ["tight","tighter","tightest"]){ if(!over()) break; el.classList.add(c); }
+  el.classList.remove("tight","tighter","tightest","mini","micro");
+  for(const c of ["tight","tighter","tightest","mini","micro"]){ if(!over()) break; el.classList.add(c); }
 }
 function chrome(){
   $("btn-today").hidden = idx===0;
