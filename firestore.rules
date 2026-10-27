@@ -1,33 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Chaque famille a son espace : familles/{famille}, avec la liste des courriels des parents (membres).
-    // Il faut avoir confirmé son courriel pour accéder à une famille.
-    function moi() { return request.auth.token.email; }
-    function verifie() { return request.auth != null && request.auth.token.email_verified == true; }
-    function membreDe(fid) {
-      return verifie() && moi() in get(/databases/$(database)/documents/familles/$(fid)).data.membres;
+    // Seuls les membres de la famille peuvent lire et modifier les données.
+    // Remplace les adresses par celles des comptes créés dans Firebase Authentication
+    // (les vraies adresses sont seulement dans la console Firebase, pas dans ce dépôt public).
+    function estParent() {
+      return request.auth != null
+        && request.auth.token.email in ['parent1@exemple.com', 'parent2@exemple.com'];
     }
-
-    match /familles/{fid} {
-      allow read: if verifie() && moi() in resource.data.membres;
-      allow create: if verifie() && request.resource.data.membres == [moi()];
-      // Les membres peuvent inviter ou retirer un parent (6 au maximum), rien d'autre.
-      allow update: if verifie() && moi() in resource.data.membres
-        && request.resource.data.membres is list && request.resource.data.membres.size() <= 6
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['membres']);
-
-      // Fiche de chaque enfant : prénom, classe, école, ville, calendrier et horaire.
-      match /enfants/{id} {
-        allow read, create, update, delete: if membreDe(fid);
-      }
-      match /rappels/{id} {
-        allow read, delete: if membreDe(fid);
-        allow create, update: if membreDe(fid)
-          && request.resource.data.titre is string && request.resource.data.titre.size() <= 80
-          && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-          && request.resource.data.notes is string && request.resource.data.notes.size() <= 500;
-      }
+    // Fiche de l'enfant : prénom, classe, école, ville, calendrier et horaire du cycle.
+    match /enfants/{id} {
+      allow read, create, update, delete: if estParent();
+    }
+    match /rappels/{id} {
+      allow read, delete: if estParent();
+      allow create, update: if estParent()
+        && request.resource.data.titre is string && request.resource.data.titre.size() <= 80
+        && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 500;
     }
   }
 }
