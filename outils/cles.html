@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clés des notifications · Allez Hop</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#fff;--ink:#151210;--muted:#7D756F;--line:#ECE8E4;--tint:#F5F4F2;--accent:#FF5B00;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#0F0D0C;--ink:#F6F1ED;--muted:#A39A93;--line:#2F2A27;--tint:#24201E;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,sans-serif}
+main{max-width:640px;margin:0 auto;padding:32px max(16px,env(safe-area-inset-left,0px))}
+h1{font-size:26px;margin:0 0 8px;letter-spacing:-.02em}
+p{margin:0 0 14px}
+.note{color:var(--muted);font-size:14px}
+button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:12px 18px;cursor:pointer;background:var(--accent);color:#fff}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);padding:8px 14px;font-size:14px}
+label{display:block;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:22px 0 6px}
+textarea{width:100%;box-sizing:border-box;font:13px ui-monospace,Menlo,monospace;background:var(--tint);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;resize:none}
+.row{display:flex;gap:8px;align-items:center;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Clés des notifications</h1>
+  <p>Cette page crée la paire de clés qui signe la notification du matin. Tout se passe dans ton navigateur : rien n'est envoyé nulle part.</p>
+  <p class="note">À faire une seule fois. Si tu recommences, il faudra réactiver les notifications sur chaque téléphone.</p>
+  <button id="go">Créer les clés</button>
+  <div id="out" hidden>
+    <label for="pub">Clé publique (à envoyer à Claude)</label>
+    <textarea id="pub" rows="3" readonly></textarea>
+    <div class="row"><button class="ghost" data-copy="pub">Copier</button></div>
+    <label for="priv">Clé privée (secret GitHub VAPID_PRIVATE_KEY, à ne partager avec personne)</label>
+    <textarea id="priv" rows="2" readonly></textarea>
+    <div class="row"><button class="ghost" data-copy="priv">Copier</button></div>
+    <p class="note" style="margin-top:18px">GitHub → dépôt allezhop → Settings → Secrets and variables → Actions → New repository secret. Nom : <b>VAPID_PRIVATE_KEY</b>, valeur : la clé privée.</p>
+  </div>
+</main>
+<script>
+const b64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+document.getElementById("go").addEventListener("click", async () => {
+  const kp = await crypto.subtle.generateKey({name:"ECDSA", namedCurve:"P-256"}, true, ["sign","verify"]);
+  const pub = new Uint8Array(await crypto.subtle.exportKey("raw", kp.publicKey));
+  const jwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
+  document.getElementById("pub").value = b64url(pub);
+  document.getElementById("priv").value = jwk.d;
+  document.getElementById("out").hidden = false;
+  document.getElementById("go").textContent = "Créer d'autres clés";
+});
+document.addEventListener("click", async e => {
+  const id = e.target.dataset && e.target.dataset.copy; if (!id) return;
+  const t = document.getElementById(id);
+  try { await navigator.clipboard.writeText(t.value); e.target.textContent = "Copié"; }
+  catch (_) { t.focus(); t.select(); }
+  setTimeout(() => e.target.textContent = "Copier", 1500);
+});
+</script>
+</body>
+</html>
