@@ -53,11 +53,9 @@ async function chargerDepuisFirebase(){
   const { initializeApp, cert } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
   initializeApp({ credential: cert(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)) });
-  // Première famille trouvée (une seule famille pour l'instant) : familles/{famille}/enfants
-  const snap = await getFirestore().collectionGroup("enfants").get();
-  const doc = snap.docs.find(d => d.ref.path.startsWith("familles/"));
-  if (!doc) return false;
-  chargerEnfant(doc.data());
+  const snap = await getFirestore().collection("enfants").limit(1).get();
+  if (snap.empty) return false;
+  chargerEnfant(snap.docs[0].data());
   return true;
 }
 

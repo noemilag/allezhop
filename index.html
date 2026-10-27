@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610272340"></script>
+<script src="config.js?v=202610272350"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -67,20 +67,7 @@ html.standalone header{padding-top:38px}
 .kid-row .tx b{display:block;font-weight:800;font-size:17px}
 .kid-row .tx span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kid-row .chk{font-size:12px;font-weight:800;color:var(--accent-ink);text-transform:uppercase;letter-spacing:.08em}
-.btn.outline{border:1px solid var(--line);color:var(--ink);background:var(--card)}
-.etape{display:flex;flex-direction:column;gap:12px}
-.etape details{display:flex;flex-direction:column;gap:10px}
-.etape summary{color:var(--muted);font-weight:600;cursor:pointer;padding:4px 0}
-.etape textarea{font:12px ui-monospace,Menlo,monospace!important}
-.ok{margin:0;color:var(--ink);font-weight:700;background:var(--pool);border-radius:12px;padding:10px 12px}
-.btn.lien{font-size:14px;padding:6px 0;align-self:center}
-.membres{display:flex;flex-direction:column;gap:6px}
-.membre{display:flex;align-items:center;gap:10px;font-size:15px;min-width:0}
-.membre span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.membre em{font-style:normal;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.invite{display:flex;gap:8px}
-.invite input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:14px;padding:10px 12px}
-.invite .btn{padding:10px 16px;font-size:15px}
+.btn.outline{border:1px solid var(--line);color:var(--ink)}
 .kid-add-panel{display:flex;flex-direction:column;gap:10px;background:var(--tint);border-radius:16px;padding:12px}
 .kid-add-panel details{display:flex;flex-direction:column;gap:10px}
 .kid-add-panel summary{color:var(--muted);font-weight:600;cursor:pointer;padding:4px 0}
@@ -103,9 +90,6 @@ html.standalone header{padding-top:38px}
 .gate p{margin:0;max-width:34ch;font-size:17px;line-height:1.45;color:var(--muted);text-wrap:pretty}
 .gate .add{margin-top:8px;padding:0 28px}
 html.st-locked .gate{display:flex}
-.gate-actions{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;width:100%;max-width:300px}
-.gate-actions .add, .gate-actions .btn{width:100%;justify-content:center;margin:0}
-.gate-actions .btn.outline{height:52px;padding:0 20px;background:var(--card)}
 .setup{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:360px}
 .setup details{width:100%;text-align:left}
 .setup summary{text-align:center;color:var(--muted);font-weight:600;cursor:pointer;padding:6px}
@@ -291,15 +275,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   <section class="gate pad" id="gate" aria-live="polite">
     <h2 id="gate-title">La journée d'école,<br>en un coup d'œil.</h2>
     <p id="gate-msg">Suivez l'horaire scolaire de votre enfant : le jour du cycle, les spécialistes, quoi glisser dans le sac et la météo du jour. Ajoutez vos rappels et partagez-les avec l'autre parent.</p>
-    <div class="gate-actions" id="gate-out">
-      <button class="add" id="gate-signup" type="button">S'inscrire</button>
-      <button class="btn outline" id="gate-login" type="button">Se connecter</button>
-    </div>
-    <div class="gate-actions" id="gate-verify" hidden>
-      <button class="add" id="v-done" type="button">J'ai confirmé</button>
-      <button class="btn outline" id="v-send" type="button">Envoyer le lien de confirmation</button>
-      <p class="note" id="v-info" hidden></p>
-    </div>
+    <button class="add" id="gate-login" type="button">Se connecter</button>
     <div class="setup" id="setup" hidden>
       <input type="file" id="setup-file" accept=".json,application/json,text/plain" hidden>
       <button class="add" id="setup-pick" type="button">Choisir le fichier</button>
@@ -309,7 +285,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
         <button class="btn primary" id="setup-paste" type="button">Enregistrer</button>
       </details>
       <p class="err" id="setup-err" hidden></p>
-      <p class="note">Bientôt : prendre l'horaire en photo.</p>
     </div>
     <button class="btn ghost" id="gate-alt" type="button" hidden></button>
   </section>
@@ -366,39 +341,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   </form>
 </div>
 
-<div class="scrim" id="inscription" hidden>
-  <div class="sheet pad">
-    <div class="grab"></div>
-    <h2>S'inscrire</h2>
-    <section id="i-1" class="etape">
-      <div class="sec-h" style="margin:0"><span>1. Votre enfant</span></div>
-      <p class="note">Ajoutez la fiche de votre enfant : un fichier de données (.json) avec son calendrier scolaire et son horaire.</p>
-      <input type="file" id="i-file" accept=".json,application/json,text/plain" hidden>
-      <button type="button" class="btn outline" id="i-pick">Choisir le fichier</button>
-      <details>
-        <summary>ou coller son contenu</summary>
-        <div class="field"><label for="i-text">Contenu du fichier</label><textarea id="i-text" rows="5"></textarea></div>
-        <button type="button" class="btn outline" id="i-paste">Vérifier</button>
-      </details>
-      <p class="ok" id="i-ok" hidden></p>
-      <p class="err" id="i-err" hidden></p>
-      <p class="note">Bientôt : prendre l'horaire en photo.</p>
-      <div class="actions"><button type="button" class="btn primary" id="i-next" disabled>Continuer</button></div>
-      <button type="button" class="btn ghost lien" id="i-skip">L'autre parent m'a invité : passer cette étape</button>
-    </section>
-    <form id="i-2" class="etape" hidden novalidate>
-      <div class="sec-h" style="margin:0"><span>2. Votre compte</span></div>
-      <div class="field"><label for="i-email">Courriel</label><input type="email" id="i-email" autocomplete="username" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
-      <div class="field"><label for="i-pass">Mot de passe (6 caractères ou plus)</label><input type="password" id="i-pass" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
-      <p class="note">On vous enverra un lien pour confirmer votre courriel.</p>
-      <p class="err" id="i-err2" hidden></p>
-      <div class="actions"><button type="submit" class="btn primary" id="i-go">Créer mon compte</button></div>
-      <button type="button" class="btn ghost lien" id="i-back">Retour</button>
-    </form>
-    <div class="actions"><button type="button" class="btn ghost" id="i-close">Annuler</button></div>
-  </div>
-</div>
-
 <div class="scrim" id="compte" hidden>
   <form class="sheet pad" id="login" novalidate>
     <div class="grab"></div>
@@ -434,12 +376,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
         </details>
         <p class="err" id="kid-err" hidden></p>
       </div>
-
-      <div class="sec-h" style="margin-top:6px"><span>Famille</span></div>
-      <div class="membres" id="membres"></div>
-      <p class="note">Invitez l'autre parent avec son courriel : il verra les enfants et partagera les rappels. Il se connecte ensuite avec cette adresse, ou s'inscrit s'il n'a pas encore de compte (S'inscrire → « L'autre parent m'a invité »).</p>
-      <div class="invite"><input type="email" id="inv-email" placeholder="courriel@exemple.com" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Courriel de l'autre parent"><button type="button" class="btn primary" id="inv-go">Inviter</button></div>
-      <p class="err" id="inv-err" hidden></p>
 
       <div class="sec-h" style="margin-top:6px"><span>Compte</span></div>
       <p class="note">Les rappels que tu ajoutes apparaissent aussi chez l'autre parent.</p>
@@ -480,6 +416,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610272340"></script>
+<script type="module" src="app.js?v=202610272350"></script>
 </body>
 </html>

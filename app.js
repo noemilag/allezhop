@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272340";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272350";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610272340";
+const VERSION = "202610272350";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -51,11 +51,6 @@ const LS="allezhop.rappels", LS_ANCIEN="goleo.rappels";   // ancien nom, encore 
 function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||localStorage.getItem(LS_ANCIEN)||"[]"); }catch(e){ return []; } }
 function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }catch(e){} }
 
-// Organisation dans Firebase : familles/{famille} (membres = courriels des parents)
-//   └ enfants/{enfant}   fiche de l'enfant (prénom, classe, calendrier, horaire)
-//   └ rappels/{rappel}   rappels partagés, rattachés à un enfant
-let fid=null, famille=null;
-const LS_PENDING="allezhop.inscription.enfant";   // fiche choisie à l'inscription, en attente de la confirmation du courriel
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
   if(!cfg || !cfg.apiKey){ mode="local"; reminders=lsLoad(); paintAccount(); setAccess("open"); return; }
@@ -64,116 +59,57 @@ async function initStore(){
     const V="10.12.2", base="https://www.gstatic.com/firebasejs/"+V+"/";
     const [{initializeApp}, A, F] = await Promise.all([import(base+"firebase-app.js"), import(base+"firebase-auth.js"), import(base+"firebase-firestore.js")]);
     const app=initializeApp(cfg), auth=A.getAuth(app);
-    auth.languageCode="fr";
     let db;
     try{ db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})}); }
     catch(e){ db=F.getFirestore(app); }
-    const famCol=F.collection(db,"familles");
-    const col=name=>F.collection(db,"familles",fid,name);
-    let unsubs=[];
-    const stop=()=>{ unsubs.forEach(u=>u()); unsubs=[]; };
-
-    async function creerFamille(){
-      const ref=F.doc(famCol);
-      await F.setDoc(ref, {membres:[userEmail], creeLe:Date.now(), par:userEmail});
-      fid=ref.id;
-    }
-    // Avant les familles, il n'y avait qu'une famille (collections enfants et rappels au premier niveau).
-    // À la première connexion, ses données sont copiées dans une nouvelle famille, une seule fois.
-    async function transfererAncien(){
-      let oldKids; try{ oldKids=await F.getDocs(F.collection(db,"enfants")); }catch(e){ return false; }
-      if(oldKids.empty || oldKids.docs.some(d=>d.data().migreVers)) return false;
-      let oldRem=[]; try{ oldRem=(await F.getDocs(F.collection(db,"rappels"))).docs; }catch(e){}
-      await creerFamille();
-      const ordre=oldKids.docs.slice().sort((x,y)=>(x.data().creeLe||0)-(y.data().creeLe||0));
-      const map={}, b=F.writeBatch(db);
-      ordre.forEach(d=>{ const r=F.doc(col("enfants")); map[d.id]=r.id; b.set(r, {...d.data(), creeLe:d.data().creeLe||Date.now()}); });
-      oldRem.forEach(d=>{ const x=d.data(); b.set(F.doc(col("rappels")), {...x, notes:x.notes||"", enfant:map[x.enfant]||map[ordre[0].id]}); });
-      await b.commit();
-      for(const d of oldKids.docs) await F.updateDoc(d.ref, {migreVers:fid}).catch(()=>{});
-      return true;
-    }
-    function ecouter(){
-      stop();
-      let haveKid=false, haveRem=false;
-      const ready=()=>{
-        if(!haveKid || !haveRem) return;
-        if(access!=="open"){ setAccess("open"); importLocal(); loadWeather(false); } else render();
-      };
-      unsubs.push(F.onSnapshot(F.doc(db,"familles",fid), s=>{ famille=s.data()||null; paintFamily(); }, fail));
-      unsubs.push(F.onSnapshot(col("enfants"), snap=>{
-        kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
-        if(!kidsAll.length){ haveKid=false; setAccess("setup"); return; }
-        let want=null; try{ want=localStorage.getItem(LS_KID); }catch(e){}
-        const k=kidsAll.find(x=>x.id===want) || kidsAll.find(x=>x.id===kidId) || kidsAll[0];
-        const changed=k.id!==kidId; kidId=k.id; chargerEnfant(k);
-        paintKids();
-        if(haveKid && changed && access==="open"){ current=null; loadWeather(false); }
-        haveKid=true; ready();
-      }, fail));
-      unsubs.push(F.onSnapshot(col("rappels"), snap=>{
-        reminders=snap.docs.map(d=>({id:d.id, ...d.data()}));
-        haveRem=true; ready();
-      }, fail));
-    }
-    function fail(err){
-      if(err && err.code==="permission-denied") setAccess("locked", `Le compte ${userEmail} n'a pas accès à cette famille.`, "Me déconnecter");
-      else setAccess("locked", "L'horaire ne se charge pas. Vérifie ta connexion internet.", "Réessayer");
-    }
-    async function demarrer(user){
-      stop(); fid=null; famille=null; kidsAll=[]; kidId=null; reminders=[];
-      userEmail=user?user.email:null;
-      mode=user?"shared":"signedout";
-      paintAccount();
-      if(!user){ setAccess("locked"); return; }
-      if(!user.emailVerified){ setAccess("verify"); return; }
-      setAccess("loading");
-      try{
-        const q=await F.getDocs(F.query(famCol, F.where("membres","array-contains",userEmail)));
-        if(!q.empty) fid=q.docs.slice().sort((x,y)=>(x.data().creeLe||0)-(y.data().creeLe||0))[0].id;
-        else await transfererAncien();
-        // Fiche choisie à l'inscription
-        let pending=null; try{ pending=localStorage.getItem(LS_PENDING); }catch(e){}
-        if(pending){
-          try{ const d=JSON.parse(pending); if(!validerEnfant(d)) await store.saveKid(d, true); }catch(e){}
-          try{ localStorage.removeItem(LS_PENDING); }catch(e){}
-        }
-        if(!fid){ setAccess("setup"); return; }
-        ecouter();
-      }catch(err){ fail(err); }
-    }
-
+    const coll=F.collection(db,"rappels"), kids=F.collection(db,"enfants");
+    let unsub=null, unsubK=null;
     store={
       signIn:(e,p)=>A.signInWithEmailAndPassword(auth,e,p),
-      signUp:async(e,p)=>{ const c=await A.createUserWithEmailAndPassword(auth,e,p); await A.sendEmailVerification(c.user).catch(()=>{}); return c; },
-      sendVerify:()=>A.sendEmailVerification(auth.currentUser),
-      // Après avoir touché le lien du courriel : on relit le compte et on renouvelle l'accès
-      recheck:async()=>{
-        const u=auth.currentUser; if(!u) return false;
-        await A.reload(u);
-        if(!u.emailVerified) return false;
-        await u.getIdToken(true); demarrer(u); return true;
-      },
-      reset:e=>A.sendPasswordResetEmail(auth,e),
+      reset:e=>{ auth.languageCode="fr"; return A.sendPasswordResetEmail(auth,e); },
       signOut:()=>A.signOut(auth),
       save:r=>{
         const body={titre:r.titre, date:r.date, notes:r.notes, ic:r.ic, enfant:r.enfant||kidId||null, maj:Date.now(), par:userEmail};
-        return r.id ? F.setDoc(F.doc(col("rappels"),r.id), body) : F.addDoc(col("rappels"), body);
+        return r.id ? F.setDoc(F.doc(db,"rappels",r.id), body) : F.addDoc(coll, body);
       },
-      del:id=>F.deleteDoc(F.doc(col("rappels"),id)),
-      // Ajoute un enfant ; crée la famille s'il n'y en a pas encore
-      saveKid:async(d, sansEcoute)=>{
-        const nouvelle=!fid;
-        if(nouvelle) await creerFamille();
-        const ref=await F.addDoc(col("enfants"), {...d, creeLe:Date.now(), par:userEmail});
-        try{ localStorage.setItem(LS_KID, ref.id); }catch(e){}
-        if(nouvelle && !sansEcoute) ecouter();
-        return ref;
-      },
-      invite:email=>F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayUnion(email)}),
-      retirer:email=>F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayRemove(email)}),
+      del:id=>F.deleteDoc(F.doc(db,"rappels",id)),
+      saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
     };
-    A.onAuthStateChanged(auth, demarrer);
+    A.onAuthStateChanged(auth, user=>{
+      if(unsub){ unsub(); unsub=null; }
+      if(unsubK){ unsubK(); unsubK=null; }
+      userEmail=user?user.email:null;
+      mode=user?"shared":"signedout";
+      reminders=[];
+      if(user){
+        setAccess("loading");
+        let haveKid=false, haveRem=false;
+        const ready=()=>{
+          if(!haveKid || !haveRem) return;
+          if(access!=="open"){ setAccess("open"); importLocal(); loadWeather(false); } else render();
+        };
+        const fail=err=>{
+          if(err.code==="permission-denied") setAccess("locked", `Le compte ${userEmail} n'a pas accès à cette famille.`, "Me déconnecter");
+          else setAccess("locked", "L'horaire ne se charge pas. Vérifie ta connexion internet.", "Réessayer");
+        };
+        // Fiche de l'enfant (prénom, classe, calendrier, horaire) : seulement pour les membres de la famille
+        unsubK=F.onSnapshot(kids, snap=>{
+          kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
+          if(!kidsAll.length){ haveKid=false; setAccess("setup"); return; }
+          let want=null; try{ want=localStorage.getItem(LS_KID); }catch(e){}
+          const k=kidsAll.find(x=>x.id===want) || kidsAll.find(x=>x.id===kidId) || kidsAll[0];
+          const changed=k.id!==kidId; kidId=k.id; chargerEnfant(k);
+          paintKids();
+          if(haveKid && changed && access==="open"){ current=null; loadWeather(false); }
+          haveKid=true; ready();
+        }, fail);
+        unsub=F.onSnapshot(coll, snap=>{
+          reminders=snap.docs.map(d=>({id:d.id, ...d.data()}));
+          haveRem=true; ready();
+        }, fail);
+      } else setAccess("locked");
+      paintAccount();
+    });
   }catch(e){
     setAccess("locked", "L'app ne se charge pas. Vérifie ta connexion internet.", "Réessayer");
   }
@@ -432,19 +368,16 @@ const GATE_TITLE=$("gate-title").innerHTML;
 function setAccess(state, msg, alt){
   access=state;
   const h=document.documentElement;
-  const gate = state==="setup" || state==="verify";
-  h.classList.remove("st-loading","st-locked","st-open","st-setup"); h.classList.add("st-"+(gate?"locked":state));
+  h.classList.remove("st-loading","st-locked","st-open","st-setup"); h.classList.add("st-"+(state==="setup"?"locked":state));
   h.classList.toggle("st-setup", state==="setup");
-  $("gate-title").innerHTML = state==="setup" ? "Ajoutez votre enfant" : state==="verify" ? "Confirmez votre courriel" : GATE_TITLE;
+  $("gate-title").innerHTML = state==="setup" ? "Presque prêt!" : GATE_TITLE;
   $("setup").hidden = state!=="setup";
-  $("gate-verify").hidden = state!=="verify";
-  if(state==="setup"){ msg = "Choisissez le fichier de données de votre enfant pour commencer. Si l'autre parent utilise déjà Allez Hop, demandez-lui plutôt de vous inviter (Profil → Famille)."; alt = "Me déconnecter"; }
-  if(state==="verify"){ msg = `Touchez le lien envoyé à ${userEmail}, puis revenez ici. Regardez aussi dans les courriels indésirables.`; alt = "Me déconnecter"; $("v-info").hidden=true; }
+  if(state==="setup"){ msg = "Il reste à ajouter l'horaire de votre enfant. Choisissez le fichier de données qu'on vous a remis."; alt = "Me déconnecter"; }
   const showKid = state==="open";
   $("kid-name").textContent = showKid ? ENFANT.prenom : "";
   $("kid-class").textContent = showKid ? "Classe "+ENFANT.classe : "";
   $("gate-msg").textContent = msg || GATE_TXT;
-  $("gate-out").hidden = !!alt || gate;
+  $("gate-login").hidden = !!alt || state==="setup";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
   if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; }
   else render();
@@ -461,72 +394,6 @@ $("setup-pick").addEventListener("click", ()=>$("setup-file").click());
 $("setup-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text()); e.target.value=""; });
 $("setup-paste").addEventListener("click", ()=>enregistrerEnfant($("setup-text").value));
 $("gate-login").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; });
-$("gate-signup").addEventListener("click", ()=>ouvrirInscription());
-// Confirmation du courriel
-$("v-done").addEventListener("click", async ()=>{
-  const ok = store && await store.recheck().catch(()=>false);
-  if(!ok){ $("v-info").textContent="Le courriel n'est pas encore confirmé. Touchez le lien reçu, puis réessayez."; $("v-info").hidden=false; }
-});
-$("v-send").addEventListener("click", async ()=>{
-  try{ await store.sendVerify(); $("v-info").textContent="Lien envoyé à "+userEmail+"."; }
-  catch(e){ $("v-info").textContent = e.code==="auth/too-many-requests" ? "Trop d'envois. Attendez quelques minutes." : "L'envoi n'a pas fonctionné. Réessayez."; }
-  $("v-info").hidden=false;
-});
-
-/* ---------- Inscription : 1. fiche de l'enfant, 2. compte ---------- */
-let ficheInscription=null;
-function ouvrirInscription(){
-  ficheInscription=null;
-  $("i-1").hidden=false; $("i-2").hidden=true;
-  $("i-ok").hidden=true; $("i-err").hidden=true; $("i-err2").hidden=true; $("i-next").disabled=true;
-  $("inscription").hidden=false;
-}
-function lireFiche(txt){
-  const err=$("i-err"), ok=$("i-ok"); err.hidden=true; ok.hidden=true; $("i-next").disabled=true; ficheInscription=null;
-  let d; try{ d=JSON.parse(txt); }catch(e){ err.textContent="Ce fichier n'est pas lisible. Vérifiez que c'est bien le fichier de données (.json)."; err.hidden=false; return; }
-  const pb=validerEnfant(d); if(pb){ err.textContent=pb; err.hidden=false; return; }
-  ficheInscription=d; ok.textContent="✓ Fiche de "+d.prenom+" prête"+(d.classe?" (classe "+d.classe+")":""); ok.hidden=false; $("i-next").disabled=false;
-}
-$("i-pick").addEventListener("click", ()=>$("i-file").click());
-$("i-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) lireFiche(await f.text()); e.target.value=""; });
-$("i-paste").addEventListener("click", ()=>lireFiche($("i-text").value));
-$("i-next").addEventListener("click", ()=>{ $("i-1").hidden=true; $("i-2").hidden=false; setTimeout(()=>$("i-email").focus(),50); });
-$("i-skip").addEventListener("click", ()=>{ ficheInscription=null; $("i-1").hidden=true; $("i-2").hidden=false; });
-$("i-back").addEventListener("click", ()=>{ $("i-2").hidden=true; $("i-1").hidden=false; });
-$("i-close").addEventListener("click", ()=>$("inscription").hidden=true);
-$("inscription").addEventListener("click", e=>{ if(e.target===$("inscription")) $("inscription").hidden=true; });
-$("i-2").addEventListener("submit", async e=>{
-  e.preventDefault();
-  const err=$("i-err2"); err.hidden=true;
-  const em=$("i-email").value.trim().toLowerCase(), pw=$("i-pass").value;
-  if(!em || pw.length<6){ err.textContent="Entrez votre courriel et un mot de passe de 6 caractères ou plus."; err.hidden=false; return; }
-  if(!store || !store.signUp){ err.textContent="L'app ne se charge pas. Vérifiez votre connexion internet."; err.hidden=false; return; }
-  $("i-go").disabled=true;
-  // La fiche attend dans le téléphone jusqu'à la confirmation du courriel
-  try{ if(ficheInscription) localStorage.setItem(LS_PENDING, JSON.stringify(ficheInscription)); else localStorage.removeItem(LS_PENDING); }catch(e){}
-  try{ await store.signUp(em,pw); $("i-pass").value=""; $("inscription").hidden=true; }
-  catch(er){
-    const c=er.code||"";
-    err.textContent = c==="auth/email-already-in-use" ? "Un compte existe déjà avec ce courriel. Touchez Annuler, puis Se connecter."
-      : c==="auth/invalid-email" ? "Ce courriel n'est pas valide."
-      : c==="auth/weak-password" ? "Mot de passe trop court : 6 caractères ou plus."
-      : "L'inscription n'a pas fonctionné. Vérifiez votre connexion internet." + (c?" (code : "+c.replace("auth/","")+")":"");
-    err.hidden=false;
-  }finally{ $("i-go").disabled=false; }
-});
-
-/* ---------- Famille : membres et invitation ---------- */
-function paintFamily(){
-  const m=(famille && famille.membres) || [];
-  $("membres").innerHTML=m.map(x=>`<div class="membre"><span>${esc(x)}</span>${x===userEmail?"<em>Vous</em>":""}</div>`).join("");
-}
-$("inv-go").addEventListener("click", async ()=>{
-  const err=$("inv-err"); err.hidden=true;
-  const em=$("inv-email").value.trim().toLowerCase();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ err.textContent="Entrez un courriel valide."; err.hidden=false; return; }
-  try{ await store.invite(em); $("inv-email").value=""; toast(em+" fait maintenant partie de la famille"); }
-  catch(e){ err.textContent="L'invitation n'a pas fonctionné. Réessayez."; err.hidden=false; }
-});
 $("gate-alt").addEventListener("click", async e=>{
   if(e.currentTarget.textContent==="Me déconnecter" && store){ await store.signOut(); return; }
   location.reload();
