@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272040";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272258";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610272040";
+const VERSION = "202610272258";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -29,21 +29,24 @@ async function loadWeather(force){
   if(!WX_URL) return;   // position connue seulement après le chargement de l'enfant
   try{
     const c=JSON.parse(localStorage.getItem(WX_KEY)||"null");
-    if(c && c.d){ wx=c.d; wxTime=c.t; if(!force) render(); }
-    if(c && !force && Date.now()-c.t < 30*60e3) return;
+    const ici = c && c.url===WX_URL;   // la prévision gardée est-elle pour cette école?
+    wx = ici ? c.d : {}; wxTime = ici ? c.t : 0; if(!force) render();
+    if(ici && !force && Date.now()-c.t < 30*60e3) return;
   }catch(e){}
   try{
     const r=await fetch(WX_URL);
     if(!r.ok) throw new Error("HTTP "+r.status);
     const j=await r.json();
     wx=summarize(j.hourly); wxTime=Date.now();
-    try{ localStorage.setItem(WX_KEY, JSON.stringify({t:wxTime, d:wx})); }catch(e){}
+    try{ localStorage.setItem(WX_KEY, JSON.stringify({t:wxTime, d:wx, url:WX_URL})); }catch(e){}
     render();
   }catch(e){ /* hors ligne : on garde la dernière prévision ou le conseil de saison */ }
 }
 
 /* ---------- Rappels : Firebase si configuré, sinon ce téléphone seulement ---------- */
 let reminders=[], store=null, mode="local", userEmail=null;
+let kidsAll=[], kidId=null;          // enfants de la famille (triés par date d'ajout) et enfant affiché
+const LS_KID="allezhop.enfant";
 const LS="allezhop.rappels", LS_ANCIEN="goleo.rappels";   // ancien nom, encore lu pour ne perdre aucun rappel
 function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||localStorage.getItem(LS_ANCIEN)||"[]"); }catch(e){ return []; } }
 function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }catch(e){} }
@@ -66,11 +69,11 @@ async function initStore(){
       reset:e=>{ auth.languageCode="fr"; return A.sendPasswordResetEmail(auth,e); },
       signOut:()=>A.signOut(auth),
       save:r=>{
-        const body={titre:r.titre, date:r.date, notes:r.notes, ic:r.ic, maj:Date.now(), par:userEmail};
+        const body={titre:r.titre, date:r.date, notes:r.notes, ic:r.ic, enfant:r.enfant||kidId||null, maj:Date.now(), par:userEmail};
         return r.id ? F.setDoc(F.doc(db,"rappels",r.id), body) : F.addDoc(coll, body);
       },
       del:id=>F.deleteDoc(F.doc(db,"rappels",id)),
-      saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}),
+      saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
     };
     A.onAuthStateChanged(auth, user=>{
       if(unsub){ unsub(); unsub=null; }
@@ -91,8 +94,14 @@ async function initStore(){
         };
         // Fiche de l'enfant (prénom, classe, calendrier, horaire) : seulement pour les membres de la famille
         unsubK=F.onSnapshot(kids, snap=>{
-          if(snap.empty){ haveKid=false; setAccess("setup"); return; }
-          chargerEnfant(snap.docs[0].data()); haveKid=true; ready();
+          kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
+          if(!kidsAll.length){ haveKid=false; setAccess("setup"); return; }
+          let want=null; try{ want=localStorage.getItem(LS_KID); }catch(e){}
+          const k=kidsAll.find(x=>x.id===want) || kidsAll.find(x=>x.id===kidId) || kidsAll[0];
+          const changed=k.id!==kidId; kidId=k.id; chargerEnfant(k);
+          paintKids();
+          if(haveKid && changed && access==="open"){ current=null; loadWeather(false); }
+          haveKid=true; ready();
         }, fail);
         unsub=F.onSnapshot(coll, snap=>{
           reminders=snap.docs.map(d=>({id:d.id, ...d.data()}));
@@ -131,17 +140,43 @@ async function deleteReminder(id){
   if(mode==="shared"){ store.del(id).catch(()=>toast("La suppression n'a pas pu être partagée. Réessaie.")); return; }
   reminders=reminders.filter(x=>x.id!==id); lsSave(); render();
 }
-function remindersOn(k){ return reminders.filter(r=>r.date===k).sort((a,b)=>(a.titre||"").localeCompare(b.titre||"")); }
+// Rappels de l'enfant affiché. Les anciens rappels (sans enfant) appartiennent au premier enfant ajouté.
+function mine(){ return reminders.filter(r=> r.enfant ? r.enfant===kidId : (!kidsAll.length || kidId===kidsAll[0].id)); }
+function remindersOn(k){ return mine().filter(r=>r.date===k).sort((a,b)=>(a.titre||"").localeCompare(b.titre||"")); }
 
 /* ---------- Compte ---------- */
 const $=id=>document.getElementById(id);
 // btn : texte du bouton (« Me connecter » ouvre la connexion, « Réessayer » recharge l'app), ou rien
 function showBanner(txt, btn){ $("banner-txt").textContent=txt; $("banner-btn").textContent=btn||""; $("banner-btn").hidden=!btn; $("banner-wrap").hidden=false; }
+function choisirEnfant(id){
+  const k=kidsAll.find(x=>x.id===id); if(!k || id===kidId) return;
+  try{ localStorage.setItem(LS_KID, id); }catch(e){}
+  kidId=id; chargerEnfant(k); current=null;
+  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent="Classe "+ENFANT.classe;
+  paintKids(); render(); loadWeather(false);
+  toast("Horaire de "+ENFANT.prenom);
+}
+function paintKids(){
+  $("kids-count").textContent=pad2(kidsAll.length);
+  $("kids-list").innerHTML=kidsAll.map(k=>`<button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
+    <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
+    <span class="tx"><b>${esc(k.prenom||"")}</b><span>${esc([k.classe?"Classe "+k.classe:"", k.ecole||""].filter(Boolean).join(" · "))}</span></span>
+    ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>`).join("");
+  document.querySelector(".kid").classList.toggle("multi", kidsAll.length>1);
+}
+$("kids-list").addEventListener("click", e=>{ const b=e.target.closest("[data-kid]"); if(b){ choisirEnfant(b.dataset.kid); $("compte").hidden=true; } });
+$("kid-add").addEventListener("click", ()=>{ $("kid-add-panel").hidden=!$("kid-add-panel").hidden; $("kid-err").hidden=true; });
+$("kid-pick").addEventListener("click", ()=>$("kid-file").click());
+$("kid-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text(), "kid-err"); e.target.value=""; });
+$("kid-paste").addEventListener("click", ()=>enregistrerEnfant($("kid-text").value, "kid-err"));
+// Toucher le prénom en haut : ouvre le profil pour changer d'enfant
+document.querySelector(".kid").addEventListener("click", ()=>{ if(access==="open"){ $("compte").hidden=false; } });
 function paintAccount(){
   $("c-off").hidden = mode!=="local";
   $("c-out").hidden = mode!=="signedout";
   $("c-in").hidden = mode!=="shared";
   $("c-email").textContent = userEmail||"";
+  $("c-title").textContent = mode==="shared" ? "Profil" : "Connexion";
   $("compte-badge").hidden = mode!=="signedout";
   $("banner-wrap").hidden=true;
 }
@@ -258,8 +293,8 @@ function esc(s){ const d=document.createElement("div"); d.textContent=s==null?""
 function pad2(n){ return String(n).padStart(2,"0"); }
 
 function buildDays(){
-  const t=todayKey(), remDates=new Set(reminders.map(r=>r.date));
-  let last=END; reminders.forEach(r=>{ if(r.date>last) last=r.date; });
+  const t=todayKey(), remDates=new Set(mine().map(r=>r.date));
+  let last=END; mine().forEach(r=>{ if(r.date>last) last=r.date; });
   const list=[];
   for(let k=t; k<=last; k=addDays(k,1)){
     const w=parse(k).getDay();
@@ -348,11 +383,11 @@ function setAccess(state, msg, alt){
   else render();
 }
 // Première configuration : la fiche de l'enfant (fichier JSON remis à part) est enregistrée dans Firebase.
-async function enregistrerEnfant(txt){
-  const err=$("setup-err"); err.hidden=true;
+async function enregistrerEnfant(txt, errId="setup-err"){
+  const err=$(errId); err.hidden=true;
   let d; try{ d=JSON.parse(txt); }catch(e){ err.textContent="Ce fichier n'est pas lisible. Vérifie que c'est bien le fichier de données (.json)."; err.hidden=false; return; }
   const pb=validerEnfant(d); if(pb){ err.textContent=pb; err.hidden=false; return; }
-  try{ await store.saveKid(d); toast("Horaire de "+d.prenom+" ajouté"); }
+  try{ await store.saveKid(d); toast("Horaire de "+d.prenom+" ajouté"); $("kid-add-panel").hidden=true; $("compte").hidden=true; }
   catch(e){ err.textContent = e.code==="permission-denied" ? "Firebase refuse l'enregistrement : vérifie les règles de sécurité (collection enfants)." : "L'enregistrement n'a pas fonctionné. Réessaie."; err.hidden=false; }
 }
 $("setup-pick").addEventListener("click", ()=>$("setup-file").click());
@@ -500,7 +535,7 @@ function paintCal(){
   $("cal-title").textContent=MOIS[m-1]+" "+y;
   $("cal-prev").disabled = calMonth<=minMonth();
   $("cal-next").disabled = calMonth>=maxMonth;
-  const t=todayKey(), remDates=new Set(reminders.map(r=>r.date));
+  const t=todayKey(), remDates=new Set(mine().map(r=>r.date));
   let h=["L","M","M","J","V","S","D"].map(d=>`<span class="wd">${d}</span>`).join("");
   const first=new Date(y,m-1,1), lead=(first.getDay()+6)%7, dim=new Date(y,m,0).getDate();
   for(let i=0;i<lead;i++) h+=`<span></span>`;
@@ -634,7 +669,7 @@ function buildICS(){
       fold("SUMMARY:"+icsEsc(sum)),fold("DESCRIPTION:"+icsEsc(desc.join("\n"))),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(sum)),"TRIGGER:PT0M","END:VALARM","END:VEVENT");
   }
-  reminders.filter(r=>r.date>=todayKey()).forEach(r=>{
+  mine().filter(r=>r.date>=todayKey()).forEach(r=>{
     const ymd=r.date.replace(/-/g,""), nxt=addDays(r.date,1).replace(/-/g,"");
     L.push("BEGIN:VEVENT","UID:allezhop-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt,
       fold("SUMMARY:"+icsEsc("📌 "+ENFANT.prenom+" : "+r.titre)),fold("DESCRIPTION:"+icsEsc(r.notes||"")),

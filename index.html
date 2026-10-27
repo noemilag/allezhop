@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610272040"></script>
+<script src="config.js?v=202610272258"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -52,6 +52,26 @@ html.standalone header{padding-top:38px}
 .logo{height:58px;width:auto;color:var(--ink);display:block;shape-rendering:geometricPrecision;transform:translateZ(0)}
 /* enfant à qui appartient l'horaire */
 .kid{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;border-left:1px solid var(--line);margin-left:12px;padding-left:12px;line-height:1.15}
+.kid{cursor:default}
+.kid.multi{cursor:pointer}
+.kid.multi b::after{content:" ▾";font-size:.8em;color:var(--muted)}
+/* profil */
+.profil{display:flex;flex-direction:column;gap:12px}
+.profil .who{margin:0;font-weight:700;font-size:16px;color:var(--muted);margin-top:-6px;word-break:break-all}
+.profil .sec-h{margin:8px 0 0}
+.kids-list{display:flex;flex-direction:column;gap:8px}
+.kid-row{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:10px 12px;cursor:pointer;text-align:left;width:100%}
+.kid-row.on{border-color:var(--accent);background:var(--soft)}
+.kid-row .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;flex:none}
+.kid-row .tx{flex:1;min-width:0}
+.kid-row .tx b{display:block;font-weight:800;font-size:17px}
+.kid-row .tx span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kid-row .chk{font-size:12px;font-weight:800;color:var(--accent-ink);text-transform:uppercase;letter-spacing:.08em}
+.btn.outline{border:1px solid var(--line);color:var(--ink)}
+.kid-add-panel{display:flex;flex-direction:column;gap:10px;background:var(--tint);border-radius:16px;padding:12px}
+.kid-add-panel details{display:flex;flex-direction:column;gap:10px}
+.kid-add-panel summary{color:var(--muted);font-weight:600;cursor:pointer;padding:4px 0}
+.kid-add-panel textarea{font:12px ui-monospace,Menlo,monospace!important}
 .kid b{font-weight:800;font-size:17px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kid span{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
 .ibtn{border:0;background:transparent;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;cursor:pointer;position:relative}
@@ -324,7 +344,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 <div class="scrim" id="compte" hidden>
   <form class="sheet pad" id="login" novalidate>
     <div class="grab"></div>
-    <h2>Rappels partagés</h2>
+    <h2 id="c-title">Connexion</h2>
     <div id="c-off" hidden>
       <p class="note">Le partage n'est pas encore configuré. Les rappels sont gardés sur ce téléphone seulement.</p>
     </div>
@@ -339,10 +359,27 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
         <p class="note" id="l-info" hidden></p>
       </div>
     </div>
-    <div id="c-in" hidden>
-      <p>Connecté : <b id="c-email"></b></p>
-      <p class="note" style="margin-top:8px">Les rappels que tu ajoutes apparaissent aussi sur le téléphone de l'autre parent.</p>
-      <div class="actions" style="margin-top:14px"><button type="button" class="btn ghost" id="c-logout">Me déconnecter</button></div>
+    <div id="c-in" hidden class="profil">
+      <p class="who" id="c-email"></p>
+
+      <div class="sec-h"><span>Enfants</span><span id="kids-count"></span></div>
+      <div id="kids-list" class="kids-list"></div>
+      <button type="button" class="btn ghost outline" id="kid-add">+ Ajouter un enfant</button>
+      <div id="kid-add-panel" class="kid-add-panel" hidden>
+        <p class="note">Ajoutez la fiche de l'enfant : un fichier de données (.json) avec son calendrier scolaire et son horaire.</p>
+        <input type="file" id="kid-file" accept=".json,application/json,text/plain" hidden>
+        <button type="button" class="btn primary" id="kid-pick">Choisir le fichier</button>
+        <details>
+          <summary>ou coller son contenu</summary>
+          <div class="field"><label for="kid-text">Contenu du fichier</label><textarea id="kid-text" rows="5"></textarea></div>
+          <button type="button" class="btn primary" id="kid-paste">Enregistrer</button>
+        </details>
+        <p class="err" id="kid-err" hidden></p>
+      </div>
+
+      <div class="sec-h" style="margin-top:6px"><span>Compte</span></div>
+      <p class="note">Les rappels que tu ajoutes apparaissent aussi chez l'autre parent.</p>
+      <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
     </div>
     <div class="actions"><button type="button" class="btn ghost" id="c-close">Fermer</button></div>
   </form>
@@ -379,6 +416,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610272040"></script>
+<script type="module" src="app.js?v=202610272258"></script>
 </body>
 </html>
