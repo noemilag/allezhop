@@ -1,26 +1,47 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281051";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281114";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610281051";
+const VERSION = "202610281114";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
   const u=new URL(location.href); u.searchParams.delete("v");
   history.replaceState(null, "", u.pathname+u.search+u.hash);
 }
+// Nouvelle version en ligne : une fenêtre propose la mise à jour (plus besoin de réinstaller l'icône).
+let nouvelleVersion=null;
+const LS_MAJ="allezhop.maj";
 async function checkUpdate(){
   try{
     const r=await fetch("version.json?t="+Date.now(), {cache:"no-store"});
     const {v}=await r.json();
-    if(!v || v===VERSION) return;
-    try{ if(sessionStorage.getItem("ah.reload")===v) return; sessionStorage.setItem("ah.reload", v); }catch(e){ return; }   // une seule tentative par version
-    const u=new URL(location.href);
-    u.searchParams.set("v", v);
-    location.replace(u.toString());
+    if(!v || v===VERSION){ document.getElementById("maj").hidden=true; return; }
+    nouvelleVersion=v;
+    // Mise à jour déjà tentée il y a moins de 3 minutes : GitHub sert peut-être encore l'ancienne version.
+    let essai=null; try{ essai=JSON.parse(localStorage.getItem(LS_MAJ)||"null"); }catch(e){}
+    const recent = essai && essai.v===v && Date.now()-essai.t < 3*60e3;
+    document.getElementById("maj-txt").textContent = recent
+      ? "La nouvelle version est en route. Si rien ne change, réessayez dans quelques minutes."
+      : "Mettez l'app à jour pour profiter des dernières améliorations.";
+    document.getElementById("maj").hidden=false;
   }catch(e){ /* hors ligne */ }
 }
+async function mettreAJour(){
+  const v=nouvelleVersion, btn=document.getElementById("maj-go");
+  btn.disabled=true; btn.textContent="Mise à jour…";
+  // On force le téléphone à retélécharger chaque fichier de l'app (sa mémoire est remplacée).
+  const base=new URL("./", location.href).href;
+  const fichiers=["", "index.html", "version.json", "manifest.webmanifest", "app.js?v="+v, "school.js?v="+v, "config.js?v="+v];
+  await Promise.all(fichiers.map(f=>fetch(base+f, {cache:"reload"}).catch(()=>{})));
+  try{ localStorage.setItem(LS_MAJ, JSON.stringify({v, t:Date.now()})); }catch(e){}
+  const u=new URL(location.href); u.searchParams.set("v", v);
+  location.replace(u.toString());
+}
+document.getElementById("maj-go").addEventListener("click", mettreAJour);
+document.getElementById("maj-plus-tard").addEventListener("click", ()=>{ document.getElementById("maj").hidden=true; });
+setInterval(()=>{ if(document.visibilityState==="visible") checkUpdate(); }, 15*60e3);
 
 /* ---------- Météo : prévisions horaires d'Open-Meteo, résumées de 7 h à 18 h ---------- */
 let wx = {}, wxTime = 0;
