@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610281123"></script>
+<script src="config.js?v=202610281127"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -90,6 +90,10 @@ html.standalone header{padding-top:38px}
 .gate p{margin:0;max-width:34ch;font-size:17px;line-height:1.45;color:var(--muted);text-wrap:pretty}
 .gate .add{margin-top:8px;padding:0 28px}
 html.st-locked .gate{display:flex}
+/* écran de connexion : le logo passe au centre, au-dessus du texte */
+html.st-locked header .brand{visibility:hidden}
+.gate-logo{line-height:0;margin-bottom:6px}
+.gate-logo .logo{height:110px;width:auto}
 .setup{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:360px}
 .setup details{width:100%;text-align:left}
 .setup summary{text-align:center;color:var(--muted);font-weight:600;cursor:pointer;padding:6px}
@@ -317,6 +321,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   </header>
   <div class="pad" id="banner-wrap" hidden><div class="banner"><span id="banner-txt"></span><button id="banner-btn">Me connecter</button></div></div>
   <section class="gate pad" id="gate" aria-live="polite">
+    <div class="gate-logo" id="gate-logo" aria-hidden="true"></div>
     <h2 id="gate-title">La journée d'école,<br>en un coup d'œil.</h2>
     <p id="gate-msg">Suivez l'horaire scolaire de votre enfant : le jour du cycle, les spécialistes, quoi glisser dans le sac et la météo du jour. Ajoutez vos rappels et partagez-les avec l'autre parent.</p>
     <button class="add" id="gate-login" type="button">Se connecter</button>
@@ -498,6 +503,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610281123"></script>
+<script type="module" src="app.js?v=202610281127"></script>
 </body>
 </html>
