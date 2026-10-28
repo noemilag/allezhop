@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610282113"></script>
+<script src="config.js?v=202610282117"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -141,12 +141,17 @@ button.line{cursor:pointer}
 .line .tx span{display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--accent-ink);margin-top:1px}
 .line .tx span svg.i{width:15px;height:15px;stroke-width:2}
 .line .tx span.note{color:var(--muted);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* à droite de chaque cours : la période en gros, l'heure en petit dessous */
-.line .quand{display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.1}
-.line .per{font-size:16px;font-weight:700;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
-.line .per b{font-weight:inherit}
+/* cours : grille pour que « Période 1 » soit sur la même ligne que le nom du cours, l'heure en petit dessous */
+.line.cours{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ic nom per" "ic sub heure";column-gap:12px;row-gap:1px;align-items:baseline}
+.line.cours .ic{grid-area:ic;align-self:center}
+.line.cours .nom{grid-area:nom;font-weight:700;font-size:17px;letter-spacing:-.02em;line-height:1.2;min-width:0}
+.line.cours .per{grid-area:per;font-size:16px;font-weight:700;color:var(--ink);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.line.cours .sub{grid-area:sub;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--accent-ink);min-width:0}
+.line.cours .sub svg.i{width:15px;height:15px;stroke-width:2;flex:none}
+.line.cours time{grid-area:heure;font-size:12px;font-weight:600;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;align-self:start}
 .line time{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px}
-.card.mini .line .per{font-size:14px}
+.card.mini .line.cours .per{font-size:14px}
+.card.mini .line.cours .sub{font-size:13px}
 .offtxt{font-size:18px;font-weight:600;padding-block:6px}
 
 .wx{margin-top:10px;background:var(--pool);border-radius:20px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
@@ -183,7 +188,7 @@ button.line{cursor:pointer}
 .card.tighter .tile b{font-size:42px}
 .card.tighter .tile span{display:none}
 .card.tighter .line .ic{width:34px;height:34px}
-.card.tighter .line .tx b{font-size:16px}
+.card.tighter .line .tx b, .card.tighter .line.cours .nom{font-size:16px}
 .card.tightest .foot{display:none}
 .card.tightest .hero{padding-block:6px 10px}
 .card.tightest .sec{padding-top:8px}
@@ -202,7 +207,7 @@ button.line{cursor:pointer}
 .card.mini .line{gap:10px;padding-block:2px}
 .card.mini .line .ic{width:30px;height:30px;border-radius:10px}
 .card.mini .line .ic svg.i{width:18px;height:18px}
-.card.mini .line .tx b{font-size:15px}
+.card.mini .line .tx b, .card.mini .line.cours .nom{font-size:15px}
 .card.mini .line .tx span{font-size:13px}
 .card.mini .line time{font-size:11px}
 .card.mini .wx{padding:9px 12px;margin-top:6px;border-radius:16px}
@@ -210,6 +215,8 @@ button.line{cursor:pointer}
 .card.mini .wx-c{margin-top:7px;padding-top:6px;font-size:13px}
 /* dernier niveau : titres des rappels et températures seulement */
 .card.micro .line .tx span.note, .card.micro .wx-c{display:none}
+.card.micro .line.cours time{display:none}
+.card.micro .line.cours{row-gap:0}
 
 /* bas d'écran */
 .dock{flex:none;padding-block:0 10px}
@@ -506,6 +513,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610282113"></script>
+<script type="module" src="app.js?v=202610282117"></script>
 </body>
 </html>
