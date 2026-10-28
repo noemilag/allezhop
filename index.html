@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610281114"></script>
+<script src="config.js?v=202610281123"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -136,6 +136,9 @@ button.line{cursor:pointer}
 .line .tx span svg.i{width:15px;height:15px;stroke-width:2}
 .line .tx span.note{color:var(--muted);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .line time{font-size:17px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.line .quand{display:flex;flex-direction:column;align-items:flex-end;flex:none}
+.line .quand small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.8;white-space:nowrap;margin-top:1px}
+.card.mini .line .quand small{font-size:10px}
 .offtxt{font-size:18px;font-weight:600;padding-block:6px}
 
 .wx{margin-top:10px;background:var(--pool);border-radius:20px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
@@ -495,6 +498,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610281114"></script>
+<script type="module" src="app.js?v=202610281123"></script>
 </body>
 </html>

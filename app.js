@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281114";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281123";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610281114";
+const VERSION = "202610281123";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -345,7 +345,7 @@ function cardHTML(k){
     const sp=specialsOf(inf.jour);
     h+=`<div class="sec"><div class="sec-h"><span>À l'école</span><span>${pad2(sp.length)}</span></div>`;
     h+= sp.length
-      ? sp.map(s=>`<div class="line"><span class="ic">${icon(s.ic)}</span><div class="tx"><b>${esc(s.nom)}</b>${s.apporter?`<span>${icon("backpack")}${esc(s.apporter)}</span>`:""}</div><time>${PERIODES[s.p]}</time></div>`).join("")
+      ? sp.map(s=>`<div class="line"><span class="ic">${icon(s.ic)}</span><div class="tx"><b>${esc(s.nom)}</b>${s.apporter?`<span>${icon("backpack")}${esc(s.apporter)}</span>`:""}</div><span class="quand"><time>${PERIODES[s.p]}</time><small>Période ${s.p}</small></span></div>`).join("")
       : `<div class="offtxt">Aucun spécialiste</div>`;
     h+=`</div>`;
   }
