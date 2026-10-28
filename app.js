@@ -373,7 +373,7 @@ function cardHTML(k){
     const sp=specialsOf(CYCLE_OF[nx]), rem=remindersOn(nx);
     let txt = sp.length===1 ? `${sp[0].court} à ${PERIODES[sp[0].p]}` : sp.length ? sp.map(s=>s.court).join(", ") : "Pas de spécialiste";
     txt = `J${CYCLE_OF[nx]} · ${txt}` + (rem.length ? ` · ${rem[0].titre}` : "");
-    const lab = nx===addDays(k,1) ? "Demain" : cap(JOURS[parse(nx).getDay()]);
+    const lab = nx===addDays(todayKey(),1) ? "Demain" : cap(JOURS[parse(nx).getDay()]);
     h+=`<button class="foot" data-go="${nx}"><small>${lab}</small><span>${esc(txt)}</span>${icon("upright")}</button>`;
   }
   return h;
