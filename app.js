@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281127";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281136";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610281127";
+const VERSION = "202610281136";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -477,6 +477,20 @@ function go(delta, dir){
     card.animate([{transform:`translate(${-d.x*110}%,${-d.y*110}%) rotate(${-d.x*8}deg)`},{transform:"none"}],{duration:320,easing:EASE});
   }
 }
+// Bouton qui réagit dès que le doigt se lève. Le mode app de l'iPhone (ouverte depuis l'icône)
+// avale parfois le premier « click » après un swipe ; le clic reste pour la souris et le clavier.
+function tap(el, fn){
+  let last=0, start=null;
+  el.addEventListener("pointerdown", e=>{ start = e.pointerType==="mouse" ? null : {x:e.clientX, y:e.clientY, id:e.pointerId}; });
+  el.addEventListener("pointercancel", ()=>{ start=null; });
+  el.addEventListener("pointerup", e=>{
+    if(!start || e.pointerId!==start.id) return;
+    const bouge=Math.hypot(e.clientX-start.x, e.clientY-start.y)>12; start=null;
+    if(bouge) return;
+    last=Date.now(); fn(e);
+  });
+  el.addEventListener("click", e=>{ if(Date.now()-last<800) return; fn(e); });
+}
 function goKey(k){ const i=days.indexOf(k); if(i>=0) go(i-idx); }
 // Ouvre la fiche d'une date (depuis la recherche ou la vue du mois)
 function allerA(k){
@@ -516,7 +530,7 @@ function paintRecherche(){
   const passes=res.filter(h=>(h.fin||h.date)<t).sort((x,y)=>y.date.localeCompare(x.date));
   box.innerHTML=(avenir.length?`<div class="grp">À venir</div>`+avenir.map(ligneHit).join(""):"")+(passes.length?`<div class="grp">Passés</div>`+passes.slice(0,20).map(ligneHit).join(""):"");
 }
-$("btn-search").addEventListener("click", ()=>{ $("recherche").hidden=false; paintRecherche(); setTimeout(()=>$("q").focus(),60); });
+tap($("btn-search"), ()=>{ $("recherche").hidden=false; paintRecherche(); setTimeout(()=>$("q").focus(),60); });
 $("q").addEventListener("input", paintRecherche);
 $("q-close").addEventListener("click", ()=>$("recherche").hidden=true);
 $("recherche").addEventListener("click", e=>{
@@ -552,7 +566,7 @@ function paintMois(){
   liste.sort((x,y)=>x.date.localeCompare(y.date));
   $("m-list").innerHTML = liste.length ? `<div class="grp">Ce mois-ci</div>`+liste.map(ligneHit).join("") : `<div class="vide">Aucun rappel ni événement ce mois-ci.</div>`;
 }
-$("btn-month").addEventListener("click", ()=>{ moisVue=(current||todayKey()).slice(0,7); paintMois(); $("mois").hidden=false; });
+tap($("btn-month"), ()=>{ moisVue=(current||todayKey()).slice(0,7); paintMois(); $("mois").hidden=false; });
 $("m-prev").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,-1); paintMois(); });
 $("m-next").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,1); paintMois(); });
 $("m-close").addEventListener("click", ()=>$("mois").hidden=true);
@@ -604,7 +618,7 @@ card.addEventListener("click", e=>{
   const ed=e.target.closest("[data-edit]"); if(ed){ const r=reminders.find(x=>x.id===ed.dataset.edit); if(r) openSheet(r); return; }
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
-$("btn-today").addEventListener("click", ()=>go(-idx));
+tap($("btn-today"), ()=>go(-idx));
 document.addEventListener("keydown", e=>{
   if(!scrim.hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
   if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key==="PageDown"){ e.preventDefault(); go(1, e.key==="ArrowRight"?{x:-1,y:0}:{x:0,y:-1}); }
@@ -680,7 +694,7 @@ function openSheet(r){
   scrim.hidden=false;
 }
 function closeSheet(){ scrim.hidden=true; }
-$("fab").addEventListener("click", ()=>{ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); });
+tap($("fab"), ()=>{ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); });
 $("f-cancel").addEventListener("click", closeSheet);
 scrim.addEventListener("click", e=>{ if(e.target===scrim) closeSheet(); });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); info.hidden=true; $("compte").hidden=true; $("recherche").hidden=true; $("mois").hidden=true; } });
