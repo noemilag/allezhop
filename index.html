@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610281644"></script>
+<script src="config.js?v=202610282111"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -141,10 +141,12 @@ button.line{cursor:pointer}
 .line .tx span{display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--accent-ink);margin-top:1px}
 .line .tx span svg.i{width:15px;height:15px;stroke-width:2}
 .line .tx span.note{color:var(--muted);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.line time{font-size:17px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.line .quand{display:flex;flex-direction:column;align-items:flex-end;flex:none}
-.line .quand small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);opacity:.8;white-space:nowrap;margin-top:1px}
-.card.mini .line .quand small{font-size:10px}
+/* à droite de chaque cours : la période en gros, l'heure en petit dessous */
+.line .quand{display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.1}
+.line .per{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.line .per b{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-left:2px}
+.line time{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px}
+.card.mini .line .per b{font-size:17px}
 .offtxt{font-size:18px;font-weight:600;padding-block:6px}
 
 .wx{margin-top:10px;background:var(--pool);border-radius:20px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
@@ -201,7 +203,8 @@ button.line{cursor:pointer}
 .card.mini .line .ic{width:30px;height:30px;border-radius:10px}
 .card.mini .line .ic svg.i{width:18px;height:18px}
 .card.mini .line .tx b{font-size:15px}
-.card.mini .line .tx span, .card.mini .line time{font-size:13px}
+.card.mini .line .tx span{font-size:13px}
+.card.mini .line time{font-size:11px}
 .card.mini .wx{padding:9px 12px;margin-top:6px;border-radius:16px}
 .card.mini .wx-t{font-size:20px}
 .card.mini .wx-c{margin-top:7px;padding-top:6px;font-size:13px}
@@ -503,6 +506,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610281644"></script>
+<script type="module" src="app.js?v=202610282111"></script>
 </body>
 </html>
