@@ -33,7 +33,7 @@ const SAISON = [
 // Ces valeurs sont remplacées par chargerEnfant() ; les modules qui les importent voient la mise à jour.
 let ENFANT = {prenom:"", classe:""};
 let FIRST = "", LAST = "", END = "";
-let PERIODES = {}, CYCLE = {}, EVENTS = {}, OFF = {}, CYCLE_OF = {};
+let PERIODES = {}, CYCLE = {}, EVENTS = {}, OFF = {}, CYCLE_OF = {}, CONGES = [];
 let LAT = 0, LON = 0, METEO_URL = "", WX_URL = "";
 
 /* ---------- Dates ---------- */
@@ -52,6 +52,7 @@ function chargerEnfant(d){
   FIRST = d.annee.debut; LAST = d.annee.fin; END = d.annee.finEte || d.annee.fin;
   PERIODES = d.periodes || {};
   CYCLE = d.cycle || {};
+  CONGES = (d.conges||[]).map(c=>({du:c.du, au:c.au||c.du, type:c.type, label:c.label}));
   EVENTS = {};
   (d.evenements||[]).forEach(e=>{ (EVENTS[e.date] ??= []).push(e.note ? [e.ic, e.titre, e.note] : [e.ic, e.titre]); });
   OFF = {};
@@ -170,4 +171,4 @@ function wxSub(w){
 }
 
 
-export { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub };
+export { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES };
