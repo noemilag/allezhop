@@ -74,24 +74,22 @@ Ouvre l'adresse dans Safari → bouton Partager → **Sur l'écran d'accueil**.
 
 Prévisions horaires d'[Open-Meteo](https://open-meteo.com/) à la position de l'école (`lat`, `lon` dans la fiche de l'enfant), chargées par le téléphone à l'ouverture de l'app (gardées 30 minutes). Aucune clé n'est nécessaire.
 
-## Notification du matin (push)
+## Notifications (push)
 
-Chaque jour d'école, vers 7 h, l'iPhone reçoit : le jour du cycle, les spécialistes, quoi apporter et la météo. Les jours de congé, une seule notification le premier jour. Rien la fin de semaine.
+Chaque parent choisit dans l'app (icône de cloche) l'heure de sa notification. Heure avant midi : la journée même. Heure à partir de midi : le lendemain. Contenu : jour du cycle, spécialistes, quoi apporter, rappels du jour et météo. Envoyée les jours d'école, le premier jour d'un congé et tout jour qui a un rappel.
 
-C'est une tâche GitHub Actions (`.github/workflows/notification-matin.yml`) qui lance `scripts/notifier.js`. Elle lit la fiche de l'enfant dans Firebase avec une clé de compte de service (secret GitHub `FIREBASE_SERVICE_ACCOUNT`).
+Chaque téléphone abonné est enregistré dans Firebase (collection `abonnements`, avec l'heure choisie). Une tâche GitHub Actions (`.github/workflows/notification-matin.yml`) lance `scripts/notifier.js` aux 15 minutes ; chaque téléphone reçoit sa notification une seule fois par jour.
 
 **À faire une seule fois :**
 
-1. Ouvre `https://noemilag.github.io/allezhop/outils/cles.html` sur un ordinateur et touche **Créer les clés** (tout se fait dans le navigateur).
-   - Clé **privée** → **Settings → Secrets and variables → Actions → New repository secret**, nom `VAPID_PRIVATE_KEY`. Ne la mets jamais dans le code.
-   - Clé **publique** → dans `app.js` (`VAPID_PUBLIC`) et dans la tâche (`VAPID_PUBLIC`).
-2. Sur chaque iPhone (iOS 16.4 ou plus) : ajoute Allez Hop à l'écran d'accueil, ouvre-la par son icône, touche la cloche → **Activer les notifications** → **Copier le code**.
-3. Crée le secret `PUSH_SUBSCRIPTIONS` et colles-y les codes, **un par ligne** (un par téléphone). Pour ajouter un téléphone plus tard, remplace le secret par la liste complète.
-4. Test : onglet **Actions → Notification du matin → Run workflow**.
+1. Ouvrir `https://noemilag.github.io/allezhop/outils/cles.html` sur un ordinateur → **Créer les clés**.
+   - Clé **privée** → secret GitHub `VAPID_PRIVATE_KEY` (Settings → Secrets and variables → Actions).
+   - Clé **publique** → `VAPID_PUBLIC` dans `app.js` et dans la tâche.
+2. Firebase → ⚙ Paramètres du projet → **Comptes de service** → **Générer une nouvelle clé privée** → coller tout le contenu du fichier dans le secret GitHub `FIREBASE_SERVICE_ACCOUNT`.
+3. Règles Firestore : ajouter la collection `abonnements` (voir `firestore.rules`).
+4. Test : onglet **Actions → Notifications → Run workflow**.
 
-**Changer l'heure :** dans le fichier de la tâche, change `HEURE` et décale les deux lignes `cron` (elles démarrent 45 min avant, en UTC : 7 h à Montréal = 11 h UTC l'été, 12 h UTC l'hiver).
-
-**À savoir :** GitHub met en pause les tâches planifiées d'un dépôt public après 60 jours sans aucun commit. Il envoie alors un courriel ; un clic sur *Enable workflow* les relance.
+Sur iPhone (iOS 16.4 ou plus), l'app doit être ouverte depuis l'icône de l'écran d'accueil. GitHub met en pause les tâches planifiées d'un dépôt public après 60 jours sans commit ; un clic sur *Enable workflow* les relance.
 
 ## Mises à jour
 
