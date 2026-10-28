@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610280048";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281051";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610280048";
+const VERSION = "202610281051";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -426,8 +426,14 @@ function chrome(){
 }
 // dir : sens du geste {x,y} (-1, 0 ou 1). Vers la gauche ou le haut = jour suivant.
 function go(delta, dir){
+  // Un toucher pendant l'animation précédente la termine tout de suite au lieu d'être ignoré.
+  if(busy){
+    stack.querySelectorAll(".leaving").forEach(el=>el.remove());
+    card.getAnimations().forEach(an=>an.finish());
+    busy=false;
+  }
   const ni=idx+delta;
-  if(busy || !delta || ni<0 || ni>=days.length){ snap(); return; }
+  if(!delta || ni<0 || ni>=days.length){ snap(); return; }
   const from=card.style.transform||"none";
   if(reduceMotion){ idx=ni; current=days[ni]; card.style.transform=""; paint(); return; }
   busy=true; setTimeout(()=>busy=false, 450);
