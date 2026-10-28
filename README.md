@@ -95,4 +95,4 @@ C'est une tâche GitHub Actions (`.github/workflows/notification-matin.yml`) qui
 
 ## Mises à jour
 
-Les téléphones gardent l'app en mémoire. Avant chaque mise en ligne, lance `./bump.sh` : il change le numéro de version (`version.json`, `app.js`, `index.html`). À l'ouverture suivante, l'app voit la nouvelle version et se recharge d'elle-même.
+Les téléphones gardent l'app en mémoire. Avant chaque mise en ligne, lance `./bump.sh` : il change le numéro de version (`version.json`, `app.js`, `index.html`). À l'ouverture suivante (ou au retour dans l'app), une fenêtre « Nouvelle version disponible » propose de mettre à jour : l'app retélécharge ses fichiers et se recharge, sans réinstaller l'icône.
