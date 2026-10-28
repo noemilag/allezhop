@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281537";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281644";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610281537";
+const VERSION = "202610281644";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -495,6 +495,8 @@ function tap(el, fn){
   });
   el.addEventListener("click", e=>{ if(Date.now()-last<800) return; fn(e); });
 }
+// Les calendriers commencent la semaine le dimanche (comme au Québec)
+const JOURS_COURTS=["D","L","M","M","J","V","S"];
 function goKey(k){ const i=days.indexOf(k); if(i>=0) go(i-idx); }
 // Ouvre la fiche d'une date (depuis la recherche ou la vue du mois)
 function allerA(k){
@@ -550,8 +552,8 @@ function paintMois(){
   $("m-prev").disabled = moisVue<=FIRST.slice(0,7);
   $("m-next").disabled = moisVue>=END.slice(0,7);
   const rem={}; mine().forEach(r=>{ (rem[r.date] ??= []).push(r); });
-  let h=["L","M","M","J","V","S","D"].map(d=>`<span class="wd">${d}</span>`).join("");
-  const lead=(new Date(y,m-1,1).getDay()+6)%7, dim=new Date(y,m,0).getDate();
+  let h=JOURS_COURTS.map(d=>`<span class="wd">${d}</span>`).join("");
+  const lead=new Date(y,m-1,1).getDay(), dim=new Date(y,m,0).getDate();
   for(let i=0;i<lead;i++) h+=`<span></span>`;
   const liste=[];
   for(let d=1; d<=dim; d++){
@@ -665,8 +667,8 @@ function paintCal(){
   $("cal-prev").disabled = calMonth<=minMonth();
   $("cal-next").disabled = calMonth>=maxMonth;
   const t=todayKey(), remDates=new Set(mine().map(r=>r.date));
-  let h=["L","M","M","J","V","S","D"].map(d=>`<span class="wd">${d}</span>`).join("");
-  const first=new Date(y,m-1,1), lead=(first.getDay()+6)%7, dim=new Date(y,m,0).getDate();
+  let h=JOURS_COURTS.map(d=>`<span class="wd">${d}</span>`).join("");
+  const first=new Date(y,m-1,1), lead=first.getDay(), dim=new Date(y,m,0).getDate();
   for(let i=0;i<lead;i++) h+=`<span></span>`;
   for(let d=1; d<=dim; d++){
     const k=key(new Date(y,m-1,d)), inf=infoFor(k), cls=[];
