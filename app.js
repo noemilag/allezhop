@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub } from "./school.js?v=202610272350";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610280010";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610272350";
+const VERSION = "202610280010";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -379,7 +379,7 @@ function setAccess(state, msg, alt){
   $("gate-msg").textContent = msg || GATE_TXT;
   $("gate-login").hidden = !!alt || state==="setup";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
-  if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; }
+  if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; $("recherche").hidden=true; $("mois").hidden=true; }
   else render();
 }
 // Première configuration : la fiche de l'enfant (fichier JSON remis à part) est enregistrée dans Firebase.
@@ -449,6 +449,88 @@ function go(delta, dir){
   }
 }
 function goKey(k){ const i=days.indexOf(k); if(i>=0) go(i-idx); }
+// Ouvre la fiche d'une date (depuis la recherche ou la vue du mois)
+function allerA(k){
+  if(k<todayKey()){ toast("Cette date est passée"); return; }
+  const i=days.indexOf(k);
+  if(i<0){ toast(infoFor(k).kind==="weekend" ? "Fin de semaine : pas de fiche ce jour-là" : "Pas de fiche ce jour-là"); return; }
+  $("recherche").hidden=true; $("mois").hidden=true;
+  go(i-idx);
+}
+function quand(k){
+  const n=daysFromToday(k);
+  return n===0 ? "aujourd'hui" : n===1 ? "demain" : n===-1 ? "hier" : n>0 ? "dans "+n+" jours" : "il y a "+(-n)+" jours";
+}
+
+/* ---------- Recherche : rappels, événements de l'école et congés ---------- */
+const norm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function chercher(q){
+  const n=norm(q).trim(); if(n.length<2) return null;
+  const out=[], ok=(...t)=>t.some(x=>norm(x).includes(n));
+  mine().forEach(r=>{ if(ok(r.titre,r.notes)) out.push({date:r.date, ic:r.ic||r.em, t:r.titre, n:r.notes, tag:"Rappel"}); });
+  Object.entries(EVENTS).forEach(([d,l])=>l.forEach(([ic,t,note])=>{ if(ok(t,note)) out.push({date:d, ic, t, n:note, tag:"École"}); }));
+  CONGES.forEach(c=>{ if(ok(c.label,"congé")) out.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
+  return out;
+}
+function ligneHit(h){
+  const passe=(h.fin||h.date)<todayKey();
+  const d = h.fin && h.fin!==h.date ? `du ${longDate(h.date)} au ${longDate(h.fin)}` : cap(longDate(h.date))+" · "+quand(h.date);
+  const inf=infoFor(h.date), j=inf.kind==="ecole" ? " · J"+inf.jour : "";
+  return `<button type="button" class="hit${passe?" passe":""}" data-aller="${h.date}"><span class="ic">${icon(h.ic)}</span><span class="tx"><b>${esc(h.t)}</b><span>${esc(d+j)}${h.n?" · "+esc(h.n):""}</span></span><span class="tag">${h.tag}</span></button>`;
+}
+function paintRecherche(){
+  const res=chercher($("q").value), box=$("q-res");
+  if(!res){ box.innerHTML=`<div class="vide">Tapez au moins 2 lettres : le titre d'un rappel, une note, un événement ou un congé.</div>`; return; }
+  if(!res.length){ box.innerHTML=`<div class="vide">Aucun résultat pour « ${esc($("q").value.trim())} ».</div>`; return; }
+  const t=todayKey();
+  const avenir=res.filter(h=>(h.fin||h.date)>=t).sort((x,y)=>x.date.localeCompare(y.date));
+  const passes=res.filter(h=>(h.fin||h.date)<t).sort((x,y)=>y.date.localeCompare(x.date));
+  box.innerHTML=(avenir.length?`<div class="grp">À venir</div>`+avenir.map(ligneHit).join(""):"")+(passes.length?`<div class="grp">Passés</div>`+passes.slice(0,20).map(ligneHit).join(""):"");
+}
+$("btn-search").addEventListener("click", ()=>{ $("recherche").hidden=false; paintRecherche(); setTimeout(()=>$("q").focus(),60); });
+$("q").addEventListener("input", paintRecherche);
+$("q-close").addEventListener("click", ()=>$("recherche").hidden=true);
+$("recherche").addEventListener("click", e=>{
+  if(e.target===$("recherche")){ $("recherche").hidden=true; return; }
+  const b=e.target.closest("[data-aller]"); if(b && !b.classList.contains("passe")) allerA(b.dataset.aller);
+});
+
+/* ---------- Vue du mois ---------- */
+let moisVue=null;
+function paintMois(){
+  const [y,m]=moisVue.split("-").map(Number), t=todayKey();
+  $("m-title").textContent=MOIS[m-1]+" "+y;
+  $("m-prev").disabled = moisVue<=FIRST.slice(0,7);
+  $("m-next").disabled = moisVue>=END.slice(0,7);
+  const rem={}; mine().forEach(r=>{ (rem[r.date] ??= []).push(r); });
+  let h=["L","M","M","J","V","S","D"].map(d=>`<span class="wd">${d}</span>`).join("");
+  const lead=(new Date(y,m-1,1).getDay()+6)%7, dim=new Date(y,m,0).getDate();
+  for(let i=0;i<lead;i++) h+=`<span></span>`;
+  const liste=[];
+  for(let d=1; d<=dim; d++){
+    const k=key(new Date(y,m-1,d)), inf=infoFor(k), cls=[];
+    if(inf.kind==="weekend") cls.push("we"); if(inf.kind==="off") cls.push("offd");
+    if(k<t) cls.push("passe"); if(k===t) cls.push("today");
+    const sub = inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : "";
+    const r=rem[k]||[], ev=EVENTS[k]||[];
+    const pts=(r.length?'<i class="pt r"></i>':"")+(ev.length?'<i class="pt e"></i>':"");
+    h+=`<button type="button" class="${cls.join(" ")}" data-aller="${k}" aria-label="${esc(longDate(k))}${sub?", "+sub:""}${r.length?", "+r.length+" rappel(s)":""}"><b>${d}</b><i>${sub||"&nbsp;"}</i><span class="pts">${pts}</span></button>`;
+    r.forEach(x=>liste.push({date:k, ic:x.ic||x.em, t:x.titre, n:x.notes, tag:"Rappel"}));
+    ev.forEach(([ic,tt,n])=>liste.push({date:k, ic, t:tt, n, tag:"École"}));
+  }
+  CONGES.forEach(c=>{ if(c.du.slice(0,7)===moisVue || c.au.slice(0,7)===moisVue) liste.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
+  $("m-grid").innerHTML=h;
+  liste.sort((x,y)=>x.date.localeCompare(y.date));
+  $("m-list").innerHTML = liste.length ? `<div class="grp">Ce mois-ci</div>`+liste.map(ligneHit).join("") : `<div class="vide">Aucun rappel ni événement ce mois-ci.</div>`;
+}
+$("btn-month").addEventListener("click", ()=>{ moisVue=(current||todayKey()).slice(0,7); paintMois(); $("mois").hidden=false; });
+$("m-prev").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,-1); paintMois(); });
+$("m-next").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,1); paintMois(); });
+$("m-close").addEventListener("click", ()=>$("mois").hidden=true);
+$("mois").addEventListener("click", e=>{
+  if(e.target===$("mois")){ $("mois").hidden=true; return; }
+  const b=e.target.closest("[data-aller]"); if(b && !b.classList.contains("passe")) allerA(b.dataset.aller);
+});
 function snap(){
   const from=card.style.transform; card.style.transform="";
   if(from && from!=="none" && !reduceMotion) card.animate([{transform:from},{transform:"none"}],{duration:260,easing:EASE});
@@ -495,7 +577,7 @@ card.addEventListener("click", e=>{
 });
 $("btn-today").addEventListener("click", ()=>go(-idx));
 document.addEventListener("keydown", e=>{
-  if(!scrim.hidden || !info.hidden || !$("compte").hidden) return;
+  if(!scrim.hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
   if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key==="PageDown"){ e.preventDefault(); go(1, e.key==="ArrowRight"?{x:-1,y:0}:{x:0,y:-1}); }
   if(e.key==="ArrowLeft"||e.key==="ArrowUp"||e.key==="PageUp"){ e.preventDefault(); go(-1, e.key==="ArrowLeft"?{x:1,y:0}:{x:0,y:1}); }
 });
@@ -572,7 +654,7 @@ function closeSheet(){ scrim.hidden=true; }
 $("fab").addEventListener("click", ()=>{ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); });
 $("f-cancel").addEventListener("click", closeSheet);
 scrim.addEventListener("click", e=>{ if(e.target===scrim) closeSheet(); });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); info.hidden=true; $("compte").hidden=true; } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); info.hidden=true; $("compte").hidden=true; $("recherche").hidden=true; $("mois").hidden=true; } });
 
 form.addEventListener("submit", async e=>{
   e.preventDefault();

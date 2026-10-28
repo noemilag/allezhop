@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610272350"></script>
+<script src="config.js?v=202610280010"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -203,7 +203,10 @@ button.line{cursor:pointer}
 .dock{flex:none;padding-block:0 10px}
 .bar{display:flex;align-items:center;gap:10px;width:100%}
 /* barre du haut, plus compacte : Aujourd'hui à gauche, Rappel à droite */
-.dock .add{height:40px;font-size:16px;padding:0 18px 0 14px;margin-left:auto;box-shadow:0 8px 18px -10px rgba(255,91,0,.6)}
+.bar-r{display:flex;align-items:center;gap:8px;margin-left:auto}
+.ibtn.rond{width:40px;height:40px;background:var(--card);border:1px solid var(--line)}
+.ibtn.rond svg.i{width:19px;height:19px}
+.dock .add{height:40px;font-size:16px;padding:0 18px 0 14px;box-shadow:0 8px 18px -10px rgba(255,91,0,.6)}
 .dock .today-btn{height:40px;font-size:15px;padding:0 16px 0 12px}
 .dock .add svg.i, .dock .today-btn svg.i{width:18px;height:18px}
 .add{height:58px;border-radius:999px;border:0;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:var(--on-accent);display:flex;align-items:center;gap:8px;padding:0 24px 0 20px;font-weight:700;font-size:17px;cursor:pointer;box-shadow:0 12px 24px -10px rgba(255,91,0,.5)}
@@ -232,6 +235,33 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .calhead button:disabled{opacity:.3;cursor:default}
 .calhead svg.i{width:18px;height:18px}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+/* recherche et vue du mois */
+.sheet.haute{min-height:70%}
+.cherche{display:flex;align-items:center;gap:10px;background:var(--tint);border-radius:16px;padding:0 14px;border:2px solid transparent}
+.cherche:focus-within{border-color:var(--accent)}
+.cherche svg.i{color:var(--muted);width:20px;height:20px}
+.cherche input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:17px;color:var(--ink);padding:13px 0;outline:none}
+.res{display:flex;flex-direction:column}
+.res .grp{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);padding:12px 0 4px}
+.res .vide{color:var(--muted);padding:10px 0}
+.hit{display:flex;align-items:center;gap:12px;padding:8px 0;border:0;border-bottom:1px solid var(--line);background:none;width:100%;text-align:left;cursor:pointer;min-width:0}
+.hit.passe{opacity:.55;cursor:default}
+.hit .ic{width:38px;height:38px;border-radius:12px;background:var(--pool);display:grid;place-items:center;flex:none}
+.hit .ic svg.i{width:19px;height:19px}
+.hit .tx{flex:1;min-width:0}
+.hit .tx b{display:block;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hit .tx span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hit .tag{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);flex:none}
+#mois .calhead h2{font-size:22px;text-transform:capitalize;margin:0}
+.mgrid button{aspect-ratio:1/1.15}
+.mgrid button b{font-size:17px}
+.mgrid button .pts{display:flex;gap:3px;height:6px;margin-top:3px}
+.pt{display:inline-block;width:6px;height:6px;border-radius:50%}
+.pt.r{background:var(--accent)} .pt.e{background:var(--ink)} .pt.c{background:var(--muted)}
+.mgrid button.offd{background:var(--tint)}
+.mgrid button.passe{opacity:.4}
+.legende{display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--muted);font-weight:600}
+.legende span{display:flex;align-items:center;gap:5px}
 .grid .wd{font-size:11px;font-weight:700;color:var(--muted);padding-bottom:4px}
 .grid button{border:0;background:transparent;border-radius:12px;aspect-ratio:1/1.05;max-width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-variant-numeric:tabular-nums;padding:0}
 .grid button b{font-size:16px;font-weight:700;line-height:1.1}
@@ -291,7 +321,11 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   <div class="dock pad">
     <div class="bar">
       <button class="today-btn" id="btn-today" hidden><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Aujourd'hui</button>
-      <button class="add" id="fab"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Rappel</button>
+      <div class="bar-r">
+        <button class="ibtn rond" id="btn-search" aria-label="Rechercher"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+        <button class="ibtn rond" id="btn-month" aria-label="Vue du mois"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg></button>
+        <button class="add" id="fab"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Rappel</button>
+      </div>
     </div>
   </div>
   <main class="stage pad">
@@ -339,6 +373,32 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
       <button type="submit" class="btn primary" id="f-save">Enregistrer</button>
     </div>
   </form>
+</div>
+
+<div class="scrim" id="recherche" hidden>
+  <div class="sheet pad haute">
+    <div class="grab"></div>
+    <h2>Rechercher</h2>
+    <div class="cherche"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="q" placeholder="Ex. : cinéma, photo, relâche" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Rechercher un rappel, un événement ou un congé"></div>
+    <div id="q-res" class="res" aria-live="polite"></div>
+    <div class="actions"><button type="button" class="btn ghost" id="q-close">Fermer</button></div>
+  </div>
+</div>
+
+<div class="scrim" id="mois" hidden>
+  <div class="sheet pad haute">
+    <div class="grab"></div>
+    <div class="calhead">
+      <button type="button" id="m-prev" aria-label="Mois précédent"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+      <h2 id="m-title"></h2>
+      <button type="button" id="m-next" aria-label="Mois suivant"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+    <div class="grid mgrid" id="m-grid"></div>
+    <div class="legende"><span><i class="pt r"></i>Rappel</span><span><i class="pt e"></i>École</span><span><i class="pt c"></i>Congé</span></div>
+    <div id="m-list" class="res"></div>
+    <div class="actions"><button type="button" class="btn ghost" id="m-close">Fermer</button></div>
+  </div>
 </div>
 
 <div class="scrim" id="compte" hidden>
@@ -416,6 +476,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610272350"></script>
+<script type="module" src="app.js?v=202610280010"></script>
 </body>
 </html>
