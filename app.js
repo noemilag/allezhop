@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281136";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610281537";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610281136";
+const VERSION = "202610281537";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -94,6 +94,10 @@ async function initStore(){
         return r.id ? F.setDoc(F.doc(db,"rappels",r.id), body) : F.addDoc(coll, body);
       },
       del:id=>F.deleteDoc(F.doc(db,"rappels",id)),
+      // Téléphones abonnés aux notifications (un document par téléphone)
+      getSub:async id=>{ const s=await F.getDoc(F.doc(db,"abonnements",id)); return s.exists()?s.data():null; },
+      saveSub:(id,d)=>F.setDoc(F.doc(db,"abonnements",id), {...d, maj:Date.now(), par:userEmail}, {merge:true}),
+      delSub:id=>F.deleteDoc(F.doc(db,"abonnements",id)),
       saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
     };
     A.onAuthStateChanged(auth, user=>{
@@ -727,48 +731,69 @@ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(
 
 function b64ToBytes(b64){ const s=atob((b64+"=".repeat((4-b64.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/")); return Uint8Array.from(s,c=>c.charCodeAt(0)); }
 async function getReg(){ return swReg || (await navigator.serviceWorker.ready); }
+// Identifiant stable du téléphone : empreinte de son adresse d'abonnement
+async function subId(sub){
+  const h=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sub.endpoint));
+  return Array.from(new Uint8Array(h)).slice(0,20).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function heures(sel){
+  let h=""; for(let m=5*60; m<=21*60+45; m+=15){ const v=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); h+=`<option value="${v}"${v===sel?" selected":""}>${hFr(v)}</option>`; }
+  return h;
+}
+function hFr(v){ return v.replace(/^0/,"").replace(":"," h ").replace(" h 00"," h"); }   // "06:45" → "6 h 45"
+function pourQuand(hh){ return +hh.slice(0,2)<12 ? "Notification sur la journée même." : "Après midi, la notification parle du lendemain : pratique pour préparer le sac la veille."; }
 async function paintPush(){
-  const st=$("push-state"), act=$("push-actions"), wrap=$("push-code-wrap");
-  act.innerHTML=""; wrap.hidden=true;
+  const st=$("push-state"), act=$("push-actions"), box=$("push-heure");
+  act.innerHTML=""; box.hidden=true;
   if(isIOS && !installed){ st.textContent="Sur iPhone, les notifications marchent seulement depuis l'écran d'accueil : Partager → Sur l'écran d'accueil, puis ouvre Allez Hop avec son icône."; return; }
-  if(!pushOK){ st.textContent="Ce navigateur ne reçoit pas les notifications push."; return; }
-  if(!VAPID_PUBLIC){ st.textContent="Les notifications du matin sont presque prêtes : il reste à installer les clés (voir le README)."; return; }
-  if(Notification.permission==="denied"){ st.textContent="Les notifications sont bloquées. Va dans Réglages → Notifications → Allez Hop pour les autoriser."; return; }
+  if(!pushOK){ st.textContent="Ce navigateur ne reçoit pas les notifications."; return; }
+  if(!VAPID_PUBLIC){ st.textContent="Les notifications sont presque prêtes : il reste à installer les clés."; return; }
+  if(!store || !store.getSub){ st.textContent="Connecte-toi pour activer les notifications."; return; }
+  if(Notification.permission==="denied"){ st.textContent="Les notifications sont bloquées pour Allez Hop. Autorise-les dans les réglages du téléphone (Notifications → Allez Hop ou Chrome)."; return; }
   const sub = await (await getReg()).pushManager.getSubscription();
-  if(!sub){
-    st.textContent="";
+  let doc=null; if(sub){ try{ doc=await store.getSub(await subId(sub)); }catch(e){} }
+  const h = (doc && doc.heure) || "07:00";
+  box.hidden=false;
+  $("push-h").innerHTML=heures(h);
+  $("push-quand").textContent=pourQuand(h);
+  if(!sub || !doc){
+    st.textContent="Chaque jour d'école : le jour du cycle, les spécialistes, quoi apporter, les rappels et la météo.";
     act.innerHTML=`<button type="button" class="btn primary" id="push-on">Activer les notifications</button>`;
-    $("push-on").addEventListener("click", enablePush);
+    $("push-on").addEventListener("click", ()=>enablePush($("push-h").value));
     return;
   }
-  st.textContent="Activées sur ce téléphone.";
-  act.innerHTML=`<button type="button" class="btn primary" id="push-test">Envoyer un test</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
+  st.textContent=`Activées sur ce téléphone, chaque jour d'école vers ${hFr(h)}.`;
+  act.innerHTML=`<button type="button" class="btn outline" id="push-test">Envoyer un test</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
   $("push-test").addEventListener("click", async ()=>{
     const inf=infoFor(todayKey()), sp=inf.kind==="ecole"?specialsOf(inf.jour):[];
     await (await getReg()).showNotification(inf.kind==="ecole"?`${ENFANT.prenom} · Jour ${inf.jour}`:`${ENFANT.prenom} · Pas d'école`, {
       body: sp.length ? sp.map(s=>`${s.nom} ${PERIODES[s.p]}`).join(" · ") : (inf.label||"Aucun spécialiste aujourd'hui"),
       icon:"icons/icon-192.png", tag:"test" });
   });
-  $("push-off").addEventListener("click", async ()=>{ await sub.unsubscribe(); toast("Notifications désactivées"); paintPush(); });
-  $("push-code").value=JSON.stringify(sub.toJSON());
-  wrap.hidden=false;
+  $("push-off").addEventListener("click", async ()=>{
+    try{ await store.delSub(await subId(sub)); }catch(e){}
+    await sub.unsubscribe(); toast("Notifications désactivées"); paintPush();
+  });
 }
-async function enablePush(){
+// Changer l'heure : enregistrée tout de suite si le téléphone est déjà abonné
+$("push-h").addEventListener("change", async ()=>{
+  const h=$("push-h").value; $("push-quand").textContent=pourQuand(h);
+  const sub = await (await getReg()).pushManager.getSubscription(); if(!sub) return;
+  try{ await store.saveSub(await subId(sub), {heure:h}); toast("Heure enregistrée : "+hFr(h)); paintPush(); }
+  catch(e){ toast("L'heure n'a pas pu être enregistrée. Réessaie."); }
+});
+async function enablePush(heure){
   const st=$("push-state");
   try{
     const perm=await Notification.requestPermission();
     if(perm!=="granted"){ paintPush(); return; }
     const reg=await getReg();
-    await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToBytes(VAPID_PUBLIC)});
+    const sub=(await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToBytes(VAPID_PUBLIC)});
+    await store.saveSub(await subId(sub), {abonnement:sub.toJSON(), heure, actif:true, appareil:isIOS?"iPhone":/Android/.test(navigator.userAgent)?"Android":"Autre"});
     toast("Notifications activées");
   }catch(e){ st.textContent="L'activation n'a pas fonctionné. Ferme l'app, rouvre-la et réessaie."; return; }
   paintPush();
 }
-$("push-copy").addEventListener("click", async ()=>{
-  const t=$("push-code");
-  try{ await navigator.clipboard.writeText(t.value); toast("Code copié"); }
-  catch(e){ t.focus(); t.select(); toast("Sélectionne le code et copie-le"); }
-});
 
 /* ---------- Calendrier (.ics) ---------- */
 const info=$("info");

@@ -1,15 +1,15 @@
-/* Allez Hop : notification push du matin, envoyée par GitHub Actions
-   (.github/workflows/notification-matin.yml).
+/* Allez Hop : notifications push, envoyées par GitHub Actions (.github/workflows/notification-matin.yml).
+
+   La tâche tourne aux 15 minutes. Pour chaque téléphone abonné (Firebase, collection « abonnements »),
+   elle envoie la notification une fois par jour, dès que l'heure choisie dans l'app est passée.
+   Heure avant midi : la journée même. Heure à partir de midi : le lendemain.
 
    Variables :
-     HEURE               heure d'envoi à Montréal, ex. "07:00"
-     CRON                horaire qui a lancé la tâche (github.event.schedule)
-     TEST=1              envoie tout de suite, même la fin de semaine
-     DRY=1               affiche la notification sans l'envoyer
-     VAPID_PUBLIC        clé publique (aussi dans app.js)
-     VAPID_PRIVATE       clé privée (secret GitHub VAPID_PRIVATE_KEY)
-     FIREBASE_SERVICE_ACCOUNT  clé de compte de service Firebase (secret GitHub), pour lire la fiche de l'enfant
-     PUSH_SUBSCRIPTIONS  codes des téléphones (secret GitHub, un code par ligne) */
+     VAPID_PUBLIC              clé publique (aussi dans app.js)
+     VAPID_PRIVATE             clé privée (secret GitHub VAPID_PRIVATE_KEY)
+     FIREBASE_SERVICE_ACCOUNT  clé de compte de service Firebase (secret GitHub)
+     TEST=1                    envoie tout de suite à tous les téléphones, sans tenir compte de l'heure
+     DRY=1                     affiche les notifications sans les envoyer */
 import webpush from "web-push";
 import { pathToFileURL } from "node:url";
 import {
@@ -27,18 +27,10 @@ function local(d = new Date()){
   }).formatToParts(d).map(x => [x.type, x.value]));
   return { date: `${p.year}-${p.month}-${p.day}`, h: +p.hour, m: +p.minute };
 }
-// Instant (UTC) qui correspond à hh:mm à Montréal ce jour-là
-function zoned(date, hh, mm){
-  const [y, mo, d] = date.split("-").map(Number);
-  const guess = Date.UTC(y, mo - 1, d, hh, mm);
-  const l = local(new Date(guess));
-  const offset = Date.UTC(...l.date.split("-").map((v, i) => i === 1 ? v - 1 : +v), l.h, l.m) - guess;
-  return guess - offset;
-}
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Les jours de congé, on n'avertit que le premier jour (pas chaque jour des vacances).
-function shouldNotify(k){
+// Jours où l'on avertit : jours d'école, premier jour d'un congé, ou tout jour avec un rappel.
+function aAnnoncer(k, nbRappels){
+  if (nbRappels) return true;
   const inf = infoFor(k);
   if (inf.kind === "ecole") return true;
   if (inf.kind === "weekend" || k > LAST) return false;
@@ -47,93 +39,95 @@ function shouldNotify(k){
   return infoFor(prev).kind === "ecole";
 }
 
-// La fiche de l'enfant (prénom, calendrier, horaire) est dans Firebase, pas dans le code.
-async function chargerDepuisFirebase(){
-  if (!env.FIREBASE_SERVICE_ACCOUNT) return false;
-  const { initializeApp, cert } = await import("firebase-admin/app");
-  const { getFirestore } = await import("firebase-admin/firestore");
-  initializeApp({ credential: cert(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)) });
-  const snap = await getFirestore().collection("enfants").limit(1).get();
-  if (snap.empty) return false;
-  chargerEnfant(snap.docs[0].data());
-  return true;
-}
-
-async function weather(k){
+const meteoCache = {};
+async function meteo(k){
   try {
-    const r = await fetch(WX_URL);
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return summarize((await r.json()).hourly)[k] || null;
+    if (!meteoCache[WX_URL]) {
+      const r = await fetch(WX_URL);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      meteoCache[WX_URL] = summarize((await r.json()).hourly);
+    }
+    return meteoCache[WX_URL][k] || null;
   } catch (e) { console.log("Météo indisponible :", e.message); return null; }
 }
 
-function message(k, w){
+function message(k, rappels, w, demain){
   const inf = infoFor(k), lines = [];
+  const quand = demain ? " · demain" : "";
   let title;
   if (inf.kind === "ecole") {
     const sp = specialsOf(inf.jour);
-    title = `${ENFANT.prenom} · Jour ${inf.jour}`;
-    lines.push(sp.length ? sp.map(s => `${s.nom} ${PERIODES[s.p]}`).join(" · ") : "Pas de spécialiste aujourd'hui");
+    title = `${ENFANT.prenom} · Jour ${inf.jour}${quand}`;
+    lines.push(sp.length ? sp.map(s => `${s.nom} ${PERIODES[s.p]}`).join(" · ") : "Pas de spécialiste");
     sp.filter(s => s.apporter).forEach(s => lines.push(`🎒 ${s.apporter}`));
   } else {
-    title = `${ENFANT.prenom} · Pas d'école`;
+    title = `${ENFANT.prenom} · Pas d'école${quand}`;
     lines.push(inf.label);
   }
   (EVENTS[k] || []).forEach(([em, t, n]) => lines.push(`${em} ${t}${n ? ` (${n})` : ""}`));
+  rappels.forEach(r => lines.push(`📌 ${r.titre}${r.notes ? " : " + r.notes : ""}`));
   if (w) {
     lines.push(`${w.icon} ${deg(w.tmin)} → ${deg(w.tmax)} · ${precipShort(w)}`);
     const sub = wxSub(w); if (sub) lines.push(sub);
     lines.push(`👕 ${habits(w)}`);
   }
-  return { title, body: lines.join("\n"), tag: "matin-" + k, url: "./" };
-}
-
-function subscriptions(){
-  const raw = (env.PUSH_SUBSCRIPTIONS || "").trim();
-  if (!raw) return [];
-  try { const j = JSON.parse(raw); return Array.isArray(j) ? j : [j]; }
-  catch (_) { return raw.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => JSON.parse(l)); }
+  return { title, body: lines.join("\n"), tag: "jour-" + k + "-" + ENFANT.prenom, url: "./" };
 }
 
 async function main(){
   const test = env.TEST === "1", dry = env.DRY === "1";
-  if (!dry && (!env.VAPID_PUBLIC || !env.VAPID_PRIVATE)) { console.log("Clés VAPID pas encore installées (voir README) : rien n'est envoyé."); return; }
-  if (!(await chargerDepuisFirebase())) { console.log("Fiche de l'enfant introuvable (secret FIREBASE_SERVICE_ACCOUNT manquant ou collection enfants vide) : rien n'est envoyé."); return; }
-  const [hh, mm] = (env.HEURE || "07:00").split(":").map(Number);
-  const now = local(), k = now.date;
-  const target = zoned(k, hh, mm);
+  if (!dry && (!env.VAPID_PUBLIC || !env.VAPID_PRIVATE)) { console.log("Clés VAPID pas encore installées : rien n'est envoyé."); return; }
+  if (!env.FIREBASE_SERVICE_ACCOUNT) { console.log("Secret FIREBASE_SERVICE_ACCOUNT manquant : rien n'est envoyé."); return; }
 
-  if (!test) {
-    // Deux horaires (heure d'été et heure normale) : seul celui qui tombe juste avant l'heure d'envoi continue.
-    if (env.CRON) {
-      const [cm, ch] = env.CRON.trim().split(/\s+/).map(Number);
-      const d = new Date();
-      const planned = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), ch, cm);
-      if (planned > target || target - planned > 75 * 60e3) { console.log("Pas le bon horaire pour la saison : rien à faire."); return; }
+  const { initializeApp, cert } = await import("firebase-admin/app");
+  const { getFirestore } = await import("firebase-admin/firestore");
+  initializeApp({ credential: cert(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)) });
+  const db = getFirestore();
+
+  const abonnements = (await db.collection("abonnements").get()).docs.filter(d => d.data().actif !== false && d.data().abonnement);
+  if (!abonnements.length) { console.log("Aucun téléphone abonné."); return; }
+
+  const now = local(), maintenant = now.h * 60 + now.m;
+  const aTraiter = abonnements.filter(d => {
+    if (test) return true;
+    const x = d.data(), [hh, mm] = (x.heure || "07:00").split(":").map(Number), cible = hh * 60 + mm;
+    // L'heure est passée (jusqu'à 3 h de retard toléré) et rien n'a encore été envoyé aujourd'hui.
+    return x.dernierEnvoi !== now.date && maintenant >= cible && maintenant - cible <= 180;
+  });
+  if (!aTraiter.length) { console.log(`${now.date} ${now.h}:${String(now.m).padStart(2, "0")} : aucune notification à envoyer.`); return; }
+
+  const enfants = (await db.collection("enfants").get()).docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.creeLe || 0) - (b.creeLe || 0));
+  const rappels = (await db.collection("rappels").get()).docs.map(d => d.data());
+  if (!enfants.length) { console.log("Aucune fiche d'enfant dans Firebase."); return; }
+
+  if (!dry) webpush.setVapidDetails("https://noemilag.github.io/allezhop/", env.VAPID_PUBLIC, env.VAPID_PRIVATE);
+
+  for (const d of aTraiter) {
+    const x = d.data(), demain = +(x.heure || "07:00").slice(0, 2) >= 12;
+    const jour = demain ? addDays(now.date, 1) : now.date;
+    const messages = [];
+    for (const e of enfants) {
+      chargerEnfant(e);
+      const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
+        .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
+      if (!test && !aAnnoncer(jour, siens.length)) continue;
+      messages.push(message(jour, siens, await meteo(jour), demain));
     }
-    if (!shouldNotify(k)) { console.log(`${k} : pas de notification (${infoFor(k).kind}).`); return; }
-    const wait = target - Date.now();
-    if (wait > 0) { console.log(`Attente de ${Math.round(wait / 60e3)} min jusqu'à ${env.HEURE || "07:00"}.`); await sleep(wait); }
-  }
-
-  const payload = message(k, await weather(k));
-  if (test) payload.title = "Test · " + payload.title;
-  console.log(payload.title + "\n" + payload.body);
-  if (dry) return;
-
-  const subs = subscriptions();
-  if (!subs.length) { console.log("Aucun téléphone abonné (secret PUSH_SUBSCRIPTIONS vide)."); return; }
-  webpush.setVapidDetails("https://noemilag.github.io/allezhop/", env.VAPID_PUBLIC, env.VAPID_PRIVATE);
-  let ok = 0;
-  for (const [i, s] of subs.entries()) {
-    try { await webpush.sendNotification(s, JSON.stringify(payload), { TTL: 4 * 3600, urgency: "high" }); ok++; }
-    catch (e) {
-      const why = [404, 410].includes(e.statusCode) ? "abonnement expiré : réactive les notifications dans l'app et remplace son code" : (e.body || e.message);
-      console.log(`Téléphone ${i + 1} : échec (${e.statusCode || "?"}) ${why}`);
+    for (const m of messages) {
+      if (test) m.title = "Test · " + m.title;
+      console.log(`→ ${x.par || "?"} (${x.appareil || "?"}, ${x.heure || "07:00"})\n${m.title}\n${m.body}\n`);
+      if (dry) continue;
+      try { await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" }); }
+      catch (err) {
+        if ([404, 410].includes(err.statusCode)) { console.log("Abonnement expiré : supprimé."); await d.ref.delete(); break; }
+        console.log(`Échec (${err.statusCode || "?"}) ${err.body || err.message}`); process.exitCode = 1;
+      }
     }
+    if (!dry && !test) await d.ref.set({ dernierEnvoi: now.date }, { merge: true });
+    if (!messages.length) console.log(`→ ${x.par || "?"} : rien à annoncer pour ${jour}.`);
   }
-  console.log(`Envoyée à ${ok} téléphone(s) sur ${subs.length}.`);
-  if (!ok) process.exitCode = 1;
 }
-export { message, shouldNotify, zoned };
+
+export { message, aAnnoncer };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

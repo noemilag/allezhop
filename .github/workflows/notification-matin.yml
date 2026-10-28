@@ -1,17 +1,15 @@
-# Allez Hop : notification push du matin (voir README, section Notification du matin).
-name: Notification du matin
+# Allez Hop : notifications push (voir README, section Notifications).
+name: Notifications
 
 on:
   schedule:
-    # Les horaires de GitHub sont en UTC et partent parfois en retard : la tâche démarre
-    # 45 min avant l'heure d'envoi, puis attend. Une ligne pour l'heure d'été (HAE),
-    # une pour l'heure normale (HNE) ; le script ignore celle qui ne correspond pas à la saison.
-    - cron: "15 10 * * 1-5"
-    - cron: "15 11 * * 1-5"
+    # Aux 15 minutes (décalé des heures pile, où GitHub est le plus chargé). Chaque téléphone reçoit
+    # sa notification une seule fois par jour, à l'heure choisie dans l'app (ou dans les minutes qui suivent).
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       test:
-        description: "Envoyer une notification test maintenant"
+        description: "Envoyer une notification test maintenant à tous les téléphones"
         type: boolean
         default: true
 
@@ -19,12 +17,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: notification-matin
+  group: notifications
 
 jobs:
   envoyer:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,10 +31,7 @@ jobs:
       - run: npm install --no-save web-push@3.6.7 firebase-admin@12.7.0
       - run: node scripts/notifier.js
         env:
-          HEURE: "07:00"
-          CRON: ${{ github.event.schedule }}
           TEST: ${{ inputs.test && '1' || '' }}
           VAPID_PUBLIC: ""   # à remplir : même clé publique que dans app.js
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE_KEY }}
-          PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

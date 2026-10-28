@@ -12,6 +12,10 @@ service cloud.firestore {
     match /enfants/{id} {
       allow read, create, update, delete: if estParent();
     }
+    // Téléphones abonnés aux notifications (heure choisie, abonnement push).
+    match /abonnements/{id} {
+      allow read, create, update, delete: if estParent();
+    }
     match /rappels/{id} {
       allow read, delete: if estParent();
       allow create, update: if estParent()
