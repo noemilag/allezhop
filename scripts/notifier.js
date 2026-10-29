@@ -28,9 +28,9 @@ function local(d = new Date()){
   return { date: `${p.year}-${p.month}-${p.day}`, h: +p.hour, m: +p.minute };
 }
 
-// Jours où l'on avertit : jours d'école, premier jour d'un congé, ou tout jour avec un rappel.
-function aAnnoncer(k, nbRappels){
-  if (nbRappels) return true;
+// Jours où l'on avertit : jours d'école, premier jour d'un congé, ou tout jour avec un rappel ou une activité.
+function aAnnoncer(k, nbRappels, nbActivites = 0){
+  if (nbRappels || nbActivites) return true;
   const inf = infoFor(k);
   if (inf.kind === "ecole") return true;
   if (inf.kind === "weekend" || k > LAST) return false;
@@ -51,7 +51,10 @@ async function meteo(k){
   } catch (e) { console.log("Météo indisponible :", e.message); return null; }
 }
 
-function message(k, rappels, w, demain){
+const heureFr = h => { if (!h) return ""; const [a, b] = h.split(":"); return (+a) + " h" + (b && b !== "00" ? " " + b : ""); };
+const objets = t => (t || "").split(/\n|,\s+/).map(x => x.trim()).filter(Boolean);
+
+function message(k, rappels, w, demain, activites = []){
   const inf = infoFor(k), lines = [];
   const quand = demain ? " · demain" : "";
   let title;
@@ -64,9 +67,10 @@ function message(k, rappels, w, demain){
     title = `${ENFANT.prenom} · Pas d'école${quand}`;
     lines.push(inf.label);
   }
+  activites.forEach(a => lines.push(`⭐ ${a.titre} ${heureFr(a.debut)}${a.fin ? " à " + heureFr(a.fin) : ""}`));
   (EVENTS[k] || []).forEach(([em, t, n]) => lines.push(`${em} ${t}${n ? ` (${n})` : ""}`));
   rappels.forEach(r => lines.push(`📌 ${r.titre}`));
-  rappels.forEach(r => (r.notes || "").split(/\n|,\s+/).map(x => x.trim()).filter(Boolean).forEach(x => lines.push(`🎒 ${x}`)));
+  [...activites.flatMap(a => objets(a.apporter)), ...rappels.flatMap(r => objets(r.notes))].forEach(x => lines.push(`🎒 ${x}`));
   if (w) {
     lines.push(`${w.icon} ${deg(w.tmin)} → ${deg(w.tmax)} · ${precipShort(w)}`);
     const sub = wxSub(w); if (sub) lines.push(sub);
@@ -112,8 +116,10 @@ async function main(){
       chargerEnfant(e);
       const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
         .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
-      if (!test && !aAnnoncer(jour, siens.length)) continue;
-      messages.push(message(jour, siens, await meteo(jour), demain));
+      const jourSem = parse(jour).getDay();
+      const acts = (e.activites || []).filter(a => (a.jours || []).includes(jourSem)).sort((a, b) => (a.debut || "").localeCompare(b.debut || ""));
+      if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
+      messages.push(message(jour, siens, await meteo(jour), demain, acts));
     }
     for (const m of messages) {
       if (test) m.title = "Test · " + m.title;
