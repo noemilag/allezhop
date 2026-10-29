@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610292226"></script>
+<script src="config.js?v=202610292229"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -416,6 +416,12 @@ html.st-loading .week{visibility:hidden}
 .j.conge i:nth-child(5){transform:translateY(-2px) rotate(8deg)}
 .o-hop{display:inline-block;width:.62em;height:.64em;margin:0 .03em;transform:translateY(1px) rotate(-3deg)}
 /* fins de semaine dans la bande : une case teintée */
+/* « Aujourd'hui » : apparaît au-dessus de la semaine dès qu'on n'est plus sur aujourd'hui */
+.wk-h{min-height:32px}
+.wk-h span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wk-today{height:30px;padding:0 12px 0 9px;gap:5px;font-size:14px;font-weight:700;background:var(--accent);color:#fff;margin-right:2px}
+.wk-today svg.i{width:16px;height:16px;stroke-width:2.4}
+.wk-today[hidden],#wk-prev[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -428,7 +434,7 @@ html.st-loading .week{visibility:hidden}
     <button class="ibtn rond" id="btn-month" aria-label="Vue du mois"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg></button>
         <button class="ibtn profil-btn" id="btn-compte" aria-label="Menu : profil, notifications et compte"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg><span class="badge" id="compte-badge" hidden></span></button>
     <span class="cache">
-    <button class="ibtn" id="btn-info" aria-label="Notifications du matin"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button class="today-btn" id="btn-today" hidden><svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Aujourd'hui</button></span>
+    <button class="ibtn" id="btn-info" aria-label="Notifications du matin"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button></span>
   </header>
   <div class="pad" id="banner-wrap" hidden><div class="banner"><span id="banner-txt"></span><button id="banner-btn">Me connecter</button></div></div>
   <section class="gate pad" id="gate" aria-live="polite">
@@ -450,7 +456,8 @@ html.st-loading .week{visibility:hidden}
   </section>
   <nav class="week pad" id="week" aria-label="Jours de la semaine">
     <div class="wk-h"><span id="wk-titre">Cette semaine</span>
-      <button type="button" class="wk-fl" id="wk-prev" aria-label="Revenir à cette semaine"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+      <button type="button" class="today-btn wk-today" id="btn-today" hidden><svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Aujourd'hui</button>
+      <button type="button" class="wk-fl" id="wk-prev" hidden aria-label="Revenir à cette semaine"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
       <button type="button" class="wk-fl" id="wk-next" aria-label="Semaine suivante"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
     <div class="wk-pages" id="wk-pages"></div>
   </nav>
@@ -655,6 +662,6 @@ html.st-loading .week{visibility:hidden}
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610292226"></script>
+<script type="module" src="app.js?v=202610292229"></script>
 </body>
 </html>

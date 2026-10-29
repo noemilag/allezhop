@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610292226";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610292229";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610292226";
+const VERSION = "202610292229";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -511,12 +511,13 @@ function titreSemaine(l){
   const t=lundiDe(todayKey());
   if(l===t) return "Cette semaine";
   if(l===addDays(t,7)) return "Semaine prochaine";
-  const x=parse(l); return "Semaine du "+(x.getDate()===1?"1er":x.getDate())+" "+MOIS_LONG[x.getMonth()];
+  const x=parse(l); return "Semaine du "+(x.getDate()===1?"1er":x.getDate())+" "+MOIS_COURT[x.getMonth()];
 }
 function montrerSemaine(l, doux){
   const i=semaines.indexOf(l); if(i<0) return;
   semVue=l; $("wk-titre").textContent=titreSemaine(l);
   $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1;
+  if(typeof paintToday==="function") paintToday();
   const box=$("wk-pages"), x=i*box.clientWidth;
   if(Math.abs(box.scrollLeft-x)>2) box.scrollTo({left:x, behavior:doux&&!reduceMotion?"smooth":"auto"});
 }
@@ -699,11 +700,13 @@ card.addEventListener("click", e=>{
   const ed=e.target.closest("[data-edit]"); if(ed){ const r=reminders.find(x=>x.id===ed.dataset.edit); if(r) openSheet(r); return; }
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
-tap($("btn-today"), ()=>go(-idx));
+// Aujourd'hui : revient au jour même et à sa semaine
+tap($("btn-today"), ()=>{ if(idx) go(-idx); else montrerSemaine(semaines[0], true); paintToday(); });
+function paintToday(){ $("btn-today").hidden = idx===0 && semVue===semaines?.[0]; }
 // Glisser la bande : le titre suit la semaine visible
 $("wk-pages").addEventListener("scroll", ()=>{
   const box=$("wk-pages"), i=Math.round(box.scrollLeft/Math.max(1,box.clientWidth)), l=semaines&&semaines[i];
-  if(l && l!==semVue){ semVue=l; $("wk-titre").textContent=titreSemaine(l); $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1; }
+  if(l && l!==semVue){ semVue=l; $("wk-titre").textContent=titreSemaine(l); $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1; paintToday(); }
 }, {passive:true});
 // Flèche de gauche : retour direct à la semaine d'aujourd'hui (pas une semaine à la fois)
 tap($("wk-prev"), ()=>montrerSemaine(semaines[0], true));
