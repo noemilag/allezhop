@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610292233"></script>
+<script src="config.js?v=202610292234"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -421,7 +421,7 @@ html.st-loading .week{visibility:hidden}
 .wk-h span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .wk-today{height:30px;padding:0 6px;gap:5px;font-size:15px;font-weight:700;background:none;color:var(--accent-ink);margin-right:2px}
 .wk-today svg.i{width:16px;height:16px;stroke-width:2.4}
-.wk-today[hidden],#wk-prev[hidden]{display:none}
+.wk-today[hidden],#wk-prev[hidden],#wk-next[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -458,7 +458,7 @@ html.st-loading .week{visibility:hidden}
     <div class="wk-h"><span id="wk-titre">Cette semaine</span>
       <button type="button" class="today-btn wk-today" id="btn-today" hidden><svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Aujourd'hui</button>
       <button type="button" class="wk-fl" id="wk-prev" hidden aria-label="Revenir à cette semaine"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-      <button type="button" class="wk-fl" id="wk-next" aria-label="Semaine suivante"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+      <button type="button" class="wk-fl" id="wk-next" hidden aria-label="Semaine suivante"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
     <div class="wk-pages" id="wk-pages"></div>
   </nav>
   <main class="stage pad">
@@ -662,6 +662,6 @@ html.st-loading .week{visibility:hidden}
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610292233"></script>
+<script type="module" src="app.js?v=202610292234"></script>
 </body>
 </html>
