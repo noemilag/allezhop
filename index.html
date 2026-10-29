@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610282221"></script>
+<script src="config.js?v=202610290950"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -119,17 +119,18 @@ html.st-loading .kid, html.st-loading .ibtn, html.st-loading .stage, html.st-loa
 .row-top .when{color:var(--accent-ink)}
 .card.off .row-top .when{color:var(--muted)}
 
-.hero{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:10px 14px;border-bottom:1px solid var(--line)}
-.dname{font-weight:800;font-size:clamp(26px,8vw,34px);letter-spacing:-.04em;line-height:1}
-.dnum{font-weight:800;font-size:clamp(80px,25vw,116px);letter-spacing:-.07em;line-height:.86;margin-top:4px;font-variant-numeric:tabular-nums;
+/* en-tête : même taille sur toutes les cartes (ne rapetisse pas quand la carte est pleine) */
+.hero{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:8px 12px;border-bottom:1px solid var(--line)}
+.dname{font-weight:800;font-size:28px;letter-spacing:-.04em;line-height:1}
+.dnum{font-weight:800;font-size:72px;letter-spacing:-.07em;line-height:.86;margin-top:4px;font-variant-numeric:tabular-nums;
   background:linear-gradient(170deg,var(--accent-2),var(--accent) 75%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;padding-right:.06em}
-.cyc.off .dnum{font-size:clamp(46px,14vw,60px);letter-spacing:-.04em;line-height:1;background:none;-webkit-text-fill-color:currentColor;color:var(--ink)}
+.cyc.off .dnum{font-size:44px;letter-spacing:-.04em;line-height:1;background:none;-webkit-text-fill-color:currentColor;color:var(--ink)}
 .dmonth{font-weight:600;font-size:17px;color:var(--muted);margin-top:8px;text-wrap:balance}
 /* tuile date : page de calendrier */
-.tile{flex:none;width:clamp(100px,28vw,124px);aspect-ratio:1/1.08;border-radius:24px;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;padding:8px 6px}
-.tile small{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff}
-.tile b{font-weight:800;font-size:clamp(46px,14vw,60px);line-height:.95;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
-.tile span{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.9)}
+.tile{flex:none;width:92px;aspect-ratio:1/1.02;border-radius:22px;background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-sizing:border-box;padding:8px 6px}
+.tile small{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff}
+.tile b{font-weight:800;font-size:42px;line-height:.95;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.tile span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.9)}
 
 .sec{padding-top:12px;display:flex;flex-direction:column}
 .sec-h{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-variant-numeric:tabular-nums}
@@ -150,15 +151,11 @@ button.line{cursor:pointer}
 .line.cours time{grid-area:heure;font-size:12px;font-weight:600;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;align-self:start;margin-top:-8px}
 .line time{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px}
 .card.mini .line.cours .per{font-size:14px}
-/* Dans le sac à dos : ce qu'il faut apporter pour les cours du jour */
-.sac{margin-top:10px;background:var(--soft);border-radius:20px;padding:11px 14px}
-.sac-h{display:flex;align-items:center;gap:7px;font-weight:700;font-size:15px;color:var(--accent-ink)}
-.sac-h svg.i{width:18px;height:18px;stroke-width:2}
-.sac ul{list-style:none;margin:5px 0 0;padding:0;display:flex;flex-wrap:wrap;column-gap:8px;row-gap:2px;font-size:15px;font-weight:500;color:var(--ink)}
-.sac li:not(:last-child)::after{content:"·";margin-left:8px;color:var(--muted)}
-.card.tighter .sac{padding:9px 12px;margin-top:8px}
-.card.mini .sac ul,.card.mini .sac-h{font-size:14px}
-.card.mini .sac ul{margin-top:3px}
+/* Dans le sac à dos : ce qu'il faut apporter, en pastilles */
+.sac ul{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.sac li{display:flex;align-items:center;gap:6px;background:var(--soft);color:var(--accent-ink);border-radius:999px;padding:6px 12px 6px 10px;font-size:15px;font-weight:600;line-height:1.2}
+.sac li svg.i{width:16px;height:16px;stroke-width:2;flex:none}
+.card.mini .sac li{font-size:14px;padding:4px 10px 4px 8px}
 .offtxt{font-size:18px;font-weight:600;padding-block:6px}
 
 .wx{margin-top:10px;background:var(--pool);border-radius:20px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
@@ -170,46 +167,19 @@ button.line{cursor:pointer}
 .wx-sub{font-size:15px;color:var(--muted);margin:6px 0 0 36px}
 .wx-c{display:flex;align-items:center;gap:10px;border-top:1px solid var(--pool-line);margin-top:10px;padding-top:9px;font-size:15px;font-weight:500}
 
-.foot{margin-top:auto;display:flex;align-items:center;gap:14px;padding-block:12px 14px;border:0;background:none;width:100%;text-align:left;cursor:pointer;min-width:0}
-.foot small{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);flex:none}
-.foot span{flex:1;min-width:0;font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.foot svg.i{width:20px;height:20px;color:var(--muted)}
-
 /* carte trop remplie : on resserre */
-.card.tight .hero{padding-block:10px 12px}
-.card.tight .dname{font-size:28px}
-.card.tight .cyc:not(.off) .dnum{font-size:72px}
-.card.tight .dmonth{font-size:16px;margin-top:5px}
-.card.tight .tile{width:96px}
-.card.tight .tile b{font-size:48px}
 .card.tight .sec{padding-top:10px}
 .card.tight .line{padding-block:4px}
 .card.tight .line .ic{width:38px;height:38px}
 .card.tight .wx{padding:11px 14px;margin-top:8px}
 .card.tight .wx-c{margin-top:9px;padding-top:8px}
 .card.tighter .wx-sub{display:none}
-.card.tighter .foot{padding-block:10px 12px}
-.card.tighter .cyc:not(.off) .dnum{font-size:64px}
-.card.tighter .dname{font-size:24px}
-.card.tighter .tile{width:84px}
-.card.tighter .tile b{font-size:42px}
-.card.tighter .tile span{display:none}
 .card.tighter .line .ic{width:34px;height:34px}
 .card.tighter .line .tx b, .card.tighter .line.cours .nom{font-size:16px}
-.card.tightest .foot{display:none}
-.card.tightest .hero{padding-block:6px 10px}
 .card.tightest .sec{padding-top:8px}
 .card.tightest .line{padding-block:3px}
 .card.tightest .wx-c{font-size:14px}
 /* « mini » : en-tête de la fiche sur une ligne, éléments plus petits */
-.card.mini .row-top{font-size:11px}
-.card.mini .hero{padding-block:4px 8px}
-.card.mini .cyc:not(.off){display:flex;align-items:baseline;gap:8px}
-.card.mini .cyc:not(.off) .dnum{font-size:52px;margin-top:0}
-.card.mini .dname{font-size:22px}
-.card.mini .tile{width:72px;border-radius:18px;gap:0;padding:6px 4px}
-.card.mini .tile small{font-size:10px;letter-spacing:.1em}
-.card.mini .tile b{font-size:32px}
 .card.mini .sec-h{margin-bottom:2px;font-size:11px}
 .card.mini .line{gap:10px;padding-block:2px}
 .card.mini .line .ic{width:30px;height:30px;border-radius:10px}
@@ -223,13 +193,13 @@ button.line{cursor:pointer}
 /* dernier niveau : titres des rappels et températures seulement */
 .card.micro .line .tx span.note, .card.micro .wx-c{display:none}
 .card.micro .line.cours time{display:none}
-.card.micro .sac{display:flex;align-items:center;gap:8px;padding:5px 12px;margin-top:4px;border-radius:14px}
-.card.micro .sac-h{font-size:0;gap:0}
-.card.micro .sac ul{margin:0;font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.card.micro .sac li{display:inline}
+.card.micro .line.cours{grid-template-areas:"ic nom per"}
 .card.micro .line{padding-block:1px}
 .card.micro .line .ic{width:26px;height:26px;border-radius:9px}
-.card.micro .sac li:not(:last-child)::after{margin:0 6px}
+.card.micro .sac li{font-size:13px;padding:3px 9px 3px 7px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.card.micro .sac li svg.i{display:inline-block;vertical-align:-3px;margin-right:4px}
+.card.micro .sac .sec-h{display:none}
+.card.micro .sac ul{flex-wrap:nowrap;margin-top:4px}
 
 /* bas d'écran */
 .dock{flex:none;padding-block:0 10px}
@@ -526,6 +496,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610282221"></script>
+<script type="module" src="app.js?v=202610290950"></script>
 </body>
 </html>
