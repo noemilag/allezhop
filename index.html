@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610291156"></script>
+<script src="config.js?v=202610291619"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -135,16 +135,20 @@ html.st-loading .kid, html.st-loading .ibtn, html.st-loading .stage, html.st-loa
 .sec{padding-top:12px;display:flex;flex-direction:column}
 .sec-h{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-variant-numeric:tabular-nums}
 .line{display:flex;align-items:center;gap:12px;padding-block:5px;min-width:0;border:0;background:none;text-align:left;width:100%}
-button.line{cursor:pointer}
-.line .ic{width:40px;height:40px;border-radius:13px;background:var(--pool);display:grid;place-items:center;flex:none}
+button.line{cursor:pointer;padding-inline:0;margin:0;font:inherit;color:inherit}
+/* icônes : même taille sur toutes les cartes, alignées à gauche */
+.line .ic svg.i{width:20px;height:20px}
+.line .ic{width:36px;height:36px;border-radius:12px;background:var(--pool);display:grid;place-items:center;flex:none}
 .line .tx{flex:1;min-width:0}
 .line .tx b{display:block;font-weight:700;font-size:17px;letter-spacing:-.02em;line-height:1.2}
 .line .tx span{display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--accent-ink);margin-top:1px}
 .line .tx span svg.i{width:15px;height:15px;stroke-width:2}
 .line .tx span.note{color:var(--muted);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* cours : nom du cours et période centrés sur l'icône, l'heure en petit dessous */
-.line.cours{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ic nom per" ". . heure";column-gap:10px;row-gap:0;align-items:center}
+.line.cours{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ic nom per" ". . heure";column-gap:12px;row-gap:0;align-items:center}
 .line.cours .ic{grid-area:ic}
+/* l’heure du dernier cours dépasse sous l’icône : on ne la compte pas dans l’espace avant la section suivante */
+.line.cours:last-child{margin-bottom:-8px}
 .line.cours .nom{grid-area:nom;font-weight:700;font-size:17px;letter-spacing:-.02em;line-height:1.2;min-width:0}
 .line.cours .per{grid-area:per;font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
 .line.cours .per sup{font-size:.62em;vertical-align:.5em;line-height:0}
@@ -179,20 +183,16 @@ button.line{cursor:pointer}
 /* carte trop remplie : on resserre */
 .card.tight .sec{padding-top:10px}
 .card.tight .line{padding-block:4px}
-.card.tight .line .ic{width:38px;height:38px}
 .card.tight .wx{padding:11px 14px;margin-top:8px}
 .card.tight .wx-c{margin-top:9px;padding-top:8px}
 .card.tighter .wx-sub{display:none}
-.card.tighter .line .ic{width:34px;height:34px}
 .card.tighter .line .tx b, .card.tighter .line.cours .nom{font-size:16px}
 .card.tightest .sec{padding-top:8px}
 .card.tightest .line{padding-block:3px}
 .card.tightest .wx-c{font-size:14px}
 /* « mini » : en-tête de la fiche sur une ligne, éléments plus petits */
 .card.mini .sec-h{margin-bottom:2px;font-size:11px}
-.card.mini .line{gap:10px;padding-block:2px}
-.card.mini .line .ic{width:30px;height:30px;border-radius:10px}
-.card.mini .line .ic svg.i{width:18px;height:18px}
+.card.mini .line{padding-block:2px}
 .card.mini .line .tx b, .card.mini .line.cours .nom{font-size:15px}
 .card.mini .line .tx span{font-size:13px}
 .card.mini .line time{font-size:11px}
@@ -203,6 +203,7 @@ button.line{cursor:pointer}
 .card.micro .line .tx span.note, .card.micro .wx-c{display:none}
 .card.micro .line.cours time{display:none}
 .card.micro .line.cours{grid-template-areas:"ic nom per"}
+.card.micro .line.cours:last-child{margin-bottom:0}
 .card.micro .line{padding-block:1px}
 .card.micro .sec{padding-top:6px}
 .card.micro .wx{margin-top:4px}
@@ -212,8 +213,6 @@ button.line{cursor:pointer}
 .card.micro .coche .txt{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card.micro .coche .box{width:17px;height:17px;border-radius:5px}
 .card.micro .coche .box svg.i{width:11px;height:11px}
-.card.micro .line .ic{width:24px;height:24px;border-radius:8px}
-.card.micro .line .ic svg.i{width:16px;height:16px}
 
 /* bas d'écran */
 .dock{flex:none;padding-block:0 10px}
@@ -510,6 +509,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610291156"></script>
+<script type="module" src="app.js?v=202610291619"></script>
 </body>
 </html>
