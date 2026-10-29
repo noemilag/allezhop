@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610291135";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610291156";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610291135";
+const VERSION = "202610291156";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -252,6 +252,7 @@ $("c-logout").addEventListener("click", async ()=>{ await store.signOut(); $("co
 /* ---------- Icônes (au trait, d'après Lucide, licence ISC) ---------- */
 const CLOUD='<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>';
 const ICONS={
+  check:'<path d="M20 6 9 17l-5-5"/>',
   pin:'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
   party:'<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
   bus:'<path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/>',
@@ -336,6 +337,18 @@ function eyebrowFor(k){
 }
 const MOIS_COURT=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 // « Lunch froid, 5 $ » → ["Lunch froid", "5 $"] (la virgule d'un prix comme 5,50 $ n'est pas suivie d'une espace)
+// Cases cochées du sac à dos : gardées sur ce téléphone seulement, par jour
+const SAC_CLE="allezhop-sac";
+function sacLire(){ try{ return JSON.parse(localStorage.getItem(SAC_CLE))||{}; }catch{ return {}; } }
+function sacCoche(k,o){ return !!(sacLire()[k]||[]).includes(o); }
+function sacBasculer(k,o){
+  const t=sacLire(), l=new Set(t[k]||[]);
+  l.has(o) ? l.delete(o) : l.add(o);
+  if(l.size) t[k]=[...l]; else delete t[k];
+  const hier=addDays(todayKey(),-7); for(const d of Object.keys(t)) if(d<hier) delete t[d]; // ménage
+  try{ localStorage.setItem(SAC_CLE, JSON.stringify(t)); }catch{}
+  return l.has(o);
+}
 function aApporter(t){ return (t||"").split(/\n|,\s+/).map(x=>x.trim()).filter(Boolean); }
 function cardHTML(k){
   const inf=infoFor(k), school=inf.kind==="ecole", d=parse(k);
@@ -371,7 +384,7 @@ function cardHTML(k){
   // Dans le sac à dos : sous les rappels, juste avant la météo
   // ce qu'il faut pour les cours, puis le champ « Dans le sac à dos » des rappels (un objet par virgule ou par ligne)
   const objets=[...(school ? specialsOf(inf.jour).map(s=>s.apporter).filter(Boolean) : []), ...remindersOn(k).flatMap(r=>aApporter(r.notes))];
-  const sac=objets.map(o=>`<li>${icon("backpack")}${esc(o)}</li>`).join("");
+  const sac=objets.map(o=>{ const on=sacCoche(k,o); return `<li><button type="button" class="coche${on?" on":""}" data-sac="${esc(o)}" aria-pressed="${on}"><span class="box">${icon("check")}</span><span class="txt">${esc(o)}</span></button></li>`; }).join("");
   if(sac) h+=`<div class="sec sac"><div class="sec-h"><span>Dans le sac à dos</span></div><ul>${sac}</ul></div>`;
 
   h+=weatherHTML(k);
@@ -621,6 +634,8 @@ card.addEventListener("click", e=>{
   if(dragged){ e.preventDefault(); e.stopPropagation(); dragged=false; }
 }, true);
 card.addEventListener("click", e=>{
+  const c=e.target.closest("[data-sac]");
+  if(c){ const on=sacBasculer(days[idx], c.dataset.sac); c.classList.toggle("on",on); c.setAttribute("aria-pressed",on); return; }
   const ed=e.target.closest("[data-edit]"); if(ed){ const r=reminders.find(x=>x.id===ed.dataset.edit); if(r) openSheet(r); return; }
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
