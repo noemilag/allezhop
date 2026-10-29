@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610291121";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610291135";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610291121";
+const VERSION = "202610291135";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -335,6 +335,8 @@ function eyebrowFor(k){
   return diff<7 ? "Dans "+diff+" jours" : "Dans "+Math.round(diff/7)+" sem.";
 }
 const MOIS_COURT=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+// « Lunch froid, 5 $ » → ["Lunch froid", "5 $"] (la virgule d'un prix comme 5,50 $ n'est pas suivie d'une espace)
+function aApporter(t){ return (t||"").split(/\n|,\s+/).map(x=>x.trim()).filter(Boolean); }
 function cardHTML(k){
   const inf=infoFor(k), school=inf.kind==="ecole", d=parse(k);
   let h=`<div class="row-top"><span class="when">${eyebrowFor(k)}</span></div>`;
@@ -356,7 +358,7 @@ function cardHTML(k){
 
   const items=[];
   (EVENTS[k]||[]).forEach(([e,t,n])=>items.push({ic:e, t, n}));
-  remindersOn(k).forEach(r=>items.push({ic:r.ic||r.em, t:r.titre, n:r.notes, id:r.id}));
+  remindersOn(k).forEach(r=>items.push({ic:r.ic||r.em, t:r.titre, id:r.id}));
   if(items.length){
     h+=`<div class="sec"><div class="sec-h"><span>À ne pas oublier</span></div>`;
     items.forEach(it=>{
@@ -367,7 +369,9 @@ function cardHTML(k){
   }
 
   // Dans le sac à dos : sous les rappels, juste avant la météo
-  const sac=school ? specialsOf(inf.jour).filter(s=>s.apporter).map(s=>`<li>${icon("backpack")}${esc(s.apporter)}</li>`).join("") : "";
+  // ce qu'il faut pour les cours, puis le champ « Dans le sac à dos » des rappels (un objet par virgule ou par ligne)
+  const objets=[...(school ? specialsOf(inf.jour).map(s=>s.apporter).filter(Boolean) : []), ...remindersOn(k).flatMap(r=>aApporter(r.notes))];
+  const sac=objets.map(o=>`<li>${icon("backpack")}${esc(o)}</li>`).join("");
   if(sac) h+=`<div class="sec sac"><div class="sec-h"><span>Dans le sac à dos</span></div><ul>${sac}</ul></div>`;
 
   h+=weatherHTML(k);

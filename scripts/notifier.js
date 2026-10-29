@@ -65,7 +65,8 @@ function message(k, rappels, w, demain){
     lines.push(inf.label);
   }
   (EVENTS[k] || []).forEach(([em, t, n]) => lines.push(`${em} ${t}${n ? ` (${n})` : ""}`));
-  rappels.forEach(r => lines.push(`📌 ${r.titre}${r.notes ? " : " + r.notes : ""}`));
+  rappels.forEach(r => lines.push(`📌 ${r.titre}`));
+  rappels.forEach(r => (r.notes || "").split(/\n|,\s+/).map(x => x.trim()).filter(Boolean).forEach(x => lines.push(`🎒 ${x}`)));
   if (w) {
     lines.push(`${w.icon} ${deg(w.tmin)} → ${deg(w.tmax)} · ${precipShort(w)}`);
     const sub = wxSub(w); if (sub) lines.push(sub);
