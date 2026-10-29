@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610291619";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610292111";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610291619";
+const VERSION = "202610292111";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -98,6 +98,7 @@ async function initStore(){
       getSub:async id=>{ const s=await F.getDoc(F.doc(db,"abonnements",id)); return s.exists()?s.data():null; },
       saveSub:(id,d)=>F.setDoc(F.doc(db,"abonnements",id), {...d, maj:Date.now(), par:userEmail}, {merge:true}),
       delSub:id=>F.deleteDoc(F.doc(db,"abonnements",id)),
+      saveActs:(id,list)=>F.setDoc(F.doc(db,"enfants",id), {activites:list, maj:Date.now()}, {merge:true}),
       saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
     };
     A.onAuthStateChanged(auth, user=>{
@@ -167,6 +168,23 @@ async function deleteReminder(id){
 }
 // Rappels de l'enfant affiché. Les anciens rappels (sans enfant) appartiennent au premier enfant ajouté.
 function mine(){ return reminders.filter(r=> r.enfant ? r.enfant===kidId : (!kidsAll.length || kidId===kidsAll[0].id)); }
+// Activités qui reviennent chaque semaine (karaté, soccer…) : gardées dans la fiche de l'enfant
+const LS_ACT="allezhop.activites";
+function activites(){
+  if(mode==="local"){ try{ return JSON.parse(localStorage.getItem(LS_ACT))||[]; }catch{ return []; } }
+  const e=kidsAll.find(x=>x.id===kidId); return (e && e.activites) || [];
+}
+function activitesLe(k){
+  const w=parse(k).getDay();
+  return activites().filter(a=>(a.jours||[]).includes(w)).sort((x,y)=>(x.debut||"").localeCompare(y.debut||""));
+}
+async function enregistrerActivites(list){
+  if(mode==="local"){ try{ localStorage.setItem(LS_ACT, JSON.stringify(list)); }catch{} render(); return; }
+  const e=kidsAll.find(x=>x.id===kidId); if(e) e.activites=list;   // affichage immédiat
+  render();
+  await store.saveActs(kidId, list);
+}
+const heureFr=h=>{ if(!h) return ""; const [a,b]=h.split(":"); return (+a)+" h"+(b && b!=="00" ? " "+b : ""); };
 function remindersOn(k){ return mine().filter(r=>r.date===k).sort((a,b)=>(a.titre||"").localeCompare(b.titre||"")); }
 
 /* ---------- Compte ---------- */
@@ -252,6 +270,8 @@ $("c-logout").addEventListener("click", async ()=>{ await store.signOut(); $("co
 /* ---------- Icônes (au trait, d'après Lucide, licence ISC) ---------- */
 const CLOUD='<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>';
 const ICONS={
+  star:'<path d="M11.5 2.8a.6.6 0 0 1 1 0l2.6 5.3 5.8.8a.6.6 0 0 1 .3 1l-4.2 4.1 1 5.8a.6.6 0 0 1-.9.6L12 17.7l-5.2 2.7a.6.6 0 0 1-.9-.6l1-5.8-4.2-4.1a.6.6 0 0 1 .3-1l5.8-.8z"/>',
+  bike:'<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   pin:'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
   party:'<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
@@ -323,9 +343,7 @@ function buildDays(){
   let last=END; mine().forEach(r=>{ if(r.date>last) last=r.date; });
   const list=[];
   for(let k=t; k<=last; k=addDays(k,1)){
-    const w=parse(k).getDay();
-    if((w===0||w===6) && k!==t && !remDates.has(k)) continue;
-    list.push(k);
+    list.push(k);   // essai C : tous les jours, fins de semaine comprises
   }
   return list;
 }
@@ -335,6 +353,9 @@ function eyebrowFor(k){
   if(diff===1) return "Demain";
   return diff<7 ? "Dans "+diff+" jours" : "Dans "+Math.round(diff/7)+" sem.";
 }
+// Le « o » souriant du mot Hop du logo, pour écrire « Congé »
+const O_HOP=`<svg class="o-hop" viewBox="256 275 196 201" aria-hidden="true"><path fill="currentColor" d="M381,279c.6.2,1.2.3,1.8.5,22.2,6.6,42.9,22,54.3,42.3,4.6,8.4,8.5,16.9,11,26.2.2.8.4,1.5.6,2.3,3.4,14.1,3.1,29.6.4,43.7-.1.6-.2,1.2-.4,1.9-5,24.3-19.5,46.2-39.4,60.9-1.7,1.1-3.5,2.2-5.2,3.2-.6.4-1.2.7-1.8,1.1-22.2,13-46.7,17.8-72,11.7-14.1-3.7-27-10.4-38.2-19.8-.7-.6-1.5-1.2-2.2-1.8-19.2-16-30.9-41.1-33.5-65.7-2.2-26.9,6.7-53.3,23.8-74,25.3-29.1,62.7-43.8,100.9-32.5ZM291,375.8c-1.6,5.1-2.2,9.4,0,14.4,10.4,16.8,27.9,27.5,46.8,32.2,21.2,3.4,41.3-1.2,59-13.3,2.1-1.6,4.2-3.3,6.2-5.1.5-.4,1.1-.8,1.6-1.2,5.2-4,10.3-9.5,12.4-15.8.5-4.4.7-8.5-1.6-12.3-3-3.8-5.9-6.3-10.8-7.1-5.6-.2-9.4.6-13.6,4.4q-.3.3-1.7,1.6c-11.1,10.3-25,15.1-40.1,14.7-12.5-1.1-23.9-6.3-32.4-15.5-3.4-3.5-6.8-4.9-11.6-5.3-6.1.3-10.6,3.4-14.1,8.2Z"/></svg>`;
+const MOIS_LONG=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const MOIS_COURT=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 // « Lunch froid, 5 $ » → ["Lunch froid", "5 $"] (la virgule d'un prix comme 5,50 $ n'est pas suivie d'une espace)
 // Cases cochées du sac à dos : gardées sur ce téléphone seulement, par jour
@@ -352,12 +373,10 @@ function sacBasculer(k,o){
 function aApporter(t){ return (t||"").split(/\n|,\s+/).map(x=>x.trim()).filter(Boolean); }
 function cardHTML(k){
   const inf=infoFor(k), school=inf.kind==="ecole", d=parse(k);
-  let h=`<div class="row-top"><span class="when">${eyebrowFor(k)}</span></div>`;
-  // À gauche : le jour du cycle ; à droite : la date, comme une page de calendrier
-  h+= school
-    ? `<div class="hero"><div class="cyc" aria-label="Jour ${inf.jour} du cycle"><div class="dname">Jour</div><div class="dnum">${inf.jour}</div></div>`
-    : `<div class="hero"><div class="cyc off"><div class="dnum">Congé</div><div class="dmonth">${esc(inf.label)}</div></div>`;
-  h+=`<div class="tile" aria-label="${esc(cap(longDate(k)))} ${d.getFullYear()}"><small>${JOURS[d.getDay()]}</small><b>${d.getDate()}</b><span>${MOIS_COURT[d.getMonth()]} ${d.getFullYear()}</span></div>`;
+  // Essai C : titre de la page (la date) et pastille du jour du cycle
+  const dateTxt=`${cap(JOURS[d.getDay()])} ${d.getDate()===1?"1er":d.getDate()} ${MOIS_LONG[d.getMonth()]}`;
+  let h=`<div class="ptitre"><div><span class="when">${esc(eyebrowFor(k))}</span><h2>${esc(dateTxt)}</h2></div>`;
+  h+= school ? `<span class="j" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></span>` : `<span class="j conge" aria-label="Congé${inf.kind==="weekend"?"":" : "+esc(inf.label||"")}">C${O_HOP}ngé</span>`;
   h+=`</div>`;
 
   if(school){
@@ -367,6 +386,17 @@ function cardHTML(k){
       ? sp.map(s=>`<div class="line cours"><span class="ic">${icon(s.ic)}</span><b class="nom">${esc(s.nom)}</b><span class="per">${s.p}<sup>${s.p==1?"re":"e"}</sup> période</span><time>${PERIODES[s.p]}</time></div>`).join("")
       : `<div class="offtxt">Aucun spécialiste</div>`;
     h+=`</div>`;
+  }
+
+  // Activités de la semaine (parascolaire) : « En soirée » les jours d'école, « Activités » sinon
+  const acts=activitesLe(k);
+  if(acts.length){
+    h+=`<div class="sec"><div class="sec-h"><span>${school?"En soirée":"Activités"}</span></div>`;
+    h+=acts.map(a=>`<button type="button" class="line cours act" data-act="${esc(a.id)}" aria-label="Modifier : ${esc(a.titre)}"><span class="ic">${icon(a.ic||"star")}</span><b class="nom">${esc(a.titre)}</b><span class="per">${heureFr(a.debut)}</span>${a.fin?`<time>jusqu'à ${heureFr(a.fin)}</time>`:"<time></time>"}</button>`).join("");
+    h+=`</div>`;
+  }
+  if(!school && !acts.length && !remindersOn(k).length && !(EVENTS[k]||[]).length){
+    h+=`<div class="rien">${inf.kind==="weekend"?"Rien de prévu cette journée-là.":"Pas d'école."} Touchez <b>+</b> pour ajouter un rappel ou une activité.</div>`;
   }
 
   const items=[];
@@ -383,7 +413,7 @@ function cardHTML(k){
 
   // Dans le sac à dos : sous les rappels, juste avant la météo
   // ce qu'il faut pour les cours, puis le champ « Dans le sac à dos » des rappels (un objet par virgule ou par ligne)
-  const objets=[...(school ? specialsOf(inf.jour).map(s=>s.apporter).filter(Boolean) : []), ...remindersOn(k).flatMap(r=>aApporter(r.notes))];
+  const objets=[...(school ? specialsOf(inf.jour).map(s=>s.apporter).filter(Boolean) : []), ...acts.flatMap(a=>aApporter(a.apporter)), ...remindersOn(k).flatMap(r=>aApporter(r.notes))];
   const sac=objets.map(o=>{ const on=sacCoche(k,o); return `<li><button type="button" class="coche${on?" on":""}" data-sac="${esc(o)}" aria-pressed="${on}"><span class="box">${icon("check")}</span><span class="txt">${esc(o)}</span></button></li>`; }).join("");
   if(sac) h+=`<div class="sec sac"><div class="sec-h"><span>Dans le sac à dos</span></div><ul>${sac}</ul></div>`;
 
@@ -447,7 +477,7 @@ function render(){
 }
 function paint(){
   card.className="card"+(infoFor(current).kind==="ecole"?"":" off");
-  card.innerHTML=cardHTML(current);
+  card.innerHTML=cardHTML(current); card.scrollTop=0;
   card.setAttribute("aria-label", cap(longDate(current)));
   fit(card); chrome();
   // La carte suivante, visible derrière pendant qu'on glisse
@@ -456,13 +486,50 @@ function paint(){
   peek.innerHTML=nk ? cardHTML(nk) : "";
   fit(peek);
 }
+// Essai : rien ne rapetisse ; la fiche défile. Un fondu en bas indique qu'il reste du contenu.
 function fit(el){
-  const over=()=>el.scrollHeight>el.clientHeight+1;
-  el.classList.remove("tight","tighter","tightest","mini","micro");
-  for(const c of ["tight","tighter","tightest","mini","micro"]){ if(!over()) break; el.classList.add(c); }
+  const reste=el.scrollHeight-el.clientHeight-el.scrollTop>4;
+  el.classList.toggle("deborde", reste);
 }
 function chrome(){
-  $("btn-today").hidden = idx===0;
+  paintWeek();
+}
+// Bande de la semaine : toutes les semaines jusqu'à la fin de l'année, on la fait glisser de côté
+let semaines=null, semVue=null, semPour=null;
+const lundiDe=k=>addDays(k, -parse(k).getDay());   // essai C : la semaine commence le dimanche
+function buildWeeks(){
+  semaines=[]; semPour=todayKey()+LAST; const fin=lundiDe(LAST);
+  for(let l=lundiDe(todayKey()); l<=fin; l=addDays(l,7)) semaines.push(l);
+  $("wk-pages").innerHTML=semaines.map(l=>`<div class="wk" data-lundi="${l}">${[0,1,2,3,4,5,6].map(i=>{
+    const k=addDays(l,i), x=parse(k), inf=infoFor(k);
+    const sub=inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : "";
+    const cls=["wd"]; if(inf.kind==="off") cls.push("off"); if(inf.kind==="weekend") cls.push("we");
+    return `<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}${sub?", "+sub:""}"><small>${JOURS_COURTS[x.getDay()]}</small><b>${x.getDate()}</b><span>${sub}</span><i class="pt"></i></button>`;
+  }).join("")}</div>`).join("");
+}
+function titreSemaine(l){
+  const t=lundiDe(todayKey());
+  if(l===t) return "Cette semaine";
+  if(l===addDays(t,7)) return "Semaine prochaine";
+  const x=parse(l); return "Semaine du "+(x.getDate()===1?"1er":x.getDate())+" "+MOIS_LONG[x.getMonth()];
+}
+function montrerSemaine(l, doux){
+  const i=semaines.indexOf(l); if(i<0) return;
+  semVue=l; $("wk-titre").textContent=titreSemaine(l);
+  $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1;
+  const box=$("wk-pages"), x=i*box.clientWidth;
+  if(Math.abs(box.scrollLeft-x)>2) box.scrollTo({left:x, behavior:doux&&!reduceMotion?"smooth":"auto"});
+}
+function paintWeek(){
+  if(!semaines || semPour!==todayKey()+LAST){ buildWeeks(); semVue=null; }
+  const t=todayKey();
+  $("wk-pages").querySelectorAll(".wd").forEach(b=>{
+    const k=b.dataset.semaine;
+    b.classList.toggle("sel", k===current); b.classList.toggle("auj", k===t); b.classList.toggle("passe", k<t);
+    b.classList.toggle("prevu", remindersOn(k).length>0);   // point : rappel ce jour-là (pas les activités, qui reviennent chaque semaine)
+    if(k===current) b.setAttribute("aria-current","date"); else b.removeAttribute("aria-current");
+  });
+  montrerSemaine(lundiDe(current), semVue!==null);
 }
 // dir : sens du geste {x,y} (-1, 0 ou 1). Vers la gauche ou le haut = jour suivant.
 function go(delta, dir){
@@ -479,20 +546,13 @@ function go(delta, dir){
   busy=true; setTimeout(()=>busy=false, 450);
   const old=card.cloneNode(true);
   old.removeAttribute("id"); old.removeAttribute("aria-live"); old.classList.add("leaving"); old.setAttribute("aria-hidden","true");
+  const hautAvant=card.scrollTop;
   idx=ni; current=days[ni]; card.style.transform=""; paint();
-  const d=dir || (delta>0 ? {x:-1,y:0} : {x:1,y:0});
-  if(delta>0){
-    // La carte du jour s'envole, la suivante avance depuis la pile.
-    stack.appendChild(old);
-    old.animate([{transform:from,opacity:1},{transform:`translate(${d.x*120}%,${d.y*120}%) rotate(${d.x*10}deg)`,opacity:0}],{duration:320,easing:EASE}).onfinish=()=>{ old.remove(); busy=false; };
-    card.animate([{transform:BACK},{transform:"none"}],{duration:320,easing:EASE});
-  } else {
-    // La carte retourne dans la pile, la précédente revient du côté du geste.
-    stack.insertBefore(old, card);
-    old.style.transformOrigin="50% 100%";
-    old.animate([{transform:from},{transform:BACK}],{duration:320,easing:EASE}).onfinish=()=>{ old.remove(); busy=false; };
-    card.animate([{transform:`translate(${-d.x*110}%,${-d.y*110}%) rotate(${-d.x*8}deg)`},{transform:"none"}],{duration:320,easing:EASE});
-  }
+  // Essai C : pas de pile de fiches ; les pages glissent côte à côte.
+  const s=delta>0 ? -1 : 1;
+  stack.appendChild(old); old.scrollTop=hautAvant;
+  old.animate([{transform:from},{transform:`translateX(${s*100}%)`}],{duration:300,easing:EASE}).onfinish=()=>{ old.remove(); busy=false; };
+  card.animate([{transform:`translateX(${-s*100}%)`},{transform:"none"}],{duration:300,easing:EASE});
 }
 // Bouton qui réagit dès que le doigt se lève. Le mode app de l'iPhone (ouverte depuis l'icône)
 // avale parfois le premier « click » après un swipe ; le clic reste pour la souris et le clavier.
@@ -609,25 +669,24 @@ card.addEventListener("pointermove", e=>{
   const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
   if(!drag.on){
     if(Math.hypot(dx,dy)<8) return;
+    // Geste vertical : on laisse la fiche défiler.
+    if(Math.abs(dy)>Math.abs(dx)){ drag=null; return; }
     drag.on=true; dragged=true; card.setPointerCapture(e.pointerId);
   }
-  drag.dx=dx; drag.dy=dy;
-  const atStart=idx===0 && (dx>0 && Math.abs(dx)>=Math.abs(dy) || dy>0 && Math.abs(dy)>Math.abs(dx));
-  const k=atStart ? .35 : 1;   // résistance quand il n'y a pas de jour précédent
-  card.style.transform=`translate(${dx*k}px,${dy*k}px) rotate(${dx*k*.04}deg)`;
+  drag.dx=dx;
+  const k=idx===0 && dx>0 ? .35 : 1;   // résistance quand il n'y a pas de jour précédent
+  card.style.transform=`translateX(${dx*k}px)`;
 });
 function endDrag(e){
   if(!drag || e.pointerId!==drag.id) return;
   const d=drag; drag=null;
   if(!d.on) return;
-  const horiz=Math.abs(d.dx)>=Math.abs(d.dy), dist=horiz?Math.abs(d.dx):Math.abs(d.dy);
-  const speed=dist/Math.max(1,performance.now()-d.t);
-  if(dist>80 || (speed>.5 && dist>30)){
-    const s=Math.sign(horiz?d.dx:d.dy);
-    go(s<0 ? 1 : -1, horiz ? {x:s,y:0} : {x:0,y:s});
-  } else snap();
+  const dist=Math.abs(d.dx), speed=dist/Math.max(1,performance.now()-d.t);
+  if(dist>80 || (speed>.5 && dist>30)){ const s=Math.sign(d.dx); go(s<0 ? 1 : -1, {x:s,y:0}); }
+  else snap();
 }
 card.addEventListener("pointerup", endDrag);
+card.addEventListener("scroll", ()=>fit(card), {passive:true});
 card.addEventListener("pointercancel", endDrag);
 card.addEventListener("dragstart", e=>e.preventDefault());
 card.addEventListener("click", e=>{
@@ -636,14 +695,31 @@ card.addEventListener("click", e=>{
 card.addEventListener("click", e=>{
   const c=e.target.closest("[data-sac]");
   if(c){ const on=sacBasculer(days[idx], c.dataset.sac); c.classList.toggle("on",on); c.setAttribute("aria-pressed",on); return; }
+  const ac=e.target.closest("[data-act]"); if(ac){ const a=activites().find(x=>x.id===ac.dataset.act); if(a) openAct(a); return; }
   const ed=e.target.closest("[data-edit]"); if(ed){ const r=reminders.find(x=>x.id===ed.dataset.edit); if(r) openSheet(r); return; }
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
 tap($("btn-today"), ()=>go(-idx));
+// Glisser la bande : le titre suit la semaine visible
+$("wk-pages").addEventListener("scroll", ()=>{
+  const box=$("wk-pages"), i=Math.round(box.scrollLeft/Math.max(1,box.clientWidth)), l=semaines&&semaines[i];
+  if(l && l!==semVue){ semVue=l; $("wk-titre").textContent=titreSemaine(l); $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1; }
+}, {passive:true});
+// Flèche de gauche : retour direct à la semaine d'aujourd'hui (pas une semaine à la fois)
+tap($("wk-prev"), ()=>montrerSemaine(semaines[0], true));
+tap($("wk-next"), ()=>{ const i=semaines.indexOf(semVue); if(i<semaines.length-1) montrerSemaine(semaines[i+1], true); });
+window.addEventListener("resize", ()=>{ if(semVue) montrerSemaine(semVue, false); });
+tap($("week"), e=>{
+  const b=e.target.closest("[data-semaine]"); if(!b) return;
+  const k=b.dataset.semaine; if(k===current) return;
+  if(k<todayKey()){ toast("Cette journée est passée"); return; }
+  const i=days.indexOf(k); if(i<0){ toast("Pas de fiche ce jour-là"); return; }
+  go(i-idx, i>idx ? {x:-1,y:0} : {x:1,y:0});
+});
 document.addEventListener("keydown", e=>{
-  if(!scrim.hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
-  if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key==="PageDown"){ e.preventDefault(); go(1, e.key==="ArrowRight"?{x:-1,y:0}:{x:0,y:-1}); }
-  if(e.key==="ArrowLeft"||e.key==="ArrowUp"||e.key==="PageUp"){ e.preventDefault(); go(-1, e.key==="ArrowLeft"?{x:1,y:0}:{x:0,y:1}); }
+  if(!scrim.hidden || !actS.hidden || !$("choix").hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
+  if(e.key==="ArrowRight"){ e.preventDefault(); go(1, {x:-1,y:0}); }
+  if(e.key==="ArrowLeft"){ e.preventDefault(); go(-1, {x:1,y:0}); }
 });
 window.addEventListener("resize", ()=>{ fit(card); fit(peek); });
 // Au retour dans l'app (le lendemain matin, par exemple) : nouvelle journée et météo fraîche
@@ -715,10 +791,60 @@ function openSheet(r){
   scrim.hidden=false;
 }
 function closeSheet(){ scrim.hidden=true; }
-tap($("fab"), ()=>{ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); });
+
+/* ---------- Activités (chaque semaine) ---------- */
+const actS=$("act"), aT=$("a-titre"), aD=$("a-debut"), aF=$("a-fin"), aN=$("a-sac"), aE=$("a-err"), aDel=$("a-del");
+let actEdit=null, actIc="star", actJours=new Set(), actArmed=false;
+const PICK_ACT=["star","ball","music","waves","palette","book","bike","chat","pencil","ticket","pin"];
+$("a-icons").innerHTML=PICK_ACT.map(x=>`<button type="button" data-ic="${x}" aria-label="Icône ${x}">${icon(x)}</button>`).join("");
+$("a-icons").addEventListener("click", e=>{ const b=e.target.closest("[data-ic]"); if(b){ actIc=b.dataset.ic; paintAct(); } });
+$("a-jours").innerHTML=JOURS.map((j,i)=>`<button type="button" data-j="${i}" aria-label="${j}">${JOURS_COURTS[i]}</button>`).join("");
+$("a-jours").addEventListener("click", e=>{ const b=e.target.closest("[data-j]"); if(!b) return; const j=+b.dataset.j; actJours.has(j)?actJours.delete(j):actJours.add(j); paintAct(); });
+function paintAct(){
+  $("a-icons").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.ic===actIc));
+  $("a-jours").querySelectorAll("button").forEach(b=>b.classList.toggle("on", actJours.has(+b.dataset.j)));
+}
+function openAct(a){
+  if(mode==="signedout"){ $("compte").hidden=false; return; }
+  actEdit=a?a.id:null; actArmed=false;
+  $("act-title").textContent=a?"Modifier l'activité":"Nouvelle activité";
+  aT.value=a?a.titre:""; aD.value=a?(a.debut||""):"18:00"; aF.value=a?(a.fin||""):""; aN.value=a?(a.apporter||""):"";
+  actIc=a?(a.ic||"star"):"star";
+  actJours=new Set(a ? a.jours : [parse(current||todayKey()).getDay()]);
+  aDel.hidden=!a; aDel.classList.remove("armed"); aDel.textContent="Supprimer"; aE.hidden=true;
+  paintAct(); actS.hidden=false;
+}
+$("a-cancel").addEventListener("click", ()=>actS.hidden=true);
+actS.addEventListener("click", e=>{ if(e.target===actS) actS.hidden=true; });
+$("act-form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const titre=aT.value.trim();
+  if(!titre){ aE.textContent="Écrivez le nom de l'activité."; aE.hidden=false; aT.focus(); return; }
+  if(!actJours.size){ aE.textContent="Choisissez au moins une journée."; aE.hidden=false; return; }
+  if(!aD.value){ aE.textContent="Indiquez l'heure du début."; aE.hidden=false; return; }
+  const a={id:actEdit||("a"+Date.now().toString(36)), titre, jours:[...actJours].sort(), debut:aD.value, fin:aF.value||"", apporter:aN.value.trim(), ic:actIc};
+  const list=activites().filter(x=>x.id!==a.id); list.push(a);
+  actS.hidden=true;
+  try{ await enregistrerActivites(list); toast(actEdit?"Activité modifiée":"Activité ajoutée : "+a.jours.map(j=>JOURS[j]).join(", ")); }
+  catch(err){ toast("Pas pu enregistrer : "+(err.code||err.message)); }
+});
+aDel.addEventListener("click", async ()=>{
+  if(!actArmed){ actArmed=true; aDel.classList.add("armed"); aDel.textContent="Confirmer"; return; }
+  actS.hidden=true;
+  try{ await enregistrerActivites(activites().filter(x=>x.id!==actEdit)); toast("Activité supprimée"); }
+  catch(err){ toast("Pas pu supprimer : "+(err.code||err.message)); }
+});
+tap($("fab"), ()=>{ if(mode==="signedout"){ $("compte").hidden=false; return; } $("choix").hidden=false; });
+$("choix").addEventListener("click", e=>{
+  const b=e.target.closest("[data-choix]");
+  if(e.target===$("choix") || b) $("choix").hidden=true;
+  if(!b) return;
+  if(b.dataset.choix==="rappel"){ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); }
+  if(b.dataset.choix==="activite") openAct(null);
+});
 $("f-cancel").addEventListener("click", closeSheet);
 scrim.addEventListener("click", e=>{ if(e.target===scrim) closeSheet(); });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); info.hidden=true; $("compte").hidden=true; $("recherche").hidden=true; $("mois").hidden=true; } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); actS.hidden=true; $("choix").hidden=true; info.hidden=true; $("compte").hidden=true; $("recherche").hidden=true; $("mois").hidden=true; } });
 
 form.addEventListener("submit", async e=>{
   e.preventDefault();
@@ -814,6 +940,7 @@ async function enablePush(heure){
 
 /* ---------- Calendrier (.ics) ---------- */
 const info=$("info");
+$("c-notifs").addEventListener("click", ()=>{ $("compte").hidden=true; $("btn-info").click(); });
 $("btn-info").addEventListener("click", ()=>{ $("ics-msg").textContent=""; info.hidden=false; paintPush(); });
 $("info-close").addEventListener("click", ()=>info.hidden=true);
 info.addEventListener("click", e=>{ if(e.target===info) info.hidden=true; });
