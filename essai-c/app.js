@@ -464,18 +464,39 @@ function chrome(){
   $("btn-today").hidden = idx===0;
   paintWeek();
 }
-// Les 5 jours d'école (lundi à vendredi) de la semaine affichée
+// Bande de la semaine : toutes les semaines jusqu'à la fin de l'année, on la fait glisser de côté
+let semaines=null, semVue=null, semPour=null;
+const lundiDe=k=>addDays(k, -((parse(k).getDay()+6)%7));
+function buildWeeks(){
+  semaines=[]; semPour=todayKey()+LAST; const fin=lundiDe(LAST);
+  for(let l=lundiDe(todayKey()); l<=fin; l=addDays(l,7)) semaines.push(l);
+  $("wk-pages").innerHTML=semaines.map(l=>`<div class="wk" data-lundi="${l}">${[0,1,2,3,4].map(i=>{
+    const k=addDays(l,i), x=parse(k), inf=infoFor(k), sub=inf.kind==="ecole" ? "J"+inf.jour : "congé";
+    return `<button type="button" class="wd${inf.kind!=="ecole"?" off":""}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}, ${sub}"><small>${JOURS[x.getDay()].slice(0,3)}</small><b>${x.getDate()}</b><span>${sub}</span></button>`;
+  }).join("")}</div>`).join("");
+}
+function titreSemaine(l){
+  const t=lundiDe(todayKey());
+  if(l===t) return "Cette semaine";
+  if(l===addDays(t,7)) return "Semaine prochaine";
+  const x=parse(l); return "Semaine du "+(x.getDate()===1?"1er":x.getDate())+" "+MOIS_LONG[x.getMonth()];
+}
+function montrerSemaine(l, doux){
+  const i=semaines.indexOf(l); if(i<0) return;
+  semVue=l; $("wk-titre").textContent=titreSemaine(l);
+  $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1;
+  const box=$("wk-pages"), x=i*box.clientWidth;
+  if(Math.abs(box.scrollLeft-x)>2) box.scrollTo({left:x, behavior:doux&&!reduceMotion?"smooth":"auto"});
+}
 function paintWeek(){
-  const d=parse(current), lundi=addDays(current, -((d.getDay()+6)%7)), t=todayKey();
-  let h="";
-  for(let i=0;i<5;i++){
-    const k=addDays(lundi,i), x=parse(k), inf=infoFor(k), cls=["wd"];
-    if(k===current) cls.push("sel"); if(k===t) cls.push("auj");
-    if(k<t) cls.push("passe"); if(inf.kind!=="ecole") cls.push("off");
-    const sub = inf.kind==="ecole" ? "J"+inf.jour : "congé";
-    h+=`<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}, ${sub}"${k===current?' aria-current="date"':""}><small>${JOURS[x.getDay()].slice(0,3)}</small><b>${x.getDate()}</b><span>${sub}</span></button>`;
-  }
-  $("week").innerHTML=h;
+  if(!semaines || semPour!==todayKey()+LAST){ buildWeeks(); semVue=null; }
+  const t=todayKey();
+  $("wk-pages").querySelectorAll(".wd").forEach(b=>{
+    const k=b.dataset.semaine;
+    b.classList.toggle("sel", k===current); b.classList.toggle("auj", k===t); b.classList.toggle("passe", k<t);
+    if(k===current) b.setAttribute("aria-current","date"); else b.removeAttribute("aria-current");
+  });
+  montrerSemaine(lundiDe(current), semVue!==null);
 }
 // dir : sens du geste {x,y} (-1, 0 ou 1). Vers la gauche ou le haut = jour suivant.
 function go(delta, dir){
@@ -652,6 +673,14 @@ card.addEventListener("click", e=>{
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
 tap($("btn-today"), ()=>go(-idx));
+// Glisser la bande : le titre suit la semaine visible
+$("wk-pages").addEventListener("scroll", ()=>{
+  const box=$("wk-pages"), i=Math.round(box.scrollLeft/Math.max(1,box.clientWidth)), l=semaines&&semaines[i];
+  if(l && l!==semVue){ semVue=l; $("wk-titre").textContent=titreSemaine(l); $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1; }
+}, {passive:true});
+tap($("wk-prev"), ()=>{ const i=semaines.indexOf(semVue); if(i>0) montrerSemaine(semaines[i-1], true); });
+tap($("wk-next"), ()=>{ const i=semaines.indexOf(semVue); if(i<semaines.length-1) montrerSemaine(semaines[i+1], true); });
+window.addEventListener("resize", ()=>{ if(semVue) montrerSemaine(semVue, false); });
 tap($("week"), e=>{
   const b=e.target.closest("[data-semaine]"); if(!b) return;
   const k=b.dataset.semaine; if(k===current) return;
