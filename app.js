@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610282221";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610290950";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610282221";
+const VERSION = "202610290950";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -352,8 +352,8 @@ function cardHTML(k){
       ? sp.map(s=>`<div class="line cours"><span class="ic">${icon(s.ic)}</span><b class="nom">${esc(s.nom)}</b><span class="per">${s.p}<sup>${s.p==1?"re":"e"}</sup> période</span><time>${PERIODES[s.p]}</time></div>`).join("")
       : `<div class="offtxt">Aucun spécialiste</div>`;
     h+=`</div>`;
-    const sac=sp.filter(s=>s.apporter).map(s=>`<li>${esc(s.apporter)}</li>`).join("");
-    if(sac) h+=`<div class="sac"><div class="sac-h">${icon("backpack")}Dans le sac à dos</div><ul>${sac}</ul></div>`;
+    const sac=sp.filter(s=>s.apporter).map(s=>`<li>${icon("backpack")}${esc(s.apporter)}</li>`).join("");
+    if(sac) h+=`<div class="sec sac"><div class="sec-h"><span>Dans le sac à dos</span></div><ul>${sac}</ul></div>`;
   }
 
   const items=[];
@@ -370,14 +370,6 @@ function cardHTML(k){
 
   h+=weatherHTML(k);
 
-  const nx=nextSchoolDay(k);
-  if(nx && days.includes(nx)){
-    const sp=specialsOf(CYCLE_OF[nx]), rem=remindersOn(nx);
-    let txt = sp.length===1 ? `${sp[0].court} à ${PERIODES[sp[0].p]}` : sp.length ? sp.map(s=>s.court).join(", ") : "Pas de spécialiste";
-    txt = `J${CYCLE_OF[nx]} · ${txt}` + (rem.length ? ` · ${rem[0].titre}` : "");
-    const lab = nx===addDays(todayKey(),1) ? "Demain" : cap(JOURS[parse(nx).getDay()]);
-    h+=`<button class="foot" data-go="${nx}"><small>${lab}</small><span>${esc(txt)}</span>${icon("upright")}</button>`;
-  }
   return h;
 }
 
