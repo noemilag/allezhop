@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610292237";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610292311";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610292237";
+const VERSION = "202610292311";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -176,7 +176,7 @@ function activites(){
 }
 function activitesLe(k){
   const w=parse(k).getDay();
-  return activites().filter(a=>(a.jours||[]).includes(w)).sort((x,y)=>(x.debut||"").localeCompare(y.debut||""));
+  return activites().filter(a=>(a.jours||[]).includes(w) && (!a.du || k>=a.du) && (!a.au || k<=a.au)).sort((x,y)=>(x.debut||"").localeCompare(y.debut||""));
 }
 async function enregistrerActivites(list){
   if(mode==="local"){ try{ localStorage.setItem(LS_ACT, JSON.stringify(list)); }catch{} render(); return; }
@@ -797,7 +797,27 @@ function closeSheet(){ scrim.hidden=true; }
 
 /* ---------- Activités (chaque semaine) ---------- */
 const actS=$("act"), aT=$("a-titre"), aD=$("a-debut"), aF=$("a-fin"), aN=$("a-sac"), aE=$("a-err"), aDel=$("a-del");
-let actEdit=null, actIc="star", actJours=new Set(), actArmed=false;
+const aDu=$("a-du"), aNb=$("a-nb"), aAu=$("a-au");
+let actEdit=null, actIc="star", actJours=new Set(), actArmed=false, actDuree="annee";
+// Durée : toute l'année scolaire, un nombre de semaines, ou jusqu'à une date
+function finActivite(){
+  const du=aDu.value||todayKey();
+  if(actDuree==="semaines"){ const n=Math.max(1, Math.min(52, parseInt(aNb.value,10)||0)); return n ? addDays(du, n*7-1) : ""; }
+  if(actDuree==="date") return aAu.value||"";
+  return LAST;
+}
+function paintDuree(){
+  $("a-duree").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.duree===actDuree));
+  $("a-nb-box").hidden = actDuree!=="semaines"; $("a-au-box").hidden = actDuree!=="date";
+  const du=aDu.value||todayKey(), au=finActivite();
+  const n=actJours.size ? (()=>{ let c=0; for(let k=du; au && k<=au; k=addDays(k,1)) if(actJours.has(parse(k).getDay())) c++; return c; })() : 0;
+  $("a-resume").textContent = au && au>=du ? `Du ${longDate(du)} au ${longDate(au)}${n?` · ${n} fois`:""}` : "";
+}
+$("a-duree").addEventListener("click", e=>{ const b=e.target.closest("[data-duree]"); if(!b) return; actDuree=b.dataset.duree;
+  if(actDuree==="semaines" && !aNb.value) aNb.value=10;
+  if(actDuree==="date" && !aAu.value) aAu.value=addDays(aDu.value||todayKey(), 69);
+  paintDuree(); });
+[aDu,aNb,aAu].forEach(x=>x.addEventListener("input", paintDuree));
 const PICK_ACT=["star","ball","music","waves","palette","book","bike","chat","pencil","ticket","pin"];
 $("a-icons").innerHTML=PICK_ACT.map(x=>`<button type="button" data-ic="${x}" aria-label="Icône ${x}">${icon(x)}</button>`).join("");
 $("a-icons").addEventListener("click", e=>{ const b=e.target.closest("[data-ic]"); if(b){ actIc=b.dataset.ic; paintAct(); } });
@@ -806,6 +826,7 @@ $("a-jours").addEventListener("click", e=>{ const b=e.target.closest("[data-j]")
 function paintAct(){
   $("a-icons").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.ic===actIc));
   $("a-jours").querySelectorAll("button").forEach(b=>b.classList.toggle("on", actJours.has(+b.dataset.j)));
+  paintDuree();
 }
 function openAct(a){
   if(mode==="signedout"){ $("compte").hidden=false; return; }
@@ -814,6 +835,9 @@ function openAct(a){
   aT.value=a?a.titre:""; aD.value=a?(a.debut||""):"18:00"; aF.value=a?(a.fin||""):""; aN.value=a?(a.apporter||""):"";
   actIc=a?(a.ic||"star"):"star";
   actJours=new Set(a ? a.jours : [parse(current||todayKey()).getDay()]);
+  aDu.value = a ? (a.du||todayKey()) : (current && current>todayKey() ? current : todayKey());
+  actDuree = a ? (a.duree || (a.au && a.au!==LAST ? "date" : "annee")) : "annee";
+  aNb.value = a && a.semaines ? a.semaines : ""; aAu.value = a && a.au && a.au!==LAST ? a.au : "";
   aDel.hidden=!a; aDel.classList.remove("armed"); aDel.textContent="Supprimer"; aE.hidden=true;
   paintAct(); actS.hidden=false;
 }
@@ -825,7 +849,11 @@ $("act-form").addEventListener("submit", async e=>{
   if(!titre){ aE.textContent="Écrivez le nom de l'activité."; aE.hidden=false; aT.focus(); return; }
   if(!actJours.size){ aE.textContent="Choisissez au moins une journée."; aE.hidden=false; return; }
   if(!aD.value){ aE.textContent="Indiquez l'heure du début."; aE.hidden=false; return; }
-  const a={id:actEdit||("a"+Date.now().toString(36)), titre, jours:[...actJours].sort(), debut:aD.value, fin:aF.value||"", apporter:aN.value.trim(), ic:actIc};
+  const du=aDu.value||todayKey(), au=finActivite();
+  if(actDuree==="semaines" && !(parseInt(aNb.value,10)>0)){ aE.textContent="Indiquez le nombre de semaines."; aE.hidden=false; return; }
+  if(actDuree==="date" && (!au || au<du)){ aE.textContent="La date de fin doit venir après le début."; aE.hidden=false; return; }
+  const a={id:actEdit||("a"+Date.now().toString(36)), titre, jours:[...actJours].sort(), debut:aD.value, fin:aF.value||"", apporter:aN.value.trim(), ic:actIc,
+           du, au, duree:actDuree, semaines: actDuree==="semaines" ? parseInt(aNb.value,10) : null};
   const list=activites().filter(x=>x.id!==a.id); list.push(a);
   actS.hidden=true;
   try{ await enregistrerActivites(list); toast(actEdit?"Activité modifiée":"Activité ajoutée : "+a.jours.map(j=>JOURS[j]).join(", ")); }
