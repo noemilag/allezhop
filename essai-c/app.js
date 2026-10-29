@@ -335,6 +335,7 @@ function eyebrowFor(k){
   if(diff===1) return "Demain";
   return diff<7 ? "Dans "+diff+" jours" : "Dans "+Math.round(diff/7)+" sem.";
 }
+const MOIS_LONG=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const MOIS_COURT=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 // « Lunch froid, 5 $ » → ["Lunch froid", "5 $"] (la virgule d'un prix comme 5,50 $ n'est pas suivie d'une espace)
 // Cases cochées du sac à dos : gardées sur ce téléphone seulement, par jour
@@ -352,13 +353,11 @@ function sacBasculer(k,o){
 function aApporter(t){ return (t||"").split(/\n|,\s+/).map(x=>x.trim()).filter(Boolean); }
 function cardHTML(k){
   const inf=infoFor(k), school=inf.kind==="ecole", d=parse(k);
-  // Essai C : en-tête compact sur une ligne (pastille du jour + date)
-  const MOIS_LONG=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
-  const dateTxt=`${cap(JOURS[d.getDay()])} ${d.getDate()} ${MOIS_LONG[d.getMonth()]}`;
-  let h = school
-    ? `<div class="chero"><div class="chip" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></div>`
-    : `<div class="chero"><div class="chip off"><b class="conge">Congé</b></div>`;
-  h+=`<div class="cdate"><b>${esc(dateTxt)}</b><span>${esc(eyebrowFor(k))}${school?"":" · "+esc(inf.label)}</span></div></div>`;
+  // Essai C : titre de la page (la date) et pastille du jour du cycle
+  const dateTxt=`${cap(JOURS[d.getDay()])} ${d.getDate()===1?"1er":d.getDate()} ${MOIS_LONG[d.getMonth()]}`;
+  let h=`<div class="ptitre"><div><span class="when">${esc(eyebrowFor(k))}</span><h2>${esc(dateTxt)}</h2></div>`;
+  h+= school ? `<span class="j">Jour ${inf.jour}</span>` : `<span class="j off">${esc(inf.label||"Congé")}</span>`;
+  h+=`</div>`;
 
   if(school){
     const sp=specialsOf(inf.jour);
@@ -463,6 +462,20 @@ function fit(el){
 }
 function chrome(){
   $("btn-today").hidden = idx===0;
+  paintWeek();
+}
+// Les 5 jours d'école (lundi à vendredi) de la semaine affichée
+function paintWeek(){
+  const d=parse(current), lundi=addDays(current, -((d.getDay()+6)%7)), t=todayKey();
+  let h="";
+  for(let i=0;i<5;i++){
+    const k=addDays(lundi,i), x=parse(k), inf=infoFor(k), cls=["wd"];
+    if(k===current) cls.push("sel"); if(k===t) cls.push("auj");
+    if(k<t) cls.push("passe"); if(inf.kind!=="ecole") cls.push("off");
+    const sub = inf.kind==="ecole" ? "J"+inf.jour : "congé";
+    h+=`<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}, ${sub}"${k===current?' aria-current="date"':""}><small>${JOURS[x.getDay()].slice(0,3)}</small><b>${x.getDate()}</b><span>${sub}</span></button>`;
+  }
+  $("week").innerHTML=h;
 }
 // dir : sens du geste {x,y} (-1, 0 ou 1). Vers la gauche ou le haut = jour suivant.
 function go(delta, dir){
@@ -639,6 +652,13 @@ card.addEventListener("click", e=>{
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
 tap($("btn-today"), ()=>go(-idx));
+tap($("week"), e=>{
+  const b=e.target.closest("[data-semaine]"); if(!b) return;
+  const k=b.dataset.semaine; if(k===current) return;
+  if(k<todayKey()){ toast("Cette journée est passée"); return; }
+  const i=days.indexOf(k); if(i<0){ toast("Pas d'école ce jour-là"); return; }
+  go(i-idx, i>idx ? {x:-1,y:0} : {x:1,y:0});
+});
 document.addEventListener("keydown", e=>{
   if(!scrim.hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
   if(e.key==="ArrowRight"){ e.preventDefault(); go(1, {x:-1,y:0}); }
