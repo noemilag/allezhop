@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610291135"></script>
+<script src="config.js?v=202610291156"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -151,11 +151,20 @@ button.line{cursor:pointer}
 .line.cours time{grid-area:heure;font-size:12px;font-weight:600;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;align-self:start;margin-top:-8px}
 .line time{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px}
 .card.mini .line.cours .per{font-size:14px}
-/* Dans le sac à dos : ce qu'il faut apporter, en pastilles */
-.sac ul{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
-.sac li{display:flex;align-items:center;gap:6px;background:var(--soft);color:var(--accent-ink);border-radius:999px;padding:6px 12px 6px 10px;font-size:15px;font-weight:600;line-height:1.2}
-.sac li svg.i{width:16px;height:16px;stroke-width:2;flex:none}
-.card.mini .sac li{font-size:14px;padding:4px 10px 4px 8px}
+/* Dans le sac à dos : mini-liste à cocher sur deux colonnes */
+.sac ul{list-style:none;margin:2px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.sac li{min-width:0}
+.coche{display:flex;align-items:flex-start;gap:9px;width:100%;border:0;background:none;padding:3px 0;text-align:left;font:inherit;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.coche .box{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--accent);box-sizing:border-box;display:grid;place-items:center;color:#fff;transition:background .15s}
+.coche .box svg.i{width:14px;height:14px;stroke-width:3;opacity:0}
+.coche .txt{font-size:15px;font-weight:600;line-height:1.25;padding-top:1px;min-width:0}
+.coche.on .box{background:var(--accent)}
+.coche.on .box svg.i{opacity:1}
+.coche.on .txt{color:var(--muted);text-decoration:line-through;font-weight:500}
+.card.mini .sac ul{gap:3px 12px}
+.card.mini .coche{padding:1px 0}
+.card.mini .coche .txt{font-size:14px}
+.card.mini .coche .box{width:20px;height:20px}
 .offtxt{font-size:18px;font-weight:600;padding-block:6px}
 
 .wx{margin-top:10px;background:var(--pool);border-radius:20px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
@@ -198,10 +207,11 @@ button.line{cursor:pointer}
 .card.micro .sec{padding-top:6px}
 .card.micro .wx{margin-top:4px}
 .card.micro .sac .sec-h{display:none}
-.card.micro .sac ul{display:block;margin-top:4px;background:var(--soft);border-radius:12px;padding:4px 10px;font-size:13px;line-height:1.35;font-weight:600;color:var(--accent-ink)}
-.card.micro .sac li{display:inline;background:none;padding:0;font-size:inherit}
-.card.micro .sac li svg.i{display:none}
-.card.micro .sac li:not(:last-child)::after{content:" · ";color:var(--muted)}
+.card.micro .sac ul{margin-top:4px;gap:2px 10px}
+.card.micro .coche{padding:0;gap:6px}
+.card.micro .coche .txt{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.micro .coche .box{width:17px;height:17px;border-radius:5px}
+.card.micro .coche .box svg.i{width:11px;height:11px}
 .card.micro .line .ic{width:24px;height:24px;border-radius:8px}
 .card.micro .line .ic svg.i{width:16px;height:16px}
 
@@ -500,6 +510,6 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610291135"></script>
+<script type="module" src="app.js?v=202610291156"></script>
 </body>
 </html>
