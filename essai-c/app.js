@@ -461,7 +461,6 @@ function fit(el){
   el.classList.toggle("deborde", reste);
 }
 function chrome(){
-  $("btn-today").hidden = idx===0;
   paintWeek();
 }
 // Bande de la semaine : toutes les semaines jusqu'à la fin de l'année, on la fait glisser de côté
@@ -671,7 +670,8 @@ $("wk-pages").addEventListener("scroll", ()=>{
   const box=$("wk-pages"), i=Math.round(box.scrollLeft/Math.max(1,box.clientWidth)), l=semaines&&semaines[i];
   if(l && l!==semVue){ semVue=l; $("wk-titre").textContent=titreSemaine(l); $("wk-prev").disabled=i===0; $("wk-next").disabled=i===semaines.length-1; }
 }, {passive:true});
-tap($("wk-prev"), ()=>{ const i=semaines.indexOf(semVue); if(i>0) montrerSemaine(semaines[i-1], true); });
+// Flèche de gauche : retour direct à la semaine d'aujourd'hui (pas une semaine à la fois)
+tap($("wk-prev"), ()=>montrerSemaine(semaines[0], true));
 tap($("wk-next"), ()=>{ const i=semaines.indexOf(semVue); if(i<semaines.length-1) montrerSemaine(semaines[i+1], true); });
 window.addEventListener("resize", ()=>{ if(semVue) montrerSemaine(semVue, false); });
 tap($("week"), e=>{
@@ -855,6 +855,7 @@ async function enablePush(heure){
 
 /* ---------- Calendrier (.ics) ---------- */
 const info=$("info");
+$("c-notifs").addEventListener("click", ()=>{ $("compte").hidden=true; $("btn-info").click(); });
 $("btn-info").addEventListener("click", ()=>{ $("ics-msg").textContent=""; info.hidden=false; paintPush(); });
 $("info-close").addEventListener("click", ()=>info.hidden=true);
 info.addEventListener("click", e=>{ if(e.target===info) info.hidden=true; });
