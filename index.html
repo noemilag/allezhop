@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610292111"></script>
+<script src="config.js?v=202610292127"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&text=Cngé&display=swap">
 <style>
 /* Layout: une carte du jour sur une pile (cartes derrière visibles en bas), swipe dans les 4 sens, barre ← + → */
 :root{
@@ -399,8 +400,14 @@ html.st-loading .week{visibility:hidden}
 .heures label{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 .heures input{font:inherit;font-size:17px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:16px;padding:11px 12px;width:100%;box-sizing:border-box;min-height:50px}
 /* tuile « Congé » (fins de semaine et congés) : le o souriant du logo */
-.ptitre .j.conge{width:auto;min-width:88px;padding:0 14px;box-sizing:border-box;flex-direction:row;align-items:baseline;justify-content:center;font-size:27px;font-weight:800;letter-spacing:-.04em;line-height:88px;white-space:nowrap}
-.o-hop{display:inline-block;width:.6em;height:.62em;margin:0 .02em 0 .03em;vertical-align:-.04em}
+/* tuile « Congé » : même taille que la tuile du jour, lettres rondes comme le logo Allez Hop */
+.ptitre .j.conge{flex-direction:row;align-items:center;justify-content:center;font-family:"Fredoka",var(--font);font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+.j.conge i{font-style:normal;display:inline-block}
+.j.conge i:nth-child(1){transform:translateY(1px) rotate(-7deg)}
+.j.conge i:nth-child(3){transform:translateY(-1px) rotate(5deg)}
+.j.conge i:nth-child(4){transform:translateY(1px) rotate(-4deg)}
+.j.conge i:nth-child(5){transform:translateY(-2px) rotate(8deg)}
+.o-hop{display:inline-block;width:.62em;height:.64em;margin:0 .03em;transform:translateY(1px) rotate(-3deg)}
 /* fins de semaine dans la bande : une case teintée */
 .wd.we{background:var(--soft);border-color:transparent}
 .wd.we small{color:var(--accent-ink)}
@@ -642,6 +649,6 @@ html.st-loading .week{visibility:hidden}
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610292111"></script>
+<script type="module" src="app.js?v=202610292127"></script>
 </body>
 </html>
