@@ -356,7 +356,7 @@ function cardHTML(k){
   // Essai C : titre de la page (la date) et pastille du jour du cycle
   const dateTxt=`${cap(JOURS[d.getDay()])} ${d.getDate()===1?"1er":d.getDate()} ${MOIS_LONG[d.getMonth()]}`;
   let h=`<div class="ptitre"><div><span class="when">${esc(eyebrowFor(k))}</span><h2>${esc(dateTxt)}</h2></div>`;
-  h+= school ? `<span class="j">Jour ${inf.jour}</span>` : `<span class="j off">${esc(inf.label||"Congé")}</span>`;
+  h+= school ? `<span class="j" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></span>` : `<span class="j off">${esc(inf.label||"Congé")}</span>`;
   h+=`</div>`;
 
   if(school){
@@ -513,20 +513,13 @@ function go(delta, dir){
   busy=true; setTimeout(()=>busy=false, 450);
   const old=card.cloneNode(true);
   old.removeAttribute("id"); old.removeAttribute("aria-live"); old.classList.add("leaving"); old.setAttribute("aria-hidden","true");
+  const hautAvant=card.scrollTop;
   idx=ni; current=days[ni]; card.style.transform=""; paint();
-  const d=dir || (delta>0 ? {x:-1,y:0} : {x:1,y:0});
-  if(delta>0){
-    // La carte du jour s'envole, la suivante avance depuis la pile.
-    stack.appendChild(old);
-    old.animate([{transform:from,opacity:1},{transform:`translate(${d.x*120}%,${d.y*120}%) rotate(${d.x*10}deg)`,opacity:0}],{duration:320,easing:EASE}).onfinish=()=>{ old.remove(); busy=false; };
-    card.animate([{transform:BACK},{transform:"none"}],{duration:320,easing:EASE});
-  } else {
-    // La carte retourne dans la pile, la précédente revient du côté du geste.
-    stack.insertBefore(old, card);
-    old.style.transformOrigin="50% 100%";
-    old.animate([{transform:from},{transform:BACK}],{duration:320,easing:EASE}).onfinish=()=>{ old.remove(); busy=false; };
-    card.animate([{transform:`translate(${-d.x*110}%,${-d.y*110}%) rotate(${-d.x*8}deg)`},{transform:"none"}],{duration:320,easing:EASE});
-  }
+  // Essai C : pas de pile de fiches ; les pages glissent côte à côte.
+  const s=delta>0 ? -1 : 1;
+  stack.appendChild(old); old.scrollTop=hautAvant;
+  old.animate([{transform:from},{transform:`translateX(${s*100}%)`}],{duration:300,easing:EASE}).onfinish=()=>{ old.remove(); busy=false; };
+  card.animate([{transform:`translateX(${-s*100}%)`},{transform:"none"}],{duration:300,easing:EASE});
 }
 // Bouton qui réagit dès que le doigt se lève. Le mode app de l'iPhone (ouverte depuis l'icône)
 // avale parfois le premier « click » après un swipe ; le clic reste pour la souris et le clavier.
@@ -649,7 +642,7 @@ card.addEventListener("pointermove", e=>{
   }
   drag.dx=dx;
   const k=idx===0 && dx>0 ? .35 : 1;   // résistance quand il n'y a pas de jour précédent
-  card.style.transform=`translate(${dx*k}px,0) rotate(${dx*k*.04}deg)`;
+  card.style.transform=`translateX(${dx*k}px)`;
 });
 function endDrag(e){
   if(!drag || e.pointerId!==drag.id) return;
