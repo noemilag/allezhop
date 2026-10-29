@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610292237"></script>
+<script src="config.js?v=202610292311"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -402,10 +402,15 @@ html.st-loading .week{visibility:hidden}
 .jours{display:flex;gap:6px}
 .jours button{flex:1;height:44px;border:0;border-radius:12px;background:var(--tint);font:inherit;font-weight:700;font-size:16px;color:var(--ink);cursor:pointer}
 .jours button.on{background:var(--accent);color:#fff}
-.heures{flex-direction:row;gap:12px}
-.heures>div{flex:1;display:flex;flex-direction:column;gap:8px}
+.heures{display:flex;flex-direction:row;gap:16px}
+.heures>div{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:8px}
+.heures>div[hidden]{display:none}
+.heures label small{font-weight:600;letter-spacing:.05em;text-transform:none}
 .heures label{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-.heures input{font:inherit;font-size:17px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:16px;padding:11px 12px;width:100%;box-sizing:border-box;min-height:50px}
+/* champs heure et date : l'iPhone leur donne une largeur minimale, on la retire pour qu'ils restent dans leur colonne */
+.heures input{-webkit-appearance:none;appearance:none;display:block;font:inherit;font-size:17px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:16px;padding:11px 12px;width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:50px;text-align:left}
+.heures input::-webkit-date-and-time-value{text-align:left}
+#a-duree{flex-wrap:wrap}
 /* tuile « Congé » (fins de semaine et congés) : le o souriant du logo */
 /* tuile « Congé » : même taille que la tuile du jour, lettres rondes comme le logo Allez Hop */
 .ptitre .j.conge{flex-direction:row;align-items:center;justify-content:center;font-family:"Fredoka",var(--font);font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1;white-space:nowrap}
@@ -532,7 +537,21 @@ html.st-loading .week{visibility:hidden}
     </div>
     <div class="field heures">
       <div><label for="a-debut">De</label><input type="time" id="a-debut" step="300"></div>
-      <div><label for="a-fin">À (facultatif)</label><input type="time" id="a-fin" step="300"></div>
+      <div><label for="a-fin">À <small>(facultatif)</small></label><input type="time" id="a-fin" step="300"></div>
+    </div>
+    <div class="field">
+      <span class="fl">Combien de temps?</span>
+      <div class="quick" id="a-duree">
+        <button type="button" data-duree="annee">Toute l'année</button>
+        <button type="button" data-duree="semaines">Nb de semaines</button>
+        <button type="button" data-duree="date">Date de fin</button>
+      </div>
+      <div class="heures">
+        <div><label for="a-du">À partir du</label><input type="date" id="a-du"></div>
+        <div id="a-nb-box" hidden><label for="a-nb">Semaines</label><input type="number" id="a-nb" min="1" max="52" inputmode="numeric"></div>
+        <div id="a-au-box" hidden><label for="a-au">Jusqu'au</label><input type="date" id="a-au"></div>
+      </div>
+      <div class="picked" id="a-resume"></div>
     </div>
     <div class="field">
       <span class="fl">Icône</span>
@@ -662,6 +681,6 @@ html.st-loading .week{visibility:hidden}
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610292237"></script>
+<script type="module" src="app.js?v=202610292311"></script>
 </body>
 </html>

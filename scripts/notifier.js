@@ -117,7 +117,7 @@ async function main(){
       const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
         .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
       const jourSem = parse(jour).getDay();
-      const acts = (e.activites || []).filter(a => (a.jours || []).includes(jourSem)).sort((a, b) => (a.debut || "").localeCompare(b.debut || ""));
+      const acts = (e.activites || []).filter(a => (a.jours || []).includes(jourSem) && (!a.du || jour >= a.du) && (!a.au || jour <= a.au)).sort((a, b) => (a.debut || "").localeCompare(b.debut || ""));
       if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
       messages.push(message(jour, siens, await meteo(jour), demain, acts));
     }
