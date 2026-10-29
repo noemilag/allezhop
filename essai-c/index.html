@@ -371,6 +371,33 @@ html.st-loading .week{visibility:hidden}
 .card{padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
 .app{padding-bottom:0}
 .wd{background:var(--card)}
+/* ===== Essai C : semaine complète et activités ===== */
+.wk{gap:4px}
+.wd{position:relative;padding:6px 0 9px;border-radius:14px}
+.wd small{letter-spacing:0;font-size:12px}
+.wd b{font-size:20px}
+.wd span{display:block;min-height:13px;font-size:10.5px}
+.wd.we{background:transparent;border-color:transparent}
+.wd.we.sel{background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%)}
+.wd .pt{position:absolute;left:50%;bottom:4px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent);display:none}
+.wd.prevu .pt{display:block}
+.wd.sel .pt{background:#fff}
+.wd.prevu:not(.we):not(.off) .pt{bottom:2px}
+.wd.passe,.wd.off{opacity:.5}
+.line.act{font:inherit;color:inherit;text-align:left}
+.rien{margin-top:14px;padding:16px;border-radius:18px;background:var(--tint);color:var(--muted);font-size:15px;line-height:1.4}
+.rien b{color:var(--accent-ink)}
+.choix{display:flex;align-items:center;gap:14px;width:100%;border:1px solid var(--line);background:var(--card);border-radius:18px;padding:14px;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
+.choix .ic{width:44px;height:44px;border-radius:14px;background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.choix b{display:block;font-size:17px}
+.choix small{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.jours{display:flex;gap:6px}
+.jours button{flex:1;height:44px;border:0;border-radius:12px;background:var(--tint);font:inherit;font-weight:700;font-size:16px;color:var(--ink);cursor:pointer}
+.jours button.on{background:var(--accent);color:#fff}
+.heures{flex-direction:row;gap:12px}
+.heures>div{flex:1;display:flex;flex-direction:column;gap:8px}
+.heures label{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.heures input{font:inherit;font-size:17px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:16px;padding:11px 12px;width:100%;box-sizing:border-box;min-height:50px}
 </style>
 </head>
 <body>
@@ -452,6 +479,49 @@ html.st-loading .week{visibility:hidden}
       <button type="button" class="btn danger" id="f-del" hidden>Supprimer</button>
       <button type="button" class="btn ghost" id="f-cancel">Annuler</button>
       <button type="submit" class="btn primary" id="f-save">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<div class="scrim" id="choix" hidden>
+  <div class="sheet pad">
+    <div class="grab"></div>
+    <h2>Ajouter</h2>
+    <button type="button" class="choix" data-choix="rappel"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></span><span><b>Un rappel</b><small>Une seule date : sortie, photo, lunch froid…</small></span></button>
+    <button type="button" class="choix" data-choix="activite"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></span><span><b>Une activité</b><small>Chaque semaine : karaté le mardi, soccer le samedi…</small></span></button>
+    <div class="actions"><button type="button" class="btn ghost" data-choix="annuler">Annuler</button></div>
+  </div>
+</div>
+
+<div class="scrim" id="act" hidden>
+  <form class="sheet pad" id="act-form" novalidate>
+    <div class="grab"></div>
+    <h2 id="act-title">Nouvelle activité</h2>
+    <div class="field">
+      <label for="a-titre">Quoi?</label>
+      <input type="text" id="a-titre" maxlength="60" placeholder="Ex. : Karaté" autocomplete="off">
+    </div>
+    <div class="field">
+      <span class="fl">Chaque semaine, le</span>
+      <div class="jours" id="a-jours"></div>
+    </div>
+    <div class="field heures">
+      <div><label for="a-debut">De</label><input type="time" id="a-debut" step="300"></div>
+      <div><label for="a-fin">À (facultatif)</label><input type="time" id="a-fin" step="300"></div>
+    </div>
+    <div class="field">
+      <span class="fl">Icône</span>
+      <div class="icons" id="a-icons"></div>
+    </div>
+    <div class="field">
+      <label for="a-sac">Dans le sac à dos</label>
+      <textarea id="a-sac" maxlength="300" placeholder="Ex. : Kimono, bouteille d'eau (séparez par des virgules)"></textarea>
+    </div>
+    <p class="err" id="a-err" hidden></p>
+    <div class="actions">
+      <button type="button" class="btn danger" id="a-del" hidden>Supprimer</button>
+      <button type="button" class="btn ghost" id="a-cancel">Annuler</button>
+      <button type="submit" class="btn primary">Enregistrer</button>
     </div>
   </form>
 </div>

@@ -98,6 +98,7 @@ async function initStore(){
       getSub:async id=>{ const s=await F.getDoc(F.doc(db,"abonnements",id)); return s.exists()?s.data():null; },
       saveSub:(id,d)=>F.setDoc(F.doc(db,"abonnements",id), {...d, maj:Date.now(), par:userEmail}, {merge:true}),
       delSub:id=>F.deleteDoc(F.doc(db,"abonnements",id)),
+      saveActs:(id,list)=>F.setDoc(F.doc(db,"enfants",id), {activites:list, maj:Date.now()}, {merge:true}),
       saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
     };
     A.onAuthStateChanged(auth, user=>{
@@ -167,6 +168,23 @@ async function deleteReminder(id){
 }
 // Rappels de l'enfant affiché. Les anciens rappels (sans enfant) appartiennent au premier enfant ajouté.
 function mine(){ return reminders.filter(r=> r.enfant ? r.enfant===kidId : (!kidsAll.length || kidId===kidsAll[0].id)); }
+// Activités qui reviennent chaque semaine (karaté, soccer…) : gardées dans la fiche de l'enfant
+const LS_ACT="allezhop.activites";
+function activites(){
+  if(mode==="local"){ try{ return JSON.parse(localStorage.getItem(LS_ACT))||[]; }catch{ return []; } }
+  const e=kidsAll.find(x=>x.id===kidId); return (e && e.activites) || [];
+}
+function activitesLe(k){
+  const w=parse(k).getDay();
+  return activites().filter(a=>(a.jours||[]).includes(w)).sort((x,y)=>(x.debut||"").localeCompare(y.debut||""));
+}
+async function enregistrerActivites(list){
+  if(mode==="local"){ try{ localStorage.setItem(LS_ACT, JSON.stringify(list)); }catch{} render(); return; }
+  const e=kidsAll.find(x=>x.id===kidId); if(e) e.activites=list;   // affichage immédiat
+  render();
+  await store.saveActs(kidId, list);
+}
+const heureFr=h=>{ if(!h) return ""; const [a,b]=h.split(":"); return (+a)+" h"+(b && b!=="00" ? " "+b : ""); };
 function remindersOn(k){ return mine().filter(r=>r.date===k).sort((a,b)=>(a.titre||"").localeCompare(b.titre||"")); }
 
 /* ---------- Compte ---------- */
@@ -252,6 +270,8 @@ $("c-logout").addEventListener("click", async ()=>{ await store.signOut(); $("co
 /* ---------- Icônes (au trait, d'après Lucide, licence ISC) ---------- */
 const CLOUD='<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>';
 const ICONS={
+  star:'<path d="M11.5 2.8a.6.6 0 0 1 1 0l2.6 5.3 5.8.8a.6.6 0 0 1 .3 1l-4.2 4.1 1 5.8a.6.6 0 0 1-.9.6L12 17.7l-5.2 2.7a.6.6 0 0 1-.9-.6l1-5.8-4.2-4.1a.6.6 0 0 1 .3-1l5.8-.8z"/>',
+  bike:'<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   pin:'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
   party:'<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
@@ -323,9 +343,7 @@ function buildDays(){
   let last=END; mine().forEach(r=>{ if(r.date>last) last=r.date; });
   const list=[];
   for(let k=t; k<=last; k=addDays(k,1)){
-    const w=parse(k).getDay();
-    if((w===0||w===6) && k!==t && !remDates.has(k)) continue;
-    list.push(k);
+    list.push(k);   // essai C : tous les jours, fins de semaine comprises
   }
   return list;
 }
@@ -356,7 +374,7 @@ function cardHTML(k){
   // Essai C : titre de la page (la date) et pastille du jour du cycle
   const dateTxt=`${cap(JOURS[d.getDay()])} ${d.getDate()===1?"1er":d.getDate()} ${MOIS_LONG[d.getMonth()]}`;
   let h=`<div class="ptitre"><div><span class="when">${esc(eyebrowFor(k))}</span><h2>${esc(dateTxt)}</h2></div>`;
-  h+= school ? `<span class="j" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></span>` : `<span class="j off">${esc(inf.label||"Congé")}</span>`;
+  h+= school ? `<span class="j" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></span>` : (inf.kind==="weekend" ? "" : `<span class="j off">${esc(inf.label||"Congé")}</span>`);
   h+=`</div>`;
 
   if(school){
@@ -366,6 +384,17 @@ function cardHTML(k){
       ? sp.map(s=>`<div class="line cours"><span class="ic">${icon(s.ic)}</span><b class="nom">${esc(s.nom)}</b><span class="per">${s.p}<sup>${s.p==1?"re":"e"}</sup> période</span><time>${PERIODES[s.p]}</time></div>`).join("")
       : `<div class="offtxt">Aucun spécialiste</div>`;
     h+=`</div>`;
+  }
+
+  // Activités de la semaine (parascolaire) : « En soirée » les jours d'école, « Activités » sinon
+  const acts=activitesLe(k);
+  if(acts.length){
+    h+=`<div class="sec"><div class="sec-h"><span>${school?"En soirée":"Activités"}</span></div>`;
+    h+=acts.map(a=>`<button type="button" class="line cours act" data-act="${esc(a.id)}" aria-label="Modifier : ${esc(a.titre)}"><span class="ic">${icon(a.ic||"star")}</span><b class="nom">${esc(a.titre)}</b><span class="per">${heureFr(a.debut)}</span>${a.fin?`<time>jusqu'à ${heureFr(a.fin)}</time>`:"<time></time>"}</button>`).join("");
+    h+=`</div>`;
+  }
+  if(!school && !acts.length && !remindersOn(k).length && !(EVENTS[k]||[]).length){
+    h+=`<div class="rien">${inf.kind==="weekend"?"Rien de prévu cette journée-là.":"Pas d'école."} Touchez <b>+</b> pour ajouter un rappel ou une activité.</div>`;
   }
 
   const items=[];
@@ -382,7 +411,7 @@ function cardHTML(k){
 
   // Dans le sac à dos : sous les rappels, juste avant la météo
   // ce qu'il faut pour les cours, puis le champ « Dans le sac à dos » des rappels (un objet par virgule ou par ligne)
-  const objets=[...(school ? specialsOf(inf.jour).map(s=>s.apporter).filter(Boolean) : []), ...remindersOn(k).flatMap(r=>aApporter(r.notes))];
+  const objets=[...(school ? specialsOf(inf.jour).map(s=>s.apporter).filter(Boolean) : []), ...acts.flatMap(a=>aApporter(a.apporter)), ...remindersOn(k).flatMap(r=>aApporter(r.notes))];
   const sac=objets.map(o=>{ const on=sacCoche(k,o); return `<li><button type="button" class="coche${on?" on":""}" data-sac="${esc(o)}" aria-pressed="${on}"><span class="box">${icon("check")}</span><span class="txt">${esc(o)}</span></button></li>`; }).join("");
   if(sac) h+=`<div class="sec sac"><div class="sec-h"><span>Dans le sac à dos</span></div><ul>${sac}</ul></div>`;
 
@@ -465,13 +494,15 @@ function chrome(){
 }
 // Bande de la semaine : toutes les semaines jusqu'à la fin de l'année, on la fait glisser de côté
 let semaines=null, semVue=null, semPour=null;
-const lundiDe=k=>addDays(k, -((parse(k).getDay()+6)%7));
+const lundiDe=k=>addDays(k, -parse(k).getDay());   // essai C : la semaine commence le dimanche
 function buildWeeks(){
   semaines=[]; semPour=todayKey()+LAST; const fin=lundiDe(LAST);
   for(let l=lundiDe(todayKey()); l<=fin; l=addDays(l,7)) semaines.push(l);
-  $("wk-pages").innerHTML=semaines.map(l=>`<div class="wk" data-lundi="${l}">${[0,1,2,3,4].map(i=>{
-    const k=addDays(l,i), x=parse(k), inf=infoFor(k), sub=inf.kind==="ecole" ? "J"+inf.jour : "congé";
-    return `<button type="button" class="wd${inf.kind!=="ecole"?" off":""}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}, ${sub}"><small>${JOURS[x.getDay()].slice(0,3)}</small><b>${x.getDate()}</b><span>${sub}</span></button>`;
+  $("wk-pages").innerHTML=semaines.map(l=>`<div class="wk" data-lundi="${l}">${[0,1,2,3,4,5,6].map(i=>{
+    const k=addDays(l,i), x=parse(k), inf=infoFor(k);
+    const sub=inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : "";
+    const cls=["wd"]; if(inf.kind==="off") cls.push("off"); if(inf.kind==="weekend") cls.push("we");
+    return `<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}${sub?", "+sub:""}"><small>${JOURS_COURTS[x.getDay()]}</small><b>${x.getDate()}</b><span>${sub}</span><i class="pt"></i></button>`;
   }).join("")}</div>`).join("");
 }
 function titreSemaine(l){
@@ -493,6 +524,7 @@ function paintWeek(){
   $("wk-pages").querySelectorAll(".wd").forEach(b=>{
     const k=b.dataset.semaine;
     b.classList.toggle("sel", k===current); b.classList.toggle("auj", k===t); b.classList.toggle("passe", k<t);
+    b.classList.toggle("prevu", remindersOn(k).length>0);   // point : rappel ce jour-là (pas les activités, qui reviennent chaque semaine)
     if(k===current) b.setAttribute("aria-current","date"); else b.removeAttribute("aria-current");
   });
   montrerSemaine(lundiDe(current), semVue!==null);
@@ -661,6 +693,7 @@ card.addEventListener("click", e=>{
 card.addEventListener("click", e=>{
   const c=e.target.closest("[data-sac]");
   if(c){ const on=sacBasculer(days[idx], c.dataset.sac); c.classList.toggle("on",on); c.setAttribute("aria-pressed",on); return; }
+  const ac=e.target.closest("[data-act]"); if(ac){ const a=activites().find(x=>x.id===ac.dataset.act); if(a) openAct(a); return; }
   const ed=e.target.closest("[data-edit]"); if(ed){ const r=reminders.find(x=>x.id===ed.dataset.edit); if(r) openSheet(r); return; }
   const g=e.target.closest("[data-go]"); if(g) goKey(g.dataset.go);
 });
@@ -678,11 +711,11 @@ tap($("week"), e=>{
   const b=e.target.closest("[data-semaine]"); if(!b) return;
   const k=b.dataset.semaine; if(k===current) return;
   if(k<todayKey()){ toast("Cette journée est passée"); return; }
-  const i=days.indexOf(k); if(i<0){ toast("Pas d'école ce jour-là"); return; }
+  const i=days.indexOf(k); if(i<0){ toast("Pas de fiche ce jour-là"); return; }
   go(i-idx, i>idx ? {x:-1,y:0} : {x:1,y:0});
 });
 document.addEventListener("keydown", e=>{
-  if(!scrim.hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
+  if(!scrim.hidden || !actS.hidden || !$("choix").hidden || !info.hidden || !$("compte").hidden || !$("recherche").hidden || !$("mois").hidden) return;
   if(e.key==="ArrowRight"){ e.preventDefault(); go(1, {x:-1,y:0}); }
   if(e.key==="ArrowLeft"){ e.preventDefault(); go(-1, {x:1,y:0}); }
 });
@@ -756,10 +789,60 @@ function openSheet(r){
   scrim.hidden=false;
 }
 function closeSheet(){ scrim.hidden=true; }
-tap($("fab"), ()=>{ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); });
+
+/* ---------- Activités (chaque semaine) ---------- */
+const actS=$("act"), aT=$("a-titre"), aD=$("a-debut"), aF=$("a-fin"), aN=$("a-sac"), aE=$("a-err"), aDel=$("a-del");
+let actEdit=null, actIc="star", actJours=new Set(), actArmed=false;
+const PICK_ACT=["star","ball","music","waves","palette","book","bike","chat","pencil","ticket","pin"];
+$("a-icons").innerHTML=PICK_ACT.map(x=>`<button type="button" data-ic="${x}" aria-label="Icône ${x}">${icon(x)}</button>`).join("");
+$("a-icons").addEventListener("click", e=>{ const b=e.target.closest("[data-ic]"); if(b){ actIc=b.dataset.ic; paintAct(); } });
+$("a-jours").innerHTML=JOURS.map((j,i)=>`<button type="button" data-j="${i}" aria-label="${j}">${JOURS_COURTS[i]}</button>`).join("");
+$("a-jours").addEventListener("click", e=>{ const b=e.target.closest("[data-j]"); if(!b) return; const j=+b.dataset.j; actJours.has(j)?actJours.delete(j):actJours.add(j); paintAct(); });
+function paintAct(){
+  $("a-icons").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.ic===actIc));
+  $("a-jours").querySelectorAll("button").forEach(b=>b.classList.toggle("on", actJours.has(+b.dataset.j)));
+}
+function openAct(a){
+  if(mode==="signedout"){ $("compte").hidden=false; return; }
+  actEdit=a?a.id:null; actArmed=false;
+  $("act-title").textContent=a?"Modifier l'activité":"Nouvelle activité";
+  aT.value=a?a.titre:""; aD.value=a?(a.debut||""):"18:00"; aF.value=a?(a.fin||""):""; aN.value=a?(a.apporter||""):"";
+  actIc=a?(a.ic||"star"):"star";
+  actJours=new Set(a ? a.jours : [parse(current||todayKey()).getDay()]);
+  aDel.hidden=!a; aDel.classList.remove("armed"); aDel.textContent="Supprimer"; aE.hidden=true;
+  paintAct(); actS.hidden=false;
+}
+$("a-cancel").addEventListener("click", ()=>actS.hidden=true);
+actS.addEventListener("click", e=>{ if(e.target===actS) actS.hidden=true; });
+$("act-form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const titre=aT.value.trim();
+  if(!titre){ aE.textContent="Écrivez le nom de l'activité."; aE.hidden=false; aT.focus(); return; }
+  if(!actJours.size){ aE.textContent="Choisissez au moins une journée."; aE.hidden=false; return; }
+  if(!aD.value){ aE.textContent="Indiquez l'heure du début."; aE.hidden=false; return; }
+  const a={id:actEdit||("a"+Date.now().toString(36)), titre, jours:[...actJours].sort(), debut:aD.value, fin:aF.value||"", apporter:aN.value.trim(), ic:actIc};
+  const list=activites().filter(x=>x.id!==a.id); list.push(a);
+  actS.hidden=true;
+  try{ await enregistrerActivites(list); toast(actEdit?"Activité modifiée":"Activité ajoutée : "+a.jours.map(j=>JOURS[j]).join(", ")); }
+  catch(err){ toast("Pas pu enregistrer : "+(err.code||err.message)); }
+});
+aDel.addEventListener("click", async ()=>{
+  if(!actArmed){ actArmed=true; aDel.classList.add("armed"); aDel.textContent="Confirmer"; return; }
+  actS.hidden=true;
+  try{ await enregistrerActivites(activites().filter(x=>x.id!==actEdit)); toast("Activité supprimée"); }
+  catch(err){ toast("Pas pu supprimer : "+(err.code||err.message)); }
+});
+tap($("fab"), ()=>{ if(mode==="signedout"){ $("compte").hidden=false; return; } $("choix").hidden=false; });
+$("choix").addEventListener("click", e=>{
+  const b=e.target.closest("[data-choix]");
+  if(e.target===$("choix") || b) $("choix").hidden=true;
+  if(!b) return;
+  if(b.dataset.choix==="rappel"){ openSheet(null); if(!scrim.hidden) setTimeout(()=>fT.focus(),50); }
+  if(b.dataset.choix==="activite") openAct(null);
+});
 $("f-cancel").addEventListener("click", closeSheet);
 scrim.addEventListener("click", e=>{ if(e.target===scrim) closeSheet(); });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); info.hidden=true; $("compte").hidden=true; $("recherche").hidden=true; $("mois").hidden=true; } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); actS.hidden=true; $("choix").hidden=true; info.hidden=true; $("compte").hidden=true; $("recherche").hidden=true; $("mois").hidden=true; } });
 
 form.addEventListener("submit", async e=>{
   e.preventDefault();
