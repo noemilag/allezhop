@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610300949"></script>
+<script src="config.js?v=202610300959"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -21,7 +21,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&text=Cngé&display=swap">
 <style>
 /* Layout: une carte du jour sur une pile (cartes derrière visibles en bas), swipe dans les 4 sens, barre ← + → */
 :root{
@@ -412,14 +411,9 @@ html.st-loading .week{visibility:hidden}
 .heures input::-webkit-date-and-time-value{text-align:left}
 #a-duree{flex-wrap:wrap}
 /* tuile « Congé » (fins de semaine et congés) : le o souriant du logo */
-/* tuile « Congé » : même taille que la tuile du jour, lettres rondes comme le logo Allez Hop */
-.ptitre .j.conge{flex-direction:row;align-items:center;justify-content:center;font-family:"Fredoka",var(--font);font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1;white-space:nowrap}
-.j.conge i{font-style:normal;display:inline-block}
-.j.conge i:nth-child(1){transform:translateY(1px) rotate(-7deg)}
-.j.conge i:nth-child(3){transform:translateY(-1px) rotate(5deg)}
-.j.conge i:nth-child(4){transform:translateY(1px) rotate(-4deg)}
-.j.conge i:nth-child(5){transform:translateY(-2px) rotate(8deg)}
-.o-hop{display:inline-block;width:.62em;height:.64em;margin:0 .03em;transform:translateY(1px) rotate(-3deg)}
+/* tuile « Congé » : même taille que la tuile du jour, avec le mot dessiné comme le logo */
+.ptitre .j.conge{color:#fff}
+.conge-logo{width:70px;height:auto;display:block}
 /* fins de semaine dans la bande : une case teintée */
 /* « Aujourd'hui » : apparaît au-dessus de la semaine dès qu'on n'est plus sur aujourd'hui */
 .wk-h{min-height:32px}
@@ -723,6 +717,6 @@ html.st-loading .week{visibility:hidden}
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610300949"></script>
+<script type="module" src="app.js?v=202610300959"></script>
 </body>
 </html>
