@@ -81,16 +81,21 @@ function message(k, rappels, w, demain, activites = []){
 
 async function main(){
   const test = env.TEST === "1", dry = env.DRY === "1";
-  if (!dry && (!env.VAPID_PUBLIC || !env.VAPID_PRIVATE)) { console.log("Clés VAPID pas encore installées : rien n'est envoyé."); return; }
-  if (!env.FIREBASE_SERVICE_ACCOUNT) { console.log("Secret FIREBASE_SERVICE_ACCOUNT manquant : rien n'est envoyé."); return; }
+  // En test, rien d'envoyé = échec visible (en rouge dans GitHub), avec la raison.
+  const stop = msg => { console.log(msg); if (test) { console.log("::error::" + msg); process.exitCode = 1; } };
+  if (!dry && (!env.VAPID_PUBLIC || !env.VAPID_PRIVATE)) { stop("Clé VAPID manquante : vérifiez le secret VAPID_PRIVATE_KEY dans GitHub."); return; }
+  if (!env.FIREBASE_SERVICE_ACCOUNT) { stop("Secret FIREBASE_SERVICE_ACCOUNT manquant dans GitHub."); return; }
 
   const { initializeApp, cert } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
-  initializeApp({ credential: cert(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)) });
+  let compte;
+  try { compte = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT); }
+  catch { stop("Le secret FIREBASE_SERVICE_ACCOUNT n'est pas un fichier JSON complet : recollez tout le contenu du fichier."); return; }
+  initializeApp({ credential: cert(compte) });
   const db = getFirestore();
 
   const abonnements = (await db.collection("abonnements").get()).docs.filter(d => d.data().actif !== false && d.data().abonnement);
-  if (!abonnements.length) { console.log("Aucun téléphone abonné."); return; }
+  if (!abonnements.length) { stop("Aucun téléphone abonné : dans l'app (ouverte par son icône), Menu → Notifications → Activer."); return; }
 
   const now = local(), maintenant = now.h * 60 + now.m;
   const aTraiter = abonnements.filter(d => {
@@ -104,7 +109,7 @@ async function main(){
   const enfants = (await db.collection("enfants").get()).docs.map(d => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.creeLe || 0) - (b.creeLe || 0));
   const rappels = (await db.collection("rappels").get()).docs.map(d => d.data());
-  if (!enfants.length) { console.log("Aucune fiche d'enfant dans Firebase."); return; }
+  if (!enfants.length) { stop("Aucune fiche d'enfant dans Firebase."); return; }
 
   if (!dry) webpush.setVapidDetails("https://noemilag.github.io/allezhop/", env.VAPID_PUBLIC, env.VAPID_PRIVATE);
 
@@ -128,7 +133,7 @@ async function main(){
       try { await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" }); }
       catch (err) {
         if ([404, 410].includes(err.statusCode)) { console.log("Abonnement expiré : supprimé."); await d.ref.delete(); break; }
-        console.log(`Échec (${err.statusCode || "?"}) ${err.body || err.message}`); process.exitCode = 1;
+        console.log(`::error::Échec de l'envoi (${err.statusCode || "?"}) ${err.body || err.message}`); process.exitCode = 1;
       }
     }
     if (!dry && !test) await d.ref.set({ dernierEnvoi: now.date }, { merge: true });
@@ -137,4 +142,5 @@ async function main(){
 }
 
 export { message, aAnnoncer };
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  main().catch(err => { console.log("::error::" + (err.message || err)); process.exitCode = 1; });
