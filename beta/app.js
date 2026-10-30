@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202610301943";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301943";
+import { demarrerAssistant } from "./assistant.js?v=202610301948";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301948";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610301943";
+const VERSION = "202610301948";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -76,7 +76,7 @@ function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }ca
 /* ---------- Essai B : chaque famille a ses données (familles/{id}/enfants, rappels, abonnements) ---------- */
 let famId=null, famille=null;
 const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
-const MODELES=["gemini-3.6-flash","gemini-2.5-flash"];   // le premier qui répond
+const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
   mode="loading"; paintAccount(); setAccess("loading");
@@ -151,7 +151,7 @@ async function initStore(){
             modeleIA=nom;
             const t=r.response.text().replace(/^```(json)?|```$/g,"").trim();
             return JSON.parse(t);
-          }catch(e){ derniere=e; if(!/not.?found|404|unsupported|not supported/i.test(String(e.message||e))) throw e; }
+          }catch(e){ derniere=e; if(!/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(String(e.message||e))) throw e; }
         }
         throw derniere;
       },
