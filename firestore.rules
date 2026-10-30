@@ -16,6 +16,37 @@ service cloud.firestore {
     match /abonnements/{id} {
       allow read, create, update, delete: if estParent();
     }
+    // ===== Essai B : une famille par compte (familles/{id}/enfants, rappels, abonnements) =====
+    function connecte() { return request.auth != null; }
+    function membre(fid) {
+      return connecte() && request.auth.uid in get(/databases/$(database)/documents/familles/$(fid)).data.membres;
+    }
+    // Profil de chaque compte : la famille dont il fait partie.
+    match /profils/{uid} {
+      allow read, write: if connecte() && request.auth.uid == uid;
+    }
+    // Liens d'invitation pour l'autre parent (le code du lien est secret).
+    match /invitations/{secret} {
+      allow get: if connecte();
+      allow create: if membre(request.resource.data.famille);
+    }
+    match /familles/{fid} {
+      allow read: if connecte() && request.auth.uid in resource.data.membres;
+      // Créer une famille : seulement avec le code d'invitation de la période d'essai.
+      allow create: if connecte() && request.resource.data.membres == [request.auth.uid]
+        && request.resource.data.invitation == 'CODE-D-ESSAI';
+      // Un membre modifie sa famille ; un parent invité s'y ajoute lui-même avec un lien valide.
+      allow update: if connecte() && (request.auth.uid in resource.data.membres
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['membres', 'courriels', 'parInvitation'])
+            && request.resource.data.membres.hasAll(resource.data.membres)
+            && request.resource.data.membres.size() == resource.data.membres.size() + 1
+            && request.auth.uid in request.resource.data.membres
+            && get(/databases/$(database)/documents/invitations/$(request.resource.data.parInvitation)).data.famille == fid));
+      match /{sous}/{id} {
+        allow read, write: if membre(fid);
+      }
+    }
+
     match /rappels/{id} {
       allow read, delete: if estParent();
       allow create, update: if estParent()
