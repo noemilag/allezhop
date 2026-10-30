@@ -76,6 +76,8 @@ function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }ca
 /* ---------- Essai B : chaque famille a ses données (familles/{id}/enfants, rappels, abonnements) ---------- */
 let famId=null, famille=null;
 const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
+// App Check (reCAPTCHA v3) : prouve à Google que les demandes à l'IA viennent bien de cette app. Clé de site publique.
+const RECAPTCHA_SITE="";
 const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
@@ -84,6 +86,10 @@ async function initStore(){
     const [{initializeApp}, A, F] = await Promise.all([import(BASE_FB+"firebase-app.js"), import(BASE_FB+"firebase-auth.js"), import(BASE_FB+"firebase-firestore.js")]);
     // Nom distinct : la connexion de l'essai reste séparée de celle de l'app principale (même site)
     const app=initializeApp(cfg, "essai-b"), auth=A.getAuth(app); auth.languageCode="fr";
+    if(RECAPTCHA_SITE){
+      try{ const AC=await import(BASE_FB+"firebase-app-check.js"); AC.initializeAppCheck(app, {provider:new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true}); }
+      catch(e){ console.error("App Check", e); }
+    }
     let db;
     try{ db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})}); }
     catch(e){ db=F.getFirestore(app); }
