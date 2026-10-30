@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202610301711";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301711";
+import { demarrerAssistant } from "./assistant.js?v=202610301820";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301820";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610301711";
+const VERSION = "202610301820";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -82,7 +82,8 @@ async function initStore(){
   mode="loading"; paintAccount(); setAccess("loading");
   try{
     const [{initializeApp}, A, F] = await Promise.all([import(BASE_FB+"firebase-app.js"), import(BASE_FB+"firebase-auth.js"), import(BASE_FB+"firebase-firestore.js")]);
-    const app=initializeApp(cfg), auth=A.getAuth(app); auth.languageCode="fr";
+    // Nom distinct : la connexion de l'essai reste séparée de celle de l'app principale (même site)
+    const app=initializeApp(cfg, "essai-b"), auth=A.getAuth(app); auth.languageCode="fr";
     let db;
     try{ db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})}); }
     catch(e){ db=F.getFirestore(app); }
