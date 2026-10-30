@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202610302014";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610302014";
+import { demarrerAssistant } from "./assistant.js?v=202610302021";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610302021";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610302014";
+const VERSION = "202610302021";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -80,6 +80,8 @@ const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
 const RECAPTCHA_SITE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
 // Fraud Defense (ex-reCAPTCHA Enterprise) : utilisé en priorité s'il est rempli.
 const RECAPTCHA_ENTERPRISE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
+// App Check est en pause pendant les tests (Firebase refuse encore la preuve : erreur 403 à régler avant d'inviter des amis).
+const APP_CHECK_ACTIF=false;
 const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
@@ -88,7 +90,7 @@ async function initStore(){
     const [{initializeApp}, A, F] = await Promise.all([import(BASE_FB+"firebase-app.js"), import(BASE_FB+"firebase-auth.js"), import(BASE_FB+"firebase-firestore.js")]);
     // Nom distinct : la connexion de l'essai reste séparée de celle de l'app principale (même site)
     const app=initializeApp(cfg, "essai-b"), auth=A.getAuth(app); auth.languageCode="fr";
-    if(RECAPTCHA_SITE){
+    if(APP_CHECK_ACTIF && RECAPTCHA_SITE){
       try{ const AC=await import(BASE_FB+"firebase-app-check.js"); const ac=AC.initializeAppCheck(app, {provider: RECAPTCHA_ENTERPRISE ? new AC.ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE) : new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true});
         verifierAppCheck=()=>AC.getToken(ac, false); }
       catch(e){ console.error("App Check", e); }
@@ -151,8 +153,8 @@ async function initStore(){
       // Lecture d'une photo par Gemini (Firebase AI Logic), réponse en JSON
       lireIA:async (consigne, img)=>{
         // Diagnostic : la preuve App Check est-elle obtenue? (sinon Google refuse l'IA)
-        if(!verifierAppCheck) throw new Error("App Check n'est pas chargé dans cette version : rechargez la page (version "+VERSION+").");
-        try{ await verifierAppCheck(); }
+        if(APP_CHECK_ACTIF && !verifierAppCheck) throw new Error("App Check n'est pas chargé dans cette version : rechargez la page (version "+VERSION+").");
+        if(verifierAppCheck) try{ await verifierAppCheck(); }
         catch(e){ throw new Error("App Check ("+(RECAPTCHA_ENTERPRISE?"Fraud Defense":"reCAPTCHA v3")+", version "+VERSION+") : "+(e.code||"")+" "+String(e.message||e).slice(0,300)); }
         const AI=await import(BASE_FB+"firebase-ai.js");
         const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend()});
