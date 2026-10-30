@@ -13,8 +13,7 @@
 import webpush from "web-push";
 import { pathToFileURL } from "node:url";
 import {
-  chargerEnfant, ENFANT, LAST, PERIODES, EVENTS, WX_URL, addDays, parse, infoFor, specialsOf,
-  summarize, deg, habits, precipShort, wxSub,
+  chargerEnfant, ENFANT, LAST, EVENTS, addDays, parse, infoFor, specialsOf,
 } from "../school.js";
 
 const TZ = "America/Toronto";
@@ -39,43 +38,29 @@ function aAnnoncer(k, nbRappels, nbActivites = 0){
   return infoFor(prev).kind === "ecole";
 }
 
-const meteoCache = {};
-async function meteo(k){
-  try {
-    if (!meteoCache[WX_URL]) {
-      const r = await fetch(WX_URL);
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      meteoCache[WX_URL] = summarize((await r.json()).hourly);
-    }
-    return meteoCache[WX_URL][k] || null;
-  } catch (e) { console.log("Météo indisponible :", e.message); return null; }
-}
 
 const heureFr = h => { if (!h) return ""; const [a, b] = h.split(":"); return (+a) + " h" + (b && b !== "00" ? " " + b : ""); };
 const objets = t => (t || "").split(/\n|,\s+/).map(x => x.trim()).filter(Boolean);
 
+// Notification courte : « Léo – Jour 4 », les spécialistes, puis les rappels (et activités) s'il y en a.
 function message(k, rappels, w, demain, activites = []){
   const inf = infoFor(k), lines = [];
-  const quand = demain ? " · demain" : "";
+  const quand = demain ? " (demain)" : "";
   let title;
   if (inf.kind === "ecole") {
     const sp = specialsOf(inf.jour);
-    title = `${ENFANT.prenom} · Jour ${inf.jour}${quand}`;
-    lines.push(sp.length ? sp.map(s => `${s.nom} ${PERIODES[s.p]}`).join(" · ") : "Pas de spécialiste");
-    sp.filter(s => s.apporter).forEach(s => lines.push(`🎒 ${s.apporter}`));
+    title = `${ENFANT.prenom} – Jour ${inf.jour}${quand}`;
+    lines.push(sp.length ? sp.map(s => s.nom).join(" – ") : "Pas de spécialiste");
   } else {
-    title = `${ENFANT.prenom} · Pas d'école${quand}`;
-    lines.push(inf.label);
+    title = `${ENFANT.prenom} – Congé${quand}`;
+    if (inf.kind === "off" && inf.label) lines.push(inf.label);
   }
-  activites.forEach(a => lines.push(`⭐ ${a.titre} ${heureFr(a.debut)}${a.fin ? " à " + heureFr(a.fin) : ""}`));
-  (EVENTS[k] || []).forEach(([em, t, n]) => lines.push(`${em} ${t}${n ? ` (${n})` : ""}`));
-  rappels.forEach(r => lines.push(`📌 ${r.titre}`));
-  [...activites.flatMap(a => objets(a.apporter)), ...rappels.flatMap(r => objets(r.notes))].forEach(x => lines.push(`🎒 ${x}`));
-  if (w) {
-    lines.push(`${w.icon} ${deg(w.tmin)} → ${deg(w.tmax)} · ${precipShort(w)}`);
-    const sub = wxSub(w); if (sub) lines.push(sub);
-    lines.push(`👕 ${habits(w)}`);
-  }
+  const autres = [
+    ...(EVENTS[k] || []).map(([, t]) => t),
+    ...rappels.map(r => r.titre),
+    ...activites.map(a => `${a.titre} ${heureFr(a.debut)}`),
+  ];
+  if (autres.length) lines.push(autres.join(" – "));
   return { title, body: lines.join("\n"), tag: "jour-" + k + "-" + ENFANT.prenom, url: "./" };
 }
 
@@ -124,7 +109,7 @@ async function main(){
       const jourSem = parse(jour).getDay();
       const acts = (e.activites || []).filter(a => (a.jours || []).includes(jourSem) && (!a.du || jour >= a.du) && (!a.au || jour <= a.au)).sort((a, b) => (a.debut || "").localeCompare(b.debut || ""));
       if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
-      messages.push(message(jour, siens, await meteo(jour), demain, acts));
+      messages.push(message(jour, siens, null, demain, acts));
     }
     for (const m of messages) {
       if (test) m.title = "Test · " + m.title;
