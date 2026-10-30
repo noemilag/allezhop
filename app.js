@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300934";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300939";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610300934";
+const VERSION = "202610300939";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -436,13 +436,30 @@ let access="loading";
 $("gate-logo").innerHTML=document.querySelector("header .logo").outerHTML;
 const GATE_TXT=$("gate-msg").textContent;
 const GATE_TITLE=$("gate-title").innerHTML;
-/* ---------- Petite surprise : une chauve-souris traverse l'écran à l'Halloween ---------- */
+/* ---------- Petites surprises des fêtes, à l'ouverture de l'app ----------
+   Halloween (30 et 31 octobre) : une chauve-souris traverse l'écran.
+   Noël (dernier jour d'école de décembre, 24 et 25 décembre) : il neige quelques secondes.
+   Pour essayer : ?fete=halloween ou ?fete=noel dans l'adresse. */
 let surpriseVue=false;
+function feteDuJour(){
+  const essai=new URLSearchParams(location.search).get("fete"); if(essai) return essai;
+  const t=todayKey(), md=t.slice(5);
+  if(md==="10-30" || md==="10-31") return "halloween";
+  if(md==="12-24" || md==="12-25") return "noel";
+  if(md.startsWith("12-") && infoFor(t).kind==="ecole"){
+    // dernier jour d'école avant le congé des Fêtes
+    let k=addDays(t,1); while(k.slice(5,7)==="12" && infoFor(k).kind!=="ecole") k=addDays(k,1);
+    if(k.slice(5,7)!=="12") return "noel";
+  }
+  return null;
+}
 function surprise(){
   if(surpriseVue || reduceMotion) return;
-  const md=todayKey().slice(5), essai=new URLSearchParams(location.search).has("halloween");
-  if(!essai && md!=="10-30" && md!=="10-31") return;
-  surpriseVue=true;
+  const f=feteDuJour(); surpriseVue=true;
+  if(f==="halloween") chauveSouris();
+  if(f==="noel") neige();
+}
+function chauveSouris(){
   const W=innerWidth, H=innerHeight;
   const bat=document.createElement("div");
   bat.className="chauve-souris"; bat.setAttribute("aria-hidden","true");
@@ -450,8 +467,22 @@ function surprise(){
   document.body.appendChild(bat);
   // Vol en vagues, de la gauche vers la droite, en remontant un peu
   const pts=[];
-  for(let i=0;i<=10;i++){ const t=i/10; pts.push({transform:`translate(${-120+t*(W+240)}px, ${H*.62-t*H*.38+Math.sin(t*Math.PI*3)*40}px) rotate(${Math.cos(t*Math.PI*3)*12}deg) scale(${.8+t*.35})`}); }
-  bat.animate(pts,{duration:3600,easing:"ease-in-out",fill:"forwards"}).onfinish=()=>bat.remove();
+  for(let i=0;i<=12;i++){ const t=i/12; pts.push({transform:`translate(${-120+t*(W+240)}px, ${H*.62-t*H*.38+Math.sin(t*Math.PI*3)*40}px) rotate(${Math.cos(t*Math.PI*3)*12}deg) scale(${.8+t*.35})`}); }
+  bat.animate(pts,{duration:6500,easing:"ease-in-out",fill:"forwards"}).onfinish=()=>bat.remove();
+}
+function neige(){
+  const box=document.createElement("div");
+  box.className="neige"; box.setAttribute("aria-hidden","true");
+  const W=innerWidth, H=innerHeight;
+  for(let i=0;i<34;i++){
+    const f=document.createElement("i"), taille=4+Math.random()*7, x=Math.random()*W, derive=(Math.random()-.5)*90;
+    f.style.width=f.style.height=taille+"px"; f.style.left=x+"px";
+    box.appendChild(f);
+    f.animate([{transform:"translate(0,-20px)",opacity:0},{opacity:.95,offset:.1},{opacity:.95,offset:.8},{transform:`translate(${derive}px,${H+20}px)`,opacity:0}],
+      {duration:5000+Math.random()*3000, delay:Math.random()*2500, easing:"linear", fill:"both"});
+  }
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(), 11000);
 }
 function setAccess(state, msg, alt){
   access=state;
