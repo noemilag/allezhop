@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610300931"></script>
+<script src="config.js?v=202610300934"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -457,6 +457,13 @@ html.st-loading .week{visibility:hidden}
 #login{position:relative}
 .x-fermer{position:absolute;top:14px;right:max(12px,env(safe-area-inset-right,0px));width:40px;height:40px;border:0;border-radius:50%;background:var(--tint);color:var(--ink);display:grid;place-items:center;cursor:pointer;z-index:1}
 .x-fermer svg.i{width:20px;height:20px;stroke-width:2.4}
+/* chauve-souris de l'Halloween */
+.chauve-souris{position:fixed;left:0;top:0;width:72px;height:36px;z-index:40;pointer-events:none;color:#2B2140;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25))}
+.chauve-souris svg{width:100%;height:100%;fill:currentColor;overflow:visible}
+.chauve-souris .aile{transform-box:fill-box;animation:battre .22s ease-in-out infinite alternate}
+.chauve-souris .aile.g{transform-origin:100% 60%}
+.chauve-souris .aile.d{transform-origin:0% 60%}
+@keyframes battre{from{transform:scaleY(1)}to{transform:scaleY(-.35)}}
 </style>
 </head>
 <body>
@@ -710,6 +717,6 @@ html.st-loading .week{visibility:hidden}
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610300931"></script>
+<script type="module" src="app.js?v=202610300934"></script>
 </body>
 </html>
