@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202610301957";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301957";
+import { demarrerAssistant } from "./assistant.js?v=202610302000";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610302000";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610301957";
+const VERSION = "202610302000";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -74,7 +74,7 @@ function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||localStorage
 function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }catch(e){} }
 
 /* ---------- Essai B : chaque famille a ses données (familles/{id}/enfants, rappels, abonnements) ---------- */
-let famId=null, famille=null;
+let famId=null, famille=null, verifierAppCheck=null;
 const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
 // App Check (reCAPTCHA v3) : prouve à Google que les demandes à l'IA viennent bien de cette app. Clé de site publique.
 const RECAPTCHA_SITE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
@@ -87,7 +87,8 @@ async function initStore(){
     // Nom distinct : la connexion de l'essai reste séparée de celle de l'app principale (même site)
     const app=initializeApp(cfg, "essai-b"), auth=A.getAuth(app); auth.languageCode="fr";
     if(RECAPTCHA_SITE){
-      try{ const AC=await import(BASE_FB+"firebase-app-check.js"); AC.initializeAppCheck(app, {provider:new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true}); }
+      try{ const AC=await import(BASE_FB+"firebase-app-check.js"); const ac=AC.initializeAppCheck(app, {provider:new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true});
+        verifierAppCheck=()=>AC.getToken(ac, false); }
       catch(e){ console.error("App Check", e); }
     }
     let db;
@@ -147,6 +148,10 @@ async function initStore(){
       },
       // Lecture d'une photo par Gemini (Firebase AI Logic), réponse en JSON
       lireIA:async (consigne, img)=>{
+        // Diagnostic : la preuve App Check est-elle obtenue? (sinon Google refuse l'IA)
+        if(!verifierAppCheck) throw new Error("App Check n'est pas chargé dans cette version : rechargez la page (version "+VERSION+").");
+        try{ await verifierAppCheck(); }
+        catch(e){ throw new Error("App Check : "+(e.code||"")+" "+String(e.message||e).slice(0,300)); }
         const AI=await import(BASE_FB+"firebase-ai.js");
         const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend()});
         let derniere=null;
