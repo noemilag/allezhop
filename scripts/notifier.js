@@ -89,7 +89,9 @@ async function main(){
     // L'heure est passée (jusqu'à 3 h de retard toléré) et rien n'a encore été envoyé aujourd'hui.
     return x.dernierEnvoi !== now.date && maintenant >= cible && maintenant - cible <= 180;
   });
-  if (!aTraiter.length) { console.log(`${now.date} ${now.h}:${String(now.m).padStart(2, "0")} : aucune notification à envoyer.`); return; }
+  // Alertes avant les activités choisies dans l'app (ex. « Karaté à 18 h 30 », 1 h avant)
+  const avecAlertes = test ? [] : abonnements.filter(d => (d.data().alertes || []).length);
+  if (!aTraiter.length && !avecAlertes.length) { console.log(`${now.date} ${now.h}:${String(now.m).padStart(2, "0")} : aucune notification à envoyer.`); return; }
 
   const enfants = (await db.collection("enfants").get()).docs.map(d => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.creeLe || 0) - (b.creeLe || 0));
@@ -97,6 +99,40 @@ async function main(){
   if (!enfants.length) { stop("Aucune fiche d'enfant dans Firebase."); return; }
 
   if (!dry) webpush.setVapidDetails("https://noemilag.github.io/allezhop/", env.VAPID_PUBLIC, env.VAPID_PRIVATE);
+  const hote = x => { try { return new URL(x.abonnement.endpoint).host; } catch { return "?"; } };
+  // Envoie un message à un téléphone ; false si l'abonnement a expiré (il est alors supprimé).
+  async function envoyer(d, m){
+    const x = d.data();
+    console.log(`→ ${x.par || "?"} (${x.appareil || "?"})\n${m.title}\n${m.body}\n`);
+    if (dry) return true;
+    try {
+      const r = await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" });
+      console.log(`::notice::Envoyé à ${x.appareil || "?"} (${hote(x)}) : réponse ${r.statusCode}`);
+    } catch (err) {
+      if ([404, 410].includes(err.statusCode)) { console.log("Abonnement expiré : supprimé."); await d.ref.delete(); return false; }
+      console.log(`::error::Échec de l'envoi (${err.statusCode || "?"}) ${err.body || err.message}`); process.exitCode = 1;
+    }
+    return true;
+  }
+  const activitesLe = (e, jour) => { const w = parse(jour).getDay();
+    return (e.activites || []).filter(a => (a.jours || []).includes(w) && (!a.du || jour >= a.du) && (!a.au || jour <= a.au)).sort((a, b) => (a.debut || "").localeCompare(b.debut || "")); };
+
+  for (const d of avecAlertes) {
+    const x = d.data(), avance = x.avance ?? 60, faits = (x.alertesEnvoyees || []).filter(c => c.endsWith("@" + now.date)), nouveaux = [];
+    for (const e of enfants) {
+      chargerEnfant(e);
+      for (const a of activitesLe(e, now.date)) {
+        if (!(x.alertes || []).includes(a.id) || !a.debut) continue;
+        const [hh, mm] = a.debut.split(":").map(Number), debut = hh * 60 + mm, cle = a.id + "@" + now.date;
+        if (maintenant < debut - avance || maintenant >= debut || faits.includes(cle)) continue;
+        const sac = objets(a.apporter);
+        const ok = await envoyer(d, { title: `${ENFANT.prenom} – ${a.titre} à ${heureFr(a.debut)}`, body: sac.length ? sac.join(" – ") : "Dans " + (debut - maintenant) + " min", tag: "act-" + cle, url: "./" });
+        if (!ok) break;
+        nouveaux.push(cle);
+      }
+    }
+    if (nouveaux.length && !dry) await d.ref.set({ alertesEnvoyees: [...faits, ...nouveaux] }, { merge: true });
+  }
 
   for (const d of aTraiter) {
     const x = d.data(), demain = +(x.heure || "07:00").slice(0, 2) >= 12;
@@ -106,25 +142,18 @@ async function main(){
       chargerEnfant(e);
       const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
         .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
-      const jourSem = parse(jour).getDay();
-      const acts = (e.activites || []).filter(a => (a.jours || []).includes(jourSem) && (!a.du || jour >= a.du) && (!a.au || jour <= a.au)).sort((a, b) => (a.debut || "").localeCompare(b.debut || ""));
+      const acts = activitesLe(e, jour);
       if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
+      // Option dans l'app : pas de notification les jours sans école
+      if (!test && x.conges === false && infoFor(jour).kind !== "ecole") continue;
       messages.push(message(jour, siens, null, demain, acts));
     }
+    let vivant = true;
     for (const m of messages) {
       if (test) m.title = "Test · " + m.title;
-      console.log(`→ ${x.par || "?"} (${x.appareil || "?"}, ${x.heure || "07:00"})\n${m.title}\n${m.body}\n`);
-      if (dry) continue;
-      try {
-        const r = await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" });
-        const hote = (() => { try { return new URL(x.abonnement.endpoint).host; } catch { return "?"; } })();
-        console.log(`::notice::Envoyé à ${x.appareil || "?"} (${hote}) : réponse ${r.statusCode}`);
-      }
-      catch (err) {
-        if ([404, 410].includes(err.statusCode)) { console.log("Abonnement expiré : supprimé."); await d.ref.delete(); break; }
-        console.log(`::error::Échec de l'envoi (${err.statusCode || "?"}) ${err.body || err.message}`); process.exitCode = 1;
-      }
+      if (!(vivant = await envoyer(d, m))) break;
     }
+    if (!vivant) continue;
     if (!dry && !test) await d.ref.set({ dernierEnvoi: now.date }, { merge: true });
     if (!messages.length) console.log(`→ ${x.par || "?"} : rien à annoncer pour ${jour}.`);
   }
