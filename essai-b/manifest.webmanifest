@@ -1,6 +1,6 @@
 {
-  "name": "Allez Hop (essai B)",
-  "short_name": "Hop essai B",
+  "name": "Allez Hop Beta",
+  "short_name": "Allez Hop Beta",
   "description": "La fiche du jour : jour du cycle, spécialistes, météo et rappels.",
   "lang": "fr-CA",
   "start_url": "./",
