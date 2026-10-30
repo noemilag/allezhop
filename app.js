@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300140";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300146";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610300140";
+const VERSION = "202610300146";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -918,7 +918,7 @@ function hFr(v){ return v.replace(/^0/,"").replace(":"," h ").replace(" h 00"," 
 function pourQuand(hh){ return +hh.slice(0,2)<12 ? "Notification sur la journée même." : "Après midi, la notification parle du lendemain : pratique pour préparer le sac la veille."; }
 async function paintPush(){
   const st=$("push-state"), act=$("push-actions"), box=$("push-heure");
-  act.innerHTML=""; box.hidden=true;
+  act.innerHTML=""; box.hidden=true; $("push-options").hidden=true;
   if(isIOS && !installed){ st.textContent="Sur iPhone, les notifications marchent seulement depuis l'écran d'accueil : Partager → Sur l'écran d'accueil, puis ouvre Allez Hop avec son icône."; return; }
   if(!pushOK){ st.textContent="Ce navigateur ne reçoit pas les notifications."; return; }
   if(!VAPID_PUBLIC){ st.textContent="Les notifications sont presque prêtes : il reste à installer les clés."; return; }
@@ -936,7 +936,8 @@ async function paintPush(){
     $("push-on").addEventListener("click", ()=>enablePush($("push-h").value));
     return;
   }
-  st.textContent=`Activées sur ce téléphone, chaque jour d'école vers ${hFr(h)}.`;
+  st.textContent=`Activées sur ce téléphone, vers ${hFr(h)}.`;
+  paintPushOptions(sub, doc);
   act.innerHTML=`<button type="button" class="btn outline" id="push-test">Envoyer un test</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
   $("push-test").addEventListener("click", async ()=>{
     const inf=infoFor(todayKey()), sp=inf.kind==="ecole"?specialsOf(inf.jour):[];
@@ -958,6 +959,24 @@ $("push-h").addEventListener("change", async ()=>{
   try{ await store.saveSub(await subId(sub), {heure:h}); toast("Heure enregistrée : "+hFr(h)); paintPush(); }
   catch(e){ toast("L'heure n'a pas pu être enregistrée. Réessaie."); }
 });
+// Options de ce téléphone : jours sans école, alertes avant les activités choisies
+function paintPushOptions(sub, doc){
+  const box=$("push-options"), acts=activites(), choisies=new Set(doc.alertes||[]), avance=doc.avance ?? 60;
+  let h=`<label class="opt"><input type="checkbox" id="po-conges" ${doc.conges!==false?"checked":""}><span>Aussi les jours sans école<small>Fins de semaine et congés, s'il y a un rappel ou une activité</small></span></label>`;
+  if(acts.length){
+    h+=`<div class="opt-h">Avant une activité</div>`;
+    h+=acts.map(a=>`<label class="opt"><input type="checkbox" data-alerte="${esc(a.id)}" ${choisies.has(a.id)?"checked":""}><span>${esc(a.titre)}<small>${(a.jours||[]).map(j=>JOURS[j]).join(", ")} à ${heureFr(a.debut)}</small></span></label>`).join("");
+    h+=`<select id="po-avance" aria-label="Combien de temps avant">${[[30,"30 min avant"],[60,"1 h avant"],[120,"2 h avant"],[180,"3 h avant"]].map(([v,l])=>`<option value="${v}" ${v===avance?"selected":""}>${l}</option>`).join("")}</select>`;
+  } else h+=`<p class="note">Ajoutez une activité (karaté, soccer…) avec le bouton + pour recevoir une alerte avant.</p>`;
+  box.innerHTML=h; box.hidden=false;
+  const sauver=async(champs,msg)=>{ try{ await store.saveSub(await subId(sub), champs); toast(msg); }catch(e){ toast("Pas pu enregistrer. Réessayez."); } };
+  $("po-conges").addEventListener("change", e=>sauver({conges:e.target.checked}, e.target.checked?"Notifications aussi les jours sans école":"Plus de notification les jours sans école"));
+  box.querySelectorAll("[data-alerte]").forEach(c=>c.addEventListener("change", ()=>{
+    const ids=[...box.querySelectorAll("[data-alerte]:checked")].map(x=>x.dataset.alerte);
+    sauver({alertes:ids}, c.checked?"Alerte ajoutée":"Alerte retirée");
+  }));
+  const av=$("po-avance"); if(av) av.addEventListener("change", ()=>sauver({avance:+av.value}, "Alerte "+av.selectedOptions[0].textContent));
+}
 async function enablePush(heure){
   const st=$("push-state");
   try{
