@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300050";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300122";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610300050";
+const VERSION = "202610300122";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -943,6 +943,8 @@ async function paintPush(){
     await (await getReg()).showNotification(inf.kind==="ecole"?`${ENFANT.prenom} · Jour ${inf.jour}`:`${ENFANT.prenom} · Pas d'école`, {
       body: sp.length ? sp.map(s=>`${s.nom} ${PERIODES[s.p]}`).join(" · ") : (inf.label||"Aucun spécialiste aujourd'hui"),
       icon:"icons/icon-192.png", tag:"test" });
+    // L'iPhone n'affiche pas les notifications d'une app ouverte à l'écran : on le dit.
+    toast(isIOS ? "Test envoyé. Sur iPhone, il n'apparaît pas quand l'app est ouverte : regardez le centre de notifications." : "Test envoyé");
   });
   $("push-off").addEventListener("click", async ()=>{
     try{ await store.delSub(await subId(sub)); }catch(e){}
