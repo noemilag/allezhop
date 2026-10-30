@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202610300146"></script>
+<script src="config.js?v=202610300928"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -434,6 +434,25 @@ html.st-loading .week{visibility:hidden}
 .opt small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 .opt-h{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:6px}
 #push-options select{font:inherit;font-size:16px;color:var(--ink);background:var(--tint);border:0;border-radius:12px;padding:10px 12px;align-self:flex-start}
+/* menu : rangée Notifications avec interrupteur */
+.notif-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:18px;padding:10px 12px 10px 10px;background:var(--card)}
+.notif-ouvrir{flex:1;min-width:0;display:flex;align-items:center;gap:12px;border:0;background:none;padding:0;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+.notif-ouvrir .ic{width:40px;height:40px;border-radius:13px;background:var(--soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.notif-ouvrir .ic svg.i{width:22px;height:22px;stroke-width:2}
+.notif-ouvrir .tx{flex:1;min-width:0}
+.notif-ouvrir b{display:block;font-size:17px}
+.notif-ouvrir small{display:block;font-size:13px;color:var(--muted);margin-top:1px}
+.notif-ouvrir .chev{width:18px;height:18px;color:var(--muted)}
+.switch{position:relative;flex:none;width:52px;height:32px;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .2s;pointer-events:none}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span::after{transform:translateX(20px)}
+.switch input:disabled+span{opacity:.45}
+.switch input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+/* petit lien discret (calendrier .ics) */
+.lien{border:0;background:none;padding:6px 0 0;font:inherit;font-size:14px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer;align-self:flex-start;text-align:left}
 </style>
 </head>
 <body>
@@ -624,7 +643,7 @@ html.st-loading .week{visibility:hidden}
     <div id="c-in" hidden class="profil">
       <p class="who" id="c-email"></p>
 
-      <div class="sec-h"><span>Enfants</span><span id="kids-count"></span></div>
+      <div class="sec-h"><span>Enfants</span><span id="kids-count" hidden></span></div>
       <div id="kids-list" class="kids-list"></div>
       <button type="button" class="btn ghost outline" id="kid-add">+ Ajouter un enfant</button>
       <div id="kid-add-panel" class="kid-add-panel" hidden>
@@ -639,12 +658,16 @@ html.st-loading .week{visibility:hidden}
         <p class="err" id="kid-err" hidden></p>
       </div>
 
-      <div class="sec-h" style="margin-top:6px"><span>Notifications</span></div>
-      <button type="button" class="btn ghost outline" id="c-notifs">Notifications du matin et calendrier</button>
+      <div class="notif-row" style="margin-top:6px">
+        <button type="button" class="notif-ouvrir" id="c-notifs"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="tx"><b>Notifications</b><small id="c-notif-etat">…</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        <label class="switch" aria-label="Notifications activées"><input type="checkbox" role="switch" id="c-notif-sw"><span></span></label>
+      </div>
 
       <div class="sec-h" style="margin-top:6px"><span>Compte</span></div>
       <p class="note">Les rappels que tu ajoutes apparaissent aussi chez l'autre parent.</p>
       <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
+      <button type="button" class="lien" id="btn-ics">Ajouter l'année scolaire à mon calendrier (.ics)</button>
+      <p class="note" id="ics-msg"></p>
     </div>
     <div class="actions"><button type="button" class="btn ghost" id="c-close">Fermer</button></div>
   </form>
@@ -667,13 +690,6 @@ html.st-loading .week{visibility:hidden}
       <div class="actions" id="push-actions"></div>
     </div>
 
-    <div class="sec" style="padding:0;gap:10px;border-top:1px solid var(--line);padding-top:16px">
-      <div class="sec-h" style="margin:0"><span>Dans ton calendrier</span></div>
-      <p>Ajoute les jours d'école à ton calendrier (iPhone, Google, Outlook), avec les rappels et une alerte la veille à 19 h.</p>
-      <div class="actions"><button type="button" class="btn ghost" id="btn-ics" style="border:1px solid var(--line);color:var(--ink)">Télécharger le calendrier</button></div>
-      <p class="note" id="ics-msg"></p>
-    </div>
-
     <div class="actions"><button type="button" class="btn ghost" id="info-close">Fermer</button></div>
   </div>
 </div>
@@ -689,6 +705,6 @@ html.st-loading .week{visibility:hidden}
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610300146"></script>
+<script type="module" src="app.js?v=202610300928"></script>
 </body>
 </html>
