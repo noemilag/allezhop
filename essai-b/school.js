@@ -73,13 +73,16 @@ function chargerEnfant(d){
   (d.evenements||[]).forEach(e=>{ (EVENTS[e.date] ??= []).push(e.note ? [e.ic, e.titre, e.note] : [e.ic, e.titre]); });
   OFF = {};
   (d.conges||[]).forEach(c=>{ for(let x=parse(c.du); key(x)<=(c.au||c.du); x.setDate(x.getDate()+1)) OFF[key(x)] = {type:c.type, label:c.label}; });
-  // Le cycle avance seulement les jours d'école.
-  const n = d.joursCycle || Object.keys(CYCLE).length || 6;
+  // Le cycle avance seulement les jours d'école. Les jours peuvent avoir un nom (ex. « 1A » à « 5B » pour les semaines A et B).
+  const ordre = Array.isArray(d.ordreCycle) && d.ordreCycle.length ? d.ordreCycle.map(String) : null;
+  const n = ordre ? ordre.length : (d.joursCycle || Object.keys(CYCLE).length || 6);
   CYCLE_OF = {};
   for(let x=parse(FIRST), i=0; key(x)<=LAST; x.setDate(x.getDate()+1)){
     const k=key(x), w=x.getDay();
-    if(w>0 && w<6 && !OFF[k]){ CYCLE_OF[k]=(i%n)+1; i++; }
+    if(w>0 && w<6 && !OFF[k]){ CYCLE_OF[k]=ordre ? ordre[i%n] : (i%n)+1; i++; }
   }
+  // Numéros lus sur le calendrier de l'école (ex. reprise après une fermeture) : ils ont priorité.
+  if(d.calendrierCycle) for(const [k,j] of Object.entries(d.calendrierCycle)) if(CYCLE_OF[k]!==undefined && j) CYCLE_OF[k]=isNaN(j)?String(j):+j;
   LAT = d.lat; LON = d.lon;
   METEO_URL = d.meteoUrl || `https://meteo.gc.ca/fr/location/index.html?coords=${LAT},${LON}`;
   WX_URL = "https://api.open-meteo.com/v1/forecast?latitude="+LAT+"&longitude="+LON+
