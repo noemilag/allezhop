@@ -32,6 +32,6 @@ jobs:
       - run: node scripts/notifier.js
         env:
           TEST: ${{ inputs.test && '1' || '' }}
-          VAPID_PUBLIC: ""   # à remplir : même clé publique que dans app.js
+          VAPID_PUBLIC: "BPLiguWy_GAbMeOOUjC9ntf_WBSRb2ZOqvyhVmsx0YjaQcQFF5CeNYreHaQhU2vBBEaLouXgbRqnamHY9YVx-eM"   # même clé publique que dans app.js
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
