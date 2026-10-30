@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301001";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610301824";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610301001";
+const VERSION = "202610301824";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -87,6 +87,11 @@ async function initStore(){
     let unsub=null, unsubK=null;
     store={
       signIn:(e,p)=>A.signInWithEmailAndPassword(auth,e,p),
+      google:async ()=>{
+        const prov=new A.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
+        try{ return await A.signInWithPopup(auth, prov); }
+        catch(e){ if(["auth/popup-blocked","auth/operation-not-supported-in-this-environment","auth/cancelled-popup-request"].includes(e.code)) return A.signInWithRedirect(auth, prov); throw e; }
+      },
       reset:e=>{ auth.languageCode="fr"; return A.sendPasswordResetEmail(auth,e); },
       signOut:()=>A.signOut(auth),
       save:r=>{
@@ -101,6 +106,7 @@ async function initStore(){
       saveActs:(id,list)=>F.setDoc(F.doc(db,"enfants",id), {activites:list, maj:Date.now()}, {merge:true}),
       saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
     };
+    A.getRedirectResult(auth).catch(()=>{});
     A.onAuthStateChanged(auth, user=>{
       if(unsub){ unsub(); unsub=null; }
       if(unsubK){ unsubK(); unsubK=null; }
@@ -516,6 +522,7 @@ function setAccess(state, msg, alt){
   $("kid-class").textContent = showKid ? "Classe "+ENFANT.classe : "";
   $("gate-msg").textContent = msg || GATE_TXT;
   $("gate-login").hidden = !!alt || state==="setup";
+  $("gate-google").hidden = $("gate-login").hidden;
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
   if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; $("recherche").hidden=true; $("mois").hidden=true; }
   else render();
@@ -532,6 +539,14 @@ $("setup-pick").addEventListener("click", ()=>$("setup-file").click());
 $("setup-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text()); e.target.value=""; });
 $("setup-paste").addEventListener("click", ()=>enregistrerEnfant($("setup-text").value));
 $("gate-login").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; });
+// Connexion avec Google (le compte Google doit être celui d'un des deux parents)
+async function avecGoogle(){
+  if(!store || !store.google) return;
+  try{ await store.google(); $("compte").hidden=true; }
+  catch(e){ if(e.code!=="auth/popup-closed-by-user") toast(authMessage(e)); }
+}
+$("gate-google").addEventListener("click", avecGoogle);
+$("l-google").addEventListener("click", avecGoogle);
 $("gate-alt").addEventListener("click", async e=>{
   if(e.currentTarget.textContent==="Me déconnecter" && store){ await store.signOut(); return; }
   location.reload();
