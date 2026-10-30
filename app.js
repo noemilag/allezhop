@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300942";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300945";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610300942";
+const VERSION = "202610300945";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -460,21 +460,41 @@ function surprise(){
   if(f==="noel") neige();
 }
 function chauveSouris(){
-  // Trois chauves-souris, décalées dans le temps, à des hauteurs et des tailles différentes
-  [{retard:0, y:.62, monte:.38, taille:1, phase:0},
-   {retard:1100, y:.42, monte:.22, taille:.75, phase:1.3},
-   {retard:2300, y:.78, monte:.45, taille:.9, phase:2.4}].forEach(c=>setTimeout(()=>uneChauveSouris(c), c.retard));
+  // Trois chauves-souris nerveuses qui tournent le long des bords de l'écran, puis ressortent
+  [{retard:0, taille:1}, {retard:700, taille:.75}, {retard:1500, taille:.9}].forEach(c=>setTimeout(()=>uneChauveSouris(c.taille), c.retard));
 }
-function uneChauveSouris({y, monte, taille, phase}){
-  const W=innerWidth, H=innerHeight;
+function uneChauveSouris(taille){
+  const W=innerWidth, H=innerHeight, m=26;
   const bat=document.createElement("div");
   bat.className="chauve-souris"; bat.setAttribute("aria-hidden","true");
   bat.innerHTML=`<svg viewBox="0 0 120 60"><g class="aile g"><path d="M60 30 C50 14 34 8 6 12 C16 18 18 24 14 30 C24 26 30 30 32 36 C38 30 46 30 50 36 C52 32 56 31 60 30Z"/></g><g class="aile d"><path d="M60 30 C70 14 86 8 114 12 C104 18 102 24 106 30 C96 26 90 30 88 36 C82 30 74 30 70 36 C68 32 64 31 60 30Z"/></g><ellipse cx="60" cy="31" rx="7" ry="10"/><path d="M54 23 L55 15 L58 21 Z M66 23 L65 15 L62 21 Z"/><circle cx="57.5" cy="28" r="1.4" fill="#FFB547"/><circle cx="62.5" cy="28" r="1.4" fill="#FFB547"/></svg>`;
   document.body.appendChild(bat);
-  // vol en vagues, à vitesse régulière : environ 7 secondes à l'écran
-  const pts=[];
-  for(let i=0;i<=24;i++){ const t=i/24; pts.push({transform:`translate(${-90+t*(W+180)}px, ${H*y-t*H*monte+Math.sin(t*Math.PI*3+phase)*40}px) rotate(${Math.cos(t*Math.PI*3+phase)*12}deg) scale(${(.8+t*.35)*taille})`}); }
-  bat.animate(pts,{duration:8000,easing:"linear",fill:"forwards"}).onfinish=()=>bat.remove();
+  // Un point sur le pourtour de l'écran (p de 0 à 1), avec un petit écart vers l'intérieur
+  const L=2*(W+H), bw=80*taille, bh=40*taille;
+  const pourtour=p=>{ p=((p%1)+1)%1; let d=p*L, x, y;
+    if(d<W){ x=d; y=0; } else if((d-=W)<H){ x=W; y=d; } else if((d-=H)<W){ x=W-d; y=H; } else { d-=W; x=0; y=H-d; }
+    const r=Math.random()*46;
+    x=Math.min(W-bw-m, Math.max(m, x-bw/2 + (x<=0?r:x>=W?-r:0)));
+    y=Math.min(H-bh-m, Math.max(m+40, y-bh/2 + (y<=0?r:y>=H?-r:0)));
+    return [x,y]; };
+  let p=Math.random(), sens=Math.random()<.5?1:-1;
+  const pts=[pourtour(p)];
+  for(let i=0;i<13;i++){
+    if(Math.random()<.3) sens=-sens;                       // change de direction
+    p+=sens*(.03+Math.random()*.07); pts.push(pourtour(p));
+  }
+  // entrée et sortie par le bord le plus proche
+  const dehors=([x,y])=>{ const d=[x, W-x, y, H-y], k=d.indexOf(Math.min(...d));
+    return k===0?[-bw-20,y]:k===1?[W+20,y]:k===2?[x,-bh-20]:[x,H+20]; };
+  pts.unshift(dehors(pts[0])); pts.push(dehors(pts[pts.length-1]));
+  let vers=1;
+  const kf=pts.map(([x,y],i)=>{
+    const n=pts[i+1]||pts[i], pr=pts[i-1]||pts[i], dx=(n[0]-pr[0]);
+    if(Math.abs(dx)>4) vers=dx<0?-1:1;
+    const penche=Math.max(-25, Math.min(25, (n[1]-pr[1])*.15));
+    return {transform:`translate(${x}px,${y}px) scale(${vers*taille},${taille}) rotate(${penche*vers}deg)`, easing:"cubic-bezier(.45,0,.2,1)"};
+  });
+  bat.animate(kf,{duration:7500,fill:"forwards"}).onfinish=()=>bat.remove();
 }
 function neige(){
   const box=document.createElement("div");
