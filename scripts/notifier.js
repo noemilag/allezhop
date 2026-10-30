@@ -130,7 +130,11 @@ async function main(){
       if (test) m.title = "Test · " + m.title;
       console.log(`→ ${x.par || "?"} (${x.appareil || "?"}, ${x.heure || "07:00"})\n${m.title}\n${m.body}\n`);
       if (dry) continue;
-      try { await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" }); }
+      try {
+        const r = await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" });
+        const hote = (() => { try { return new URL(x.abonnement.endpoint).host; } catch { return "?"; } })();
+        console.log(`::notice::Envoyé à ${x.appareil || "?"} (${hote}) : réponse ${r.statusCode}`);
+      }
       catch (err) {
         if ([404, 410].includes(err.statusCode)) { console.log("Abonnement expiré : supprimé."); await d.ref.delete(); break; }
         console.log(`::error::Échec de l'envoi (${err.statusCode || "?"}) ${err.body || err.message}`); process.exitCode = 1;
