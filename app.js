@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610292311";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300050";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610292311";
+const VERSION = "202610300050";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -896,7 +896,7 @@ function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clea
 
 /* ---------- Notification push du matin ---------- */
 // Clé publique VAPID ; la clé privée est un secret GitHub (VAPID_PRIVATE_KEY).
-const VAPID_PUBLIC="";   // à remplir : clé publique créée avec outils/cles.html
+const VAPID_PUBLIC="BPLiguWy_GAbMeOOUjC9ntf_WBSRb2ZOqvyhVmsx0YjaQcQFF5CeNYreHaQhU2vBBEaLouXgbRqnamHY9YVx-eM";   // clé publique (la clé privée est le secret GitHub VAPID_PRIVATE_KEY)
 const pushOK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 const installed = navigator.standalone===true || matchMedia("(display-mode: standalone)").matches;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
