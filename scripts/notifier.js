@@ -79,7 +79,8 @@ async function main(){
   initializeApp({ credential: cert(compte) });
   const db = getFirestore();
 
-  const abonnements = (await db.collection("abonnements").get()).docs.filter(d => d.data().actif !== false && d.data().abonnement);
+  const abonnements = (await db.collection("abonnements").get()).docs
+    .filter(d => d.data().actif !== false && d.data().abonnement && (test || d.data().pauseLe !== local().date));   // en pause : rien
   if (!abonnements.length) { stop("Aucun téléphone abonné : dans l'app (ouverte par son icône), Menu → Notifications → Activer."); return; }
 
   const now = local(), maintenant = now.h * 60 + now.m;

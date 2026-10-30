@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300146";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300928";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610300146";
+const VERSION = "202610300928";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -936,10 +936,17 @@ async function paintPush(){
     $("push-on").addEventListener("click", ()=>enablePush($("push-h").value));
     return;
   }
-  st.textContent=`Activées sur ce téléphone, vers ${hFr(h)}.`;
   paintPushOptions(sub, doc);
-  act.innerHTML=`<button type="button" class="btn outline" id="push-test">Envoyer un test</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
-  $("push-test").addEventListener("click", async ()=>{
+  if(enPause(doc)){
+    st.textContent = doc.actif===false ? "En pause : aucune notification sur ce téléphone." : "En pause aujourd'hui : elles reprennent demain.";
+    act.innerHTML=`<button type="button" class="btn primary" id="push-reprendre">Reprendre</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
+    $("push-reprendre").addEventListener("click", async ()=>{ await reglerPause(sub, false); paintPush(); });
+  } else {
+    st.textContent=`Activées sur ce téléphone, vers ${hFr(h)}.`;
+    act.innerHTML=`<button type="button" class="btn outline" id="push-test">Envoyer un test</button><button type="button" class="btn ghost" id="push-pause">Pause aujourd'hui</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
+    $("push-pause").addEventListener("click", async ()=>{ await reglerPause(sub, "jour"); paintPush(); });
+  }
+  if($("push-test")) $("push-test").addEventListener("click", async ()=>{
     const inf=infoFor(todayKey()), sp=inf.kind==="ecole"?specialsOf(inf.jour):[];
     await (await getReg()).showNotification(inf.kind==="ecole"?`${ENFANT.prenom} · Jour ${inf.jour}`:`${ENFANT.prenom} · Pas d'école`, {
       body: sp.length ? sp.map(s=>`${s.nom} ${PERIODES[s.p]}`).join(" · ") : (inf.label||"Aucun spécialiste aujourd'hui"),
@@ -949,7 +956,7 @@ async function paintPush(){
   });
   $("push-off").addEventListener("click", async ()=>{
     try{ await store.delSub(await subId(sub)); }catch(e){}
-    await sub.unsubscribe(); toast("Notifications désactivées"); paintPush();
+    await sub.unsubscribe(); toast("Notifications désactivées"); paintPush(); paintNotifRow();
   });
 }
 // Changer l'heure : enregistrée tout de suite si le téléphone est déjà abonné
@@ -977,6 +984,41 @@ function paintPushOptions(sub, doc){
   }));
   const av=$("po-avance"); if(av) av.addEventListener("change", ()=>sauver({avance:+av.value}, "Alerte "+av.selectedOptions[0].textContent));
 }
+// Pause : « jour » = aujourd'hui seulement ; true = jusqu'à ce qu'on la retire ; false = reprendre
+const enPause = doc => !!doc && (doc.actif===false || doc.pauseLe===todayKey());
+async function reglerPause(sub, p){
+  const champs = p==="jour" ? {actif:true, pauseLe:todayKey()} : p ? {actif:false, pauseLe:null} : {actif:true, pauseLe:null};
+  try{ await store.saveSub(await subId(sub), champs); toast(p==="jour"?"Pause pour aujourd'hui":p?"Notifications en pause":"Notifications reprises"); }
+  catch(e){ toast("Pas pu enregistrer. Réessayez."); }
+}
+// Rangée « Notifications » du menu : état en un coup d'œil + interrupteur
+async function etatNotif(){
+  if(isIOS && !installed) return {dispo:false, txt:"Ouvrez Allez Hop par son icône pour les activer"};
+  if(!pushOK) return {dispo:false, txt:"Pas offertes dans ce navigateur"};
+  if(!store || !store.getSub) return {dispo:false, txt:"Connectez-vous pour les activer"};
+  if(Notification.permission==="denied") return {dispo:false, txt:"Bloquées dans les réglages du téléphone"};
+  const sub=await (await getReg()).pushManager.getSubscription();
+  let doc=null; if(sub){ try{ doc=await store.getSub(await subId(sub)); }catch(e){} }
+  if(!sub || !doc) return {dispo:true, on:false, sub, txt:"Désactivées"};
+  if(enPause(doc)) return {dispo:true, on:false, sub, doc, txt: doc.actif===false ? "En pause" : "En pause aujourd'hui"};
+  return {dispo:true, on:true, sub, doc, txt:"Activées · "+hFr(doc.heure||"07:00")};
+}
+let etatCourant=null;
+async function paintNotifRow(){
+  const sw=$("c-notif-sw"), t=$("c-notif-etat");
+  try{ etatCourant=await etatNotif(); }catch(e){ etatCourant={dispo:false, txt:""}; }
+  t.textContent=etatCourant.txt; sw.checked=!!etatCourant.on; sw.disabled=!etatCourant.dispo;
+}
+$("c-notif-sw").addEventListener("change", async e=>{
+  const on=e.target.checked, et=etatCourant||{};
+  if(on){
+    if(et.doc) await reglerPause(et.sub, false);
+    else await enablePush((et.doc && et.doc.heure) || "07:00");
+  } else if(et.sub) await reglerPause(et.sub, true);
+  paintNotifRow();
+});
+// Le menu s'ouvre de plusieurs endroits : on met la rangée à jour chaque fois qu'il apparaît
+new MutationObserver(()=>{ if(!$("compte").hidden) paintNotifRow(); }).observe($("compte"), {attributes:true, attributeFilter:["hidden"]});
 async function enablePush(heure){
   const st=$("push-state");
   try{
@@ -993,7 +1035,7 @@ async function enablePush(heure){
 /* ---------- Calendrier (.ics) ---------- */
 const info=$("info");
 $("c-notifs").addEventListener("click", ()=>{ $("compte").hidden=true; $("btn-info").click(); });
-$("btn-info").addEventListener("click", ()=>{ $("ics-msg").textContent=""; info.hidden=false; paintPush(); });
+$("btn-info").addEventListener("click", ()=>{ info.hidden=false; paintPush(); });
 $("info-close").addEventListener("click", ()=>info.hidden=true);
 info.addEventListener("click", e=>{ if(e.target===info) info.hidden=true; });
 function icsEsc(s){ return String(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"); }
