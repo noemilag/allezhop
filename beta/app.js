@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202610302021";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610302021";
+import { demarrerAssistant } from "./assistant.js?v=202610302049";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610302049";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610302021";
+const VERSION = "202610302049";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -82,6 +82,8 @@ const RECAPTCHA_SITE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
 const RECAPTCHA_ENTERPRISE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
 // App Check est en pause pendant les tests (Firebase refuse encore la preuve : erreur 403 à régler avant d'inviter des amis).
 const APP_CHECK_ACTIF=false;
+// Documents denses (calendrier) : d'abord un modèle « pro », plus précis, puis les rapides.
+const MODELES_FORTS=["gemini-3.6-pro","gemini-pro-latest","gemini-3.5-pro","gemini-2.5-pro"];
 const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
@@ -100,7 +102,7 @@ async function initStore(){
     catch(e){ db=F.getFirestore(app); }
     const fam=(...p)=>F.doc(db,"familles",famId,...p), famColl=(...p)=>F.collection(db,"familles",famId,...p);
     let unsub=null, unsubK=null, unsubF=null, user=null;
-    let modeleIA=null;
+    let modeleIA=null, modeleFort=null;
     store={
       google:async ()=>{
         const prov=new A.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
@@ -151,7 +153,7 @@ async function initStore(){
         return {enfants:k.size, rappels:r.size};
       },
       // Lecture d'une photo par Gemini (Firebase AI Logic), réponse en JSON
-      lireIA:async (consigne, img)=>{
+      lireIA:async (consigne, img, options={})=>{
         // Diagnostic : la preuve App Check est-elle obtenue? (sinon Google refuse l'IA)
         if(APP_CHECK_ACTIF && !verifierAppCheck) throw new Error("App Check n'est pas chargé dans cette version : rechargez la page (version "+VERSION+").");
         if(verifierAppCheck) try{ await verifierAppCheck(); }
@@ -159,11 +161,12 @@ async function initStore(){
         const AI=await import(BASE_FB+"firebase-ai.js");
         const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend()});
         let derniere=null;
-        for(const nom of modeleIA ? [modeleIA] : MODELES){
+        const liste = options.fort ? [...(modeleFort ? [modeleFort] : MODELES_FORTS), ...(modeleIA ? [modeleIA] : MODELES)] : (modeleIA ? [modeleIA] : MODELES);
+        for(const nom of liste){
           try{
             const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}});
             const r=await m.generateContent([consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}]);
-            modeleIA=nom;
+            if(MODELES_FORTS.includes(nom)) modeleFort=nom; else modeleIA=nom;
             const t=r.response.text().replace(/^```(json)?|```$/g,"").trim();
             return JSON.parse(t);
           }catch(e){ derniere=e; if(!/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(String(e.message||e))) throw e; }

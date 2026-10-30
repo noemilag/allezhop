@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202610302021"></script>
+<script src="../config.js?v=202610302049"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -521,6 +521,24 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 .as-lecture{flex-wrap:wrap}
 .as-detail{width:100%;font-size:13px;color:var(--muted)}
 .as-detail code{display:block;margin-top:6px;white-space:pre-wrap;word-break:break-word;font-size:12px}
+/* vérification du calendrier : les mois en petit */
+.as-legende{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
+.as-l{display:flex;align-items:center;gap:6px}
+.as-l i{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid var(--line);background:var(--card)}
+.as-l i.ped{background:#DCEBFF;border-color:#9DC1F5}.as-l i.conge{background:#D8F0DD;border-color:#8FCB9C}
+.as-ctrl.info{background:#FFF8E6;color:#5C4500}
+.as-annee{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.as-mois{border:1px solid var(--line);border-radius:14px;padding:8px;background:var(--card)}
+.as-mois-t{font-size:13px;font-weight:800;text-transform:capitalize;margin:0 0 4px 2px}
+.as-sem,.as-grille{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.as-sem span{font-size:10px;font-weight:700;color:var(--muted);text-align:center}
+.as-j{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:2px 0;min-height:34px;font:inherit;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
+.as-j b{font-size:12px}.as-j i{font-style:normal;font-size:10px;font-weight:700;color:var(--accent-ink)}
+.as-j.ped{background:#DCEBFF;border-color:#9DC1F5}.as-j.ped i{color:#1D4E89;font-weight:600}
+.as-j.conge{background:#D8F0DD;border-color:#8FCB9C}.as-j.conge i{color:#1E6B34;font-weight:600}
+.as-j.hors{opacity:.3;cursor:default}
+.as-j.ko{background:#FFE9A8;border-color:#E8B923}
+.as-j.corr{outline:2px solid #2E9D4F;outline-offset:1px}
 </style>
 </head>
 <body>
@@ -790,6 +808,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202610302021"></script>
+<script type="module" src="app.js?v=202610302049"></script>
 </body>
 </html>

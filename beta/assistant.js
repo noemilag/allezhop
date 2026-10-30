@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202610302021";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202610302049";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -46,20 +46,22 @@ Réponds seulement en JSON :
 {"jours": ["1","2",…], "periodes": {"1":"HH:MM", …}, "cycle": {"<nom court du jour>": {"<numéro de période>": "<matière>"}, …}, "doutes": ["<ce qui était difficile à lire>"]}`;
 
 function promptCalendrier(){
-  return `Tu lis la photo d'un calendrier scolaire d'une école primaire du Québec (une année scolaire, de juillet à juin).
-Trouve : le premier et le dernier jour de classe des élèves ; tous les jours sans classe en semaine (congés et journées pédagogiques),
-avec leur type ("ped" pour une journée pédagogique, "conge" pour un congé férié ou des vacances) et un court nom en français
-(ex. « Journée pédagogique », « Action de grâce », « Congé des Fêtes », « Relâche ») ; regroupe les jours consécutifs (du … au …).
-Les journées de réserve en cas de force majeure ne sont PAS des congés : ignore-les.
-Note aussi les événements de la légende (photo scolaire, bulletin, première communication, fin d'étape) avec leur date.
-Si les dates portent un numéro de jour du cycle (petit chiffre en exposant ou sous la date, parfois avec une lettre A ou B), relève-le pour CHAQUE jour de classe : "1", "2", … ou "1A", "2B".
-Le document peut être une photo ou un PDF. Toutes les dates au format AAAA-MM-JJ ; juillet à décembre sont de la première année, janvier à juin de la deuxième.
+  return `Tu lis un calendrier scolaire d'une école primaire du Québec (une année scolaire, d'août à juin), en photo ou en PDF.
+Travaille MOIS PAR MOIS, ligne par ligne, avec soin : chaque case est une date.
+Pour CHAQUE jour de semaine (lundi à vendredi) d'août à juin, donne son état en une courte valeur :
+- le numéro du jour du cycle s'il est écrit près de la date (petit chiffre en exposant ou sous la date, parfois avec une lettre A ou B), ex. "3" ou "2B" ;
+- "P" si c'est une journée pédagogique (souvent la date est entourée d'un cercle ou d'une forme, selon la légende) ;
+- "C" si c'est un congé (férié, vacances, relâche ; souvent une case colorée, selon la légende) ;
+- "R" si c'est une journée de réserve en cas de force majeure (c'est un jour de classe) ;
+- "-" s'il n'y a pas de classe parce que l'année n'est pas commencée ou est finie.
+Lis bien la LÉGENDE pour savoir quel symbole veut dire quoi. Une date qui porte un numéro de cycle est un jour de classe.
+Donne aussi le nom des congés connus (ex. « Action de grâce », « Congé des Fêtes », « Relâche ») et les événements de la légende
+(photo scolaire, bulletin, première communication, fin d'étape) avec leur date.
+Toutes les dates au format AAAA-MM-JJ ; août à décembre sont de la première année, janvier à juin de la deuxième.
 ${CONSIGNE_PRIVEE}
 Réponds seulement en JSON :
-{"ecole": "nom de l'école ou vide", "annee": {"debut": "AAAA-MM-JJ", "fin": "AAAA-MM-JJ"},
- "conges": [{"du":"AAAA-MM-JJ","au":"AAAA-MM-JJ","type":"ped|conge","label":"…"}],
- "evenements": [{"date":"AAAA-MM-JJ","titre":"…"}],
- "joursParDate": {"AAAA-MM-JJ": "numéro du jour du cycle", …}, "doutes": ["…"]}`;
+{"ecole": "nom de l'école ou vide", "jours": {"AAAA-MM-JJ": "valeur", …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
+ "evenements": [{"date":"AAAA-MM-JJ","titre":"…"}], "doutes": ["…"]}`;
 }
 
 /* ---------- Le cycle, calculé comme dans l'app : il avance seulement les jours de classe ---------- */
@@ -67,7 +69,7 @@ Réponds seulement en JSON :
 const ordreDe = e => e.ordre && e.ordre.length ? e.ordre : Array.from({ length: +e.joursCycle || 6 }, (_, i) => String(i + 1));
 const ordreAB = () => [..."ABCD".slice(0, 2)].flatMap(l => [1, 2, 3, 4, 5].map(i => i + l));
 function cycleDe(e){
-  const off = new Set(); (e.conges || []).forEach(c => { for (let k = c.du; k <= (c.au || c.du); k = addDays(k, 1)) off.add(k); });
+  const off = new Set(Object.keys(e.off || {}));
   const o = ordreDe(e), out = {};
   for (let k = e.annee.debut, i = 0; k <= e.annee.fin; k = addDays(k, 1)){
     const w = parse(k).getDay();
@@ -76,6 +78,54 @@ function cycleDe(e){
   return out;
 }
 
+// Regroupe les jours sans classe consécutifs (fins de semaine comprises) en congés « du … au … »
+function congesDe(e){
+  const out = [];
+  Object.keys(e.off || {}).sort().forEach(d => {
+    const o = e.off[d], der = out[out.length - 1];
+    let k = der ? addDays(der.au, 1) : null; while (k && k < d && [0, 6].includes(parse(k).getDay())) k = addDays(k, 1);
+    if (der && k === d && der.type === o.type && der.label === o.label) der.au = d;
+    else out.push({ du: d, au: d, type: o.type, label: o.label });
+  });
+  return out;
+}
+// Les numéros du cycle écrits sur le calendrier permettent de corriger les erreurs de lecture des congés :
+// on essaie d'enlever un congé (ou d'en ajouter un là où aucun numéro n'est écrit) et on garde ce qui fait mieux concorder.
+function accordDe(e, lus){
+  const c = cycleDe(e); let n = 0, t = 0;
+  for (const [d, v] of Object.entries(lus)) if (d >= e.annee.debut && d <= e.annee.fin){ t++; if (c[d] === v) n++; }
+  return t ? n / t : 1;
+}
+function autoCorriger(e, lus){
+  const changes = [];
+  if (!e.annee.debut || Object.keys(lus).length < 20) return changes;
+  let base = accordDe(e, lus);
+  const copie = { ...e.off };
+  for (let tour = 0; tour < 12 && base < .99; tour++){
+    let mieux = null;
+    // un jour à la fois, ou deux jours de suite (ex. un congé des Fêtes lu deux jours trop tôt)
+    const offs = Object.keys(e.off).filter(d => d >= e.annee.debut && d <= e.annee.fin).sort();
+    const suivant = d => { let k = addDays(d, 1); while ([0, 6].includes(parse(k).getDay())) k = addDays(k, 1); return k; };
+    const essais = [
+      ...offs.map(d => ({ ds: [d], ajout: false })),
+      ...offs.filter(d => e.off[suivant(d)]).map(d => ({ ds: [d, suivant(d)], ajout: false })),
+      ...Object.keys(cycleDe(e)).filter(d => !lus[d]).map(d => ({ ds: [d], ajout: true })),
+    ];
+    for (const x of essais){
+      const avant = x.ds.map(d => e.off[d]);
+      x.ds.forEach(d => { if (x.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
+      const a = accordDe(e, lus);
+      x.ds.forEach((d, i) => { if (avant[i]) e.off[d] = avant[i]; else delete e.off[d]; });
+      if (a > base + .02 && (!mieux || a > mieux.a)) mieux = { ...x, a };
+    }
+    if (!mieux) break;
+    mieux.ds.forEach(d => { if (mieux.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
+    changes.push(...mieux.ds); base = mieux.a;
+  }
+  // Si on n'arrive pas à un accord presque parfait, les numéros eux-mêmes sont sans doute mal lus : on annule tout.
+  if (changes.length && base < .9){ Object.assign(e.off, copie); Object.keys(e.off).forEach(d => { if (!copie[d]) delete e.off[d]; }); return []; }
+  return changes;
+}
 const ICONES_EVT = { photo: "📸", bulletin: "📄", communication: "✉️", etape: "🏁", entree: "🔔" };
 function iconeEvenement(t){ const n = (t || "").toLowerCase();
   if (n.includes("photo")) return ICONES_EVT.photo; if (n.includes("bulletin")) return ICONES_EVT.bulletin;
@@ -88,7 +138,7 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
   box.className = "assistant"; box.id = "assistant";
   document.body.appendChild(box);
   const e = { prenom: "", classe: "", ecole: "", ville: "", joursCycle: 6, periodes: {}, cycle: {}, annee: { debut: "", fin: "" }, conges: [], evenements: [] };
-  let doutes = [], lus = {}, utiliserLus = null, etape = "enfant";
+  let doutes = [], lus = {}, utiliserLus = null, corriges = [], etape = "enfant";
 
   const fermer = () => box.remove();
   const page = (titre, sousTitre, corps, boutons) => {
@@ -126,14 +176,14 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
       <p class="note as-prive">🔒 Avant la photo, cachez ou coupez les informations personnelles (nom, courriel, mot de passe, numéro d'élève). Seul l'horaire est utile.</p>
       <div class="as-lecture" id="${id}-etat" hidden></div>`;
   }
-  async function lirePhoto(input, prompt, quandFini){
+  async function lirePhoto(input, prompt, quandFini, options = {}){
     const f = input.files[0]; if (!f) return;
     const etat = $(input.id + "-etat");
-    etat.hidden = false; etat.innerHTML = `<span class="as-spin"></span> Lecture de la photo… (environ 20 secondes)`;
+    etat.hidden = false; etat.innerHTML = `<span class="as-spin"></span> Lecture… (${options.fort ? "jusqu'à une minute : le calendrier est dense" : "environ 20 secondes"})`;
     try {
       const img = await photoEnBase64(f);
       etat.innerHTML = `${img.apercu ? `<img src="${img.apercu}" alt="">` : ""}<span><span class="as-spin"></span> L'IA lit le document…</span>`;
-      const r = await lireIA(prompt, img);
+      const r = await lireIA(prompt, img, options);
       quandFini(r);
     } catch (err){
       console.error(err);
@@ -223,59 +273,85 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
       `<button type="button" class="btn ghost" id="as-retour">Retour</button><button type="button" class="btn ghost outline" id="as-main">Remplir à la main</button>`);
     $("as-retour").onclick = pageVerifHoraire;
     $("as-main").onclick = () => { const y = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1;
-      if (!e.annee.debut) e.annee = { debut: `${y}-08-28`, fin: `${y + 1}-06-22` }; lus = {}; doutes = []; pageVerifCalendrier(); };
+      if (!e.annee.debut) e.annee = { debut: `${y}-08-28`, fin: `${y + 1}-06-22` }; e.off ??= {}; lus = {}; doutes = []; pageVerifCalendrier(); };
     $("as-f-cal").onchange = ev => lirePhoto(ev.target, promptCalendrier(), r => {
       const ok = d => /^\d{4}-\d{2}-\d{2}$/.test(d || "");
-      e.annee = { debut: ok(r.annee?.debut) ? r.annee.debut : "", fin: ok(r.annee?.fin) ? r.annee.fin : "" };
       if (!e.ecole && r.ecole) e.ecole = r.ecole;
-      e.conges = (r.conges || []).filter(c => ok(c.du)).map(c => ({ du: c.du, au: ok(c.au) ? c.au : c.du, type: c.type === "ped" ? "ped" : "conge", label: c.label || (c.type === "ped" ? "Journée pédagogique" : "Congé") }))
-        .sort((a, b) => a.du.localeCompare(b.du));
+      const noms = {}; (r.noms || []).forEach(x => { if (ok(x.date) && x.nom) noms[x.date] = x.nom; });
+      lus = {}; e.off = {}; const classe = [];
+      Object.entries(r.jours || {}).forEach(([d, v]) => {
+        if (!ok(d) || [0, 6].includes(parse(d).getDay())) return;
+        v = String(v ?? "").replace(/^jour\s*/i, "").trim().toUpperCase();
+        if (v === "P" || v === "C") e.off[d] = { type: v === "P" ? "ped" : "conge", label: noms[d] || (v === "P" ? "Journée pédagogique" : "Congé") };
+        else if (v === "R") classe.push(d);
+        else if (v && v !== "-"){ lus[d] = v; classe.push(d); }
+      });
+      classe.sort();
+      e.annee = { debut: classe[0] || "", fin: classe[classe.length - 1] || "" };
+      // seulement les congés pendant l'année (et la semaine avant la rentrée)
+      Object.keys(e.off).forEach(d => { if (!e.annee.debut || d < addDays(e.annee.debut, -10) || d > e.annee.fin) delete e.off[d]; });
       e.evenements = (r.evenements || []).filter(x => ok(x.date) && x.titre).map(x => ({ date: x.date, titre: x.titre, ic: iconeEvenement(x.titre) }));
-      lus = {}; Object.entries(r.joursParDate || {}).forEach(([d, j]) => { if (ok(d) && j != null && j !== "") lus[d] = String(j).replace(/^jour\s*/i, "").trim().toUpperCase(); });
       utiliserLus = null;
       doutes = r.doutes || [];
+      corriges = autoCorriger(e, lus);
       pageVerifCalendrier();
-    });
+    }, { fort: true });
   }
 
-  /* 3b. Vérifier le calendrier : dates, congés, et contrôle du cycle */
+  /* 3b. Vérifier le calendrier : les mois en petit, on touche un jour pour le corriger */
   function pageVerifCalendrier(){
     etape = "verif-cal";
+    e.off ??= {};
     const valide = e.annee.debut && e.annee.fin && e.annee.debut < e.annee.fin;
     const cyc = valide ? cycleDe(e) : {};
-    const dates = Object.keys(lus).filter(d => cyc[d] !== undefined || d >= e.annee.debut && d <= e.annee.fin).sort();
+    const dates = Object.keys(lus).filter(d => d >= e.annee.debut && d <= e.annee.fin);
     const diff = dates.filter(d => cyc[d] !== lus[d]);
     const accord = dates.length ? (dates.length - diff.length) / dates.length : 1;
-    // Peu de différences : sans doute des chiffres mal lus, on garde le calcul. Beaucoup : on suit le calendrier.
-    if (utiliserLus === null) utiliserLus = dates.length >= 20 && accord < .9;
-    const conges = e.conges.map((c, i) => `<li><span><b>${esc(c.label)}</b><small>${c.du === c.au ? esc(longDate(c.du)) : `du ${esc(longDate(c.du))} au ${esc(longDate(c.au))}`} · ${c.type === "ped" ? "pédagogique" : "congé"}</small></span><button type="button" class="as-retirer" data-i="${i}" aria-label="Retirer">${xIcon}</button></li>`).join("");
+    if (utiliserLus === null) utiliserLus = false;   // le calcul d'abord ; les numéros lus servent à vérifier
+    const aff = d => utiliserLus && lus[d] ? lus[d] : cyc[d];
+    const premierKo = diff.slice().sort()[0];
+    let mois = "";
+    if (valide){
+      for (let m = e.annee.debut.slice(0, 7) + "-01"; m <= e.annee.fin; m = (() => { const x = parse(m); x.setMonth(x.getMonth() + 1); return key(x); })()){
+        const x = parse(m), nb = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+        let cases = "", premier = true;
+        for (let j = 1; j <= nb; j++){
+          const d = key(new Date(x.getFullYear(), x.getMonth(), j)), w = parse(d).getDay();
+          if (w === 0 || w === 6) continue;
+          if (premier){ cases += "<span></span>".repeat(w - 1); premier = false; }
+          const o = e.off[d], hors = d < e.annee.debut || d > e.annee.fin, ko = !utiliserLus && d === premierKo;
+          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i></button>`;
+        }
+        mois += `<div class="as-mois"><div class="as-mois-t">${MOIS[x.getMonth()]} ${x.getFullYear()}</div><div class="as-sem"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span></div><div class="as-grille">${cases}</div></div>`;
+      }
+    }
+    const nbOff = Object.keys(e.off).filter(d => d >= e.annee.debut && d <= e.annee.fin).length;
     page("Vérifiez le calendrier", "Étape 3 de 4", `
-      ${doutes.length ? `<div class="as-doute">⚠️ À vérifier : ${doutes.map(esc).join(" · ")}</div>` : ""}
+      <p>Comparez avec votre calendrier. <b>Touchez un jour pour le changer</b> : classe → pédagogique → congé.</p>
+      <div class="as-legende"><span class="as-l"><i class="cl"></i>Classe (jour du cycle)</span><span class="as-l"><i class="ped"></i>Pédagogique</span><span class="as-l"><i class="conge"></i>Congé</span></div>
       <div class="heures"><div><label for="as-debut">Premier jour de classe</label><input type="date" id="as-debut" value="${esc(e.annee.debut)}"></div>
         <div><label for="as-fin">Dernier jour</label><input type="date" id="as-fin" value="${esc(e.annee.fin)}"></div></div>
-      ${dates.length ? `<div class="as-ctrl ${diff.length ? "ko" : "ok"}"><b>${diff.length ? `⚠️ ${diff.length} jour(s) sur ${dates.length} ne concordent pas` : `✓ Le cycle concorde avec votre calendrier (${dates.length} jours vérifiés)`}</b>
-        ${diff.length ? `<ul>${diff.slice(0, 8).map(d => `<li>${esc(longDate(d))} : calendrier <b>${esc(lus[d])}</b>, calcul ${cyc[d] ? `<b>${esc(cyc[d])}</b>` : "<b>pas d'école</b>"}</li>`).join("")}${diff.length > 8 ? `<li>et ${diff.length - 8} autres</li>` : ""}</ul>
-        <small>Si c'est le calcul qui se trompe, il manque sans doute un congé (ou il y en a un de trop) dans la liste ci-dessous. Si c'est la lecture, ignorez.</small>
-        <label class="opt"><input type="checkbox" id="as-lus" ${utiliserLus ? "checked" : ""}><span>Suivre les numéros lus sur le calendrier<small>Utile si l'école reprend le cycle autrement (fermeture, reprise d'une journée)</small></span></label>` : ""}</div>` : ""}
-      <div class="as-titre-liste">Congés et journées pédagogiques (${e.conges.length})</div>
-      <ul class="as-conges">${conges || "<li><small>Aucun pour l'instant.</small></li>"}</ul>
-      <details class="as-ajout"><summary>+ Ajouter un congé</summary>
-        <div class="heures"><div><label for="as-c-du">Du</label><input type="date" id="as-c-du"></div><div><label for="as-c-au">Au</label><input type="date" id="as-c-au"></div></div>
-        <div class="as-ligne"><select id="as-c-type"><option value="ped">Journée pédagogique</option><option value="conge">Congé</option></select><input type="text" id="as-c-nom" placeholder="Nom (facultatif)"></div>
-        <button type="button" class="btn ghost outline as-petit" id="as-c-ajout">Ajouter</button></details>`,
+      ${dates.length ? (accord >= .95
+        ? `<div class="as-ctrl ok">✓ Les numéros du cycle concordent avec votre calendrier.</div>`
+        : `<div class="as-ctrl info"><b>À vérifier autour du ${esc(longDate(diff.sort()[0]))}</b> : à partir de cette date (en jaune), les numéros du cycle écrits sur votre calendrier ne suivent plus. Il y a sans doute un congé de trop ou manquant juste avant : touchez le jour pour le corriger.
+            <label class="opt"><input type="checkbox" id="as-lus" ${utiliserLus ? "checked" : ""}><span>Suivre plutôt les numéros lus sur la photo<small>Seulement si votre école reprend le cycle autrement</small></span></label></div>`) : ""}
+      ${corriges.length ? `<div class="as-ctrl ok">✓ ${corriges.length} jour(s) corrigé(s) automatiquement grâce aux numéros du cycle (encadrés en vert) : ${corriges.map(d => esc(longDate(d))).join(", ")}. Vérifiez-les.</div>` : ""}
+      ${doutes.length ? `<details class="as-detail"><summary>Notes de l'IA</summary>${doutes.map(esc).join("<br>")}</details>` : ""}
+      <div class="as-annee">${mois}</div>
+      <p class="note">${Object.keys(cyc).length} jours de classe · ${nbOff} jours pédagogiques ou de congé</p>`,
       `<button type="button" class="btn ghost" id="as-retour">Reprendre la photo</button><button type="button" class="btn primary" id="as-ok">C'est bon</button>`);
     const lireDates = () => { e.annee.debut = $("as-debut").value; e.annee.fin = $("as-fin").value; };
     $("as-debut").onchange = $("as-fin").onchange = () => { lireDates(); pageVerifCalendrier(); };
-    if ($("as-lus")) $("as-lus").onchange = () => { utiliserLus = $("as-lus").checked; };
-    box.querySelectorAll(".as-retirer").forEach(b => b.onclick = () => { lireDates(); e.conges.splice(+b.dataset.i, 1); pageVerifCalendrier(); });
-    $("as-c-ajout").onclick = () => {
-      const du = $("as-c-du").value, au = $("as-c-au").value || du, type = $("as-c-type").value;
-      if (!du) return; lireDates();
-      e.conges.push({ du, au: au < du ? du : au, type, label: $("as-c-nom").value.trim() || (type === "ped" ? "Journée pédagogique" : "Congé") });
-      e.conges.sort((a, b) => a.du.localeCompare(b.du)); pageVerifCalendrier();
-    };
+    if ($("as-lus")) $("as-lus").onchange = () => { utiliserLus = $("as-lus").checked; pageVerifCalendrier(); };
+    box.querySelectorAll(".as-j[data-d]").forEach(b => b.onclick = () => {
+      const d = b.dataset.d, o = e.off[d], y = box.scrollTop;
+      if (!o) e.off[d] = { type: "ped", label: "Journée pédagogique" };
+      else if (o.type === "ped") e.off[d] = { type: "conge", label: "Congé" };
+      else delete e.off[d];
+      pageVerifCalendrier(); box.scrollTop = y;
+    });
     $("as-retour").onclick = () => { lireDates(); pageCalendrier(); };
-    $("as-ok").onclick = () => { lireDates(); if (!(e.annee.debut && e.annee.fin && e.annee.debut < e.annee.fin)){ toast("Vérifiez les dates de début et de fin."); return; } pageFin(); };
+    $("as-ok").onclick = () => { lireDates(); if (!valide){ toast("Vérifiez les dates de début et de fin."); return; } pageFin(); };
   }
 
   /* 4. Résumé et enregistrement */
@@ -288,7 +364,7 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
         <li><b>${esc(e.prenom)}</b>${e.classe ? `, classe ${esc(e.classe)}` : ""}${e.ecole ? ` · ${esc(e.ecole)}` : ""}</li>
         <li>Cycle de <b>${ordreDe(e).length} jours</b> (${esc(ordreDe(e)[0])} à ${esc(ordreDe(e).at(-1))}), ${Object.keys(e.periodes).length} périodes, ${nbSp} cours avec un spécialiste</li>
         <li>Du ${esc(longDate(e.annee.debut))} au ${esc(longDate(e.annee.fin))} : <b>${jours} jours de classe</b></li>
-        <li>${e.conges.length} congés et journées pédagogiques${e.evenements.length ? `, ${e.evenements.length} événements de l'école` : ""}</li>
+        <li>${congesDe(e).length} congés et journées pédagogiques${e.evenements.length ? `, ${e.evenements.length} événements de l'école` : ""}</li>
         <li>Météo de <b>${esc(e.ville)}</b></li>
       </ul>
       <p class="note">Vous pourrez ajouter les choses à apporter (ex. espadrilles pour l'éduc) et les activités plus tard.</p>
@@ -311,7 +387,7 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
         await enregistrer({
           prenom: e.prenom, classe: e.classe, ecole: e.ecole, ville: lieu.name || e.ville,
           lat: Math.round(lieu.latitude * 1000) / 1000, lon: Math.round(lieu.longitude * 1000) / 1000,
-          annee: { debut: e.annee.debut, fin, finEte }, joursCycle: o.length, ...(num ? {} : { ordreCycle: o }), periodes, cycle, conges: e.conges, evenements,
+          annee: { debut: e.annee.debut, fin, finEte }, joursCycle: o.length, ...(num ? {} : { ordreCycle: o }), periodes, cycle, conges: congesDe(e), evenements,
           ...(utiliserLus && Object.keys(lus).length ? { calendrierCycle: lus } : {}),
         });
         fermer(); toast(`L'horaire de ${e.prenom} est enregistré 🎉`);
@@ -325,3 +401,6 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
   pageEnfant();
   return { fermer };
 }
+
+// pour les tests
+export { cycleDe, congesDe, autoCorriger, accordDe };
