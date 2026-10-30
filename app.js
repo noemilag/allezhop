@@ -1,9 +1,9 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300939";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610300941";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610300939";
+const VERSION = "202610300941";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -467,8 +467,9 @@ function chauveSouris(){
   document.body.appendChild(bat);
   // Vol en vagues, de la gauche vers la droite, en remontant un peu
   const pts=[];
-  for(let i=0;i<=12;i++){ const t=i/12; pts.push({transform:`translate(${-120+t*(W+240)}px, ${H*.62-t*H*.38+Math.sin(t*Math.PI*3)*40}px) rotate(${Math.cos(t*Math.PI*3)*12}deg) scale(${.8+t*.35})`}); }
-  bat.animate(pts,{duration:6500,easing:"ease-in-out",fill:"forwards"}).onfinish=()=>bat.remove();
+  // vitesse régulière (linear) : elle reste visible presque tout le vol, environ 7 secondes à l'écran
+  for(let i=0;i<=24;i++){ const t=i/24; pts.push({transform:`translate(${-90+t*(W+180)}px, ${H*.62-t*H*.38+Math.sin(t*Math.PI*3)*40}px) rotate(${Math.cos(t*Math.PI*3)*12}deg) scale(${.8+t*.35})`}); }
+  bat.animate(pts,{duration:8000,easing:"linear",fill:"forwards"}).onfinish=()=>bat.remove();
 }
 function neige(){
   const box=document.createElement("div");
