@@ -78,6 +78,8 @@ let famId=null, famille=null, verifierAppCheck=null;
 const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
 // App Check (reCAPTCHA v3) : prouve à Google que les demandes à l'IA viennent bien de cette app. Clé de site publique.
 const RECAPTCHA_SITE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
+// Fraud Defense (ex-reCAPTCHA Enterprise) : utilisé en priorité s'il est rempli.
+const RECAPTCHA_ENTERPRISE="";
 const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
@@ -87,7 +89,7 @@ async function initStore(){
     // Nom distinct : la connexion de l'essai reste séparée de celle de l'app principale (même site)
     const app=initializeApp(cfg, "essai-b"), auth=A.getAuth(app); auth.languageCode="fr";
     if(RECAPTCHA_SITE){
-      try{ const AC=await import(BASE_FB+"firebase-app-check.js"); const ac=AC.initializeAppCheck(app, {provider:new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true});
+      try{ const AC=await import(BASE_FB+"firebase-app-check.js"); const ac=AC.initializeAppCheck(app, {provider: RECAPTCHA_ENTERPRISE ? new AC.ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE) : new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true});
         verifierAppCheck=()=>AC.getToken(ac, false); }
       catch(e){ console.error("App Check", e); }
     }
