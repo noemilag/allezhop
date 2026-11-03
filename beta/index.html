@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611030251"></script>
+<script src="../config.js?v=202611031040"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -554,6 +554,13 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 .as-j.hors{opacity:.3;cursor:default}
 .as-j.ko{background:#FFE9A8;border-color:#E8B923}
 .as-j.corr{outline:2px solid #2E9D4F;outline-offset:1px}
+/* gérer un enfant */
+.kid-item{display:flex;gap:8px;align-items:stretch}
+.kid-item .kid-row{flex:1;min-width:0}
+.kid-gerer{flex:none;width:46px;border:1px solid var(--line);background:var(--card);border-radius:16px;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
+.kid-gerer svg.i{width:20px;height:20px;fill:currentColor;stroke:none}
+#gerer .sheet{position:relative}
+#gerer .btn.danger{align-self:flex-start;padding-inline:4px}
 </style>
 </head>
 <body>
@@ -791,6 +798,19 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
   </form>
 </div>
 
+<div class="scrim" id="gerer" hidden>
+  <div class="sheet pad">
+    <div class="grab"></div>
+    <button type="button" class="x-fermer" id="g-x" aria-label="Fermer"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    <h2 id="g-titre">Enfant</h2>
+    <p class="note" id="g-sous"></p>
+    <button type="button" class="choix" id="g-maj"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span><span><b>Mettre à jour l'horaire</b><small>Nouvelle année scolaire : nouvel horaire et nouveau calendrier. Les rappels et les activités sont gardés.</small></span></button>
+    <button type="button" class="btn danger" id="g-sup">Supprimer cet enfant</button>
+    <p class="note">La suppression efface sa fiche, son horaire, ses activités et ses rappels. Elle est définitive.</p>
+    <p class="err" id="g-err" hidden></p>
+  </div>
+</div>
+
 <div class="scrim" id="info" hidden>
   <div class="sheet pad">
     <div class="grab"></div>
@@ -823,6 +843,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611030251"></script>
+<script type="module" src="app.js?v=202611031040"></script>
 </body>
 </html>

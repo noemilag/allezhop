@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030251";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031040";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -155,12 +155,16 @@ function iconeEvenement(t){ const n = (t || "").toLowerCase();
   if (n.includes("entrée") || n.includes("rentrée")) return ICONES_EVT.entree; return "pin"; }
 
 /* ---------- L'assistant ---------- */
-export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }){
+export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, enfant }){
   const ico = n => icone ? icone(n) : "";
   const box = document.createElement("section");
   box.className = "assistant"; box.id = "assistant";
   document.body.appendChild(box);
   const e = { prenom: "", classe: "", ecole: "", ville: "", joursCycle: 6, periodes: {}, cycle: {}, annee: { debut: "", fin: "" }, conges: [], evenements: [] };
+  // Mise à jour d'un enfant déjà enregistré (nouvelle année scolaire) : on repart de ses informations
+  const maj = !!enfant;
+  if (maj){ e.prenom = enfant.prenom || ""; e.classe = enfant.classe || ""; e.ecole = enfant.ecole || ""; e.ville = enfant.ville || ""; }
+  const hhmm = t => { const m = /(\d{1,2})\s*h\s*(\d{2})?/.exec(t || ""); return m ? m[1].padStart(2, "0") + ":" + (m[2] || "00") : ""; };
   let doutes = [], lus = {}, utiliserLus = null, corriges = [], etape = "enfant";
 
   const fermer = () => box.remove();
@@ -175,7 +179,8 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }
   /* 1. L'enfant */
   function pageEnfant(){
     etape = "enfant";
-    page("Votre enfant", "Étape 1 de 4", `
+    page(maj ? `Nouvelle année pour ${e.prenom}` : "Votre enfant", "Étape 1 de 4", `
+      ${maj ? `<p>Vérifiez les informations (la classe change souvent d'une année à l'autre). Les <b>rappels</b> et les <b>activités</b> de ${esc(e.prenom)} sont gardés.</p>` : ""}
       <div class="field"><label for="as-prenom">Prénom</label><input type="text" id="as-prenom" maxlength="40" autocomplete="off" value="${esc(e.prenom)}"></div>
       <div class="field"><label for="as-classe">Classe ou groupe</label><input type="text" id="as-classe" maxlength="20" placeholder="Ex. : 101" value="${esc(e.classe)}"></div>
       <div class="field"><label for="as-ecole">École</label><input type="text" id="as-ecole" maxlength="80" value="${esc(e.ecole)}"></div>
@@ -225,8 +230,15 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }
     page("L'horaire de la classe", "Étape 2 de 4", `
       <p>Prenez en photo la grille des <b>jours du cycle</b> (Jour 1, Jour 2…) avec les spécialistes. L'IA la lira, puis vous pourrez vérifier.</p>
       ${zonePhoto("as-f-horaire", "Photo de l'horaire")}`,
-      `<button type="button" class="btn ghost" id="as-retour">Retour</button><button type="button" class="btn ghost outline" id="as-main">Remplir à la main</button>`);
+      `<button type="button" class="btn ghost" id="as-retour">Retour</button>${maj ? `<button type="button" class="btn ghost outline" id="as-garder">Garder l'horaire actuel</button>` : ""}<button type="button" class="btn ghost outline" id="as-main">Remplir à la main</button>`);
     $("as-retour").onclick = pageEnfant;
+    if (maj) $("as-garder").onclick = () => {
+      e.ordre = Array.isArray(enfant.ordreCycle) && enfant.ordreCycle.length ? enfant.ordreCycle.map(String) : null;
+      e.joursCycle = e.ordre ? e.ordre.length : (enfant.joursCycle || 6);
+      e.periodes = {}; Object.entries(enfant.periodes || {}).forEach(([k, h]) => { const x = hhmm(h); if (x) e.periodes[+k] = x; });
+      e.cycle = {}; Object.entries(enfant.cycle || {}).forEach(([j, l]) => { e.cycle[j] = {}; Object.entries(l || {}).forEach(([k, m]) => { e.cycle[j][+k] = m; }); });
+      doutes = []; pageVerifHoraire();
+    };
     $("as-main").onclick = () => { if (!Object.keys(e.periodes).length) e.periodes = { 1: "08:00", 2: "09:00", 3: "10:15", 4: "11:00", 5: "13:00", 6: "14:00" }; pageVerifHoraire(); };
     $("as-f-horaire").onchange = ev => lirePhoto(ev.target, PROMPT_HORAIRE, r => {
       const jours = (r.jours || []).map(j => String(j).replace(/^jour\s*/i, "").trim().toUpperCase()).filter(Boolean);
@@ -438,8 +450,10 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }
       const b = $("as-ok"); b.disabled = true; b.textContent = "Enregistrement…";
       try {
         // position pour la météo (Open-Meteo, sans clé)
-        const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(e.ville)}&count=1&language=fr&countryCode=CA`).then(r => r.json()).catch(() => ({}));
-        const lieu = g.results && g.results[0];
+        // Mise à jour sans changement de ville : on garde la position déjà connue
+        const memeVille = maj && enfant.lat != null && (enfant.ville || "").trim().toLowerCase() === e.ville.trim().toLowerCase();
+        const g = memeVille ? {} : await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(e.ville)}&count=1&language=fr&countryCode=CA`).then(r => r.json()).catch(() => ({}));
+        const lieu = memeVille ? { name: enfant.ville, latitude: enfant.lat, longitude: enfant.lon } : g.results && g.results[0];
         if (!lieu) throw new Error(`Ville introuvable : « ${e.ville} ». Vérifiez l'orthographe à l'étape 1.`);
         const fin = e.annee.fin, finEte = addDays(fin, 7);
         const periodes = {}; Object.entries(e.periodes).forEach(([p, h]) => { periodes[p] = heureFr(h); });
@@ -453,7 +467,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }
           annee: { debut: e.annee.debut, fin, finEte }, joursCycle: o.length, ...(num ? {} : { ordreCycle: o }), ...(e.debutIdx ? { debutCycle: e.debutIdx } : {}), periodes, cycle, conges: congesDe(e), evenements,
           ...(utiliserLus && Object.keys(lus).length ? { calendrierCycle: lus } : {}),
         });
-        fermer(); toast(`L'horaire de ${e.prenom} est enregistré 🎉`);
+        fermer(); toast(maj ? `L'horaire de ${e.prenom} est à jour pour la nouvelle année 🎉` : `L'horaire de ${e.prenom} est enregistré 🎉`);
       } catch (err){
         b.disabled = false; b.textContent = "Enregistrer";
         const m = $("as-err"); m.textContent = err.message || "L'enregistrement n'a pas fonctionné. Réessayez."; m.hidden = false;

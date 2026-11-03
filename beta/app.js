@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611030251";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030251";
+import { demarrerAssistant } from "./assistant.js?v=202611031040";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031040";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611030251";
+const VERSION = "202611031040";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -122,6 +122,13 @@ async function initStore(){
       saveSub:(id,d)=>F.setDoc(fam("abonnements",id), {...d, maj:Date.now(), par:userEmail}, {merge:true}),
       delSub:id=>F.deleteDoc(fam("abonnements",id)),
       saveActs:(id,list)=>F.setDoc(fam("enfants",id), {activites:list, maj:Date.now()}, {merge:true}),
+      // Nouvelle année : remplace l'horaire et le calendrier, garde les activités (qui durent « toute l'année » : prolongées) et la date de création
+      majKid:(id,d,ancien)=>{
+        const activites=(ancien.activites||[]).map(a=>(a.duree==="annee" || (!a.duree && (!a.au || a.au===(ancien.annee&&ancien.annee.fin)))) ? {...a, au:d.annee.fin} : a);
+        return F.setDoc(fam("enfants",id), {...d, activites, creeLe:ancien.creeLe||Date.now(), par:ancien.par||userEmail, maj:Date.now()});
+      },
+      // Supprimer un enfant : sa fiche (avec ses activités) et ses rappels
+      supprimerEnfant:async (id,rappelIds)=>{ for(const r of rappelIds) await F.deleteDoc(fam("rappels",r)); await F.deleteDoc(fam("enfants",id)); },
       saveKid:d=>F.addDoc(famColl("enfants"), {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
       // Créer sa famille (code d'invitation de la période d'essai)
       creerFamille:async code=>{
@@ -316,13 +323,47 @@ function choisirEnfant(id){
 }
 function paintKids(){
   $("kids-count").textContent=pad2(kidsAll.length);
-  $("kids-list").innerHTML=kidsAll.map(k=>`<button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
+  $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
     <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
     <span class="tx"><b>${esc(k.prenom||"")}</b><span>${esc([k.classe?"Classe "+k.classe:"", k.ecole||""].filter(Boolean).join(" · "))}</span></span>
-    ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>`).join("");
+    ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>
+    <button type="button" class="kid-gerer" data-gerer="${esc(k.id)}" aria-label="Gérer ${esc(k.prenom||"")} : nouvelle année, supprimer"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`).join("");
   document.querySelector(".kid").classList.toggle("multi", kidsAll.length>1);
 }
-$("kids-list").addEventListener("click", e=>{ const b=e.target.closest("[data-kid]"); if(b){ choisirEnfant(b.dataset.kid); $("compte").hidden=true; } });
+$("kids-list").addEventListener("click", e=>{
+  const g=e.target.closest("[data-gerer]"); if(g){ ouvrirGerer(g.dataset.gerer); return; }
+  const b=e.target.closest("[data-kid]"); if(b){ choisirEnfant(b.dataset.kid); $("compte").hidden=true; }
+});
+/* ---------- Gérer un enfant : mettre à jour l'horaire (nouvelle année) ou supprimer ---------- */
+let gererId=null, gererArme=false, gererTimer=null;
+function gererRemettre(){ gererArme=false; clearTimeout(gererTimer); const b=$("g-sup"); b.classList.remove("armed"); const k=kidsAll.find(x=>x.id===gererId); b.textContent="Supprimer "+(k?k.prenom:"cet enfant"); }
+function ouvrirGerer(id){
+  const k=kidsAll.find(x=>x.id===id); if(!k) return;
+  gererId=id; $("g-titre").textContent=k.prenom||"Enfant";
+  $("g-sous").textContent=[k.classe?"Classe "+k.classe:"", k.ecole||"", k.annee&&k.annee.debut?"Année "+k.annee.debut.slice(0,4)+"-"+(k.annee.fin||"").slice(0,4):""].filter(Boolean).join(" · ");
+  $("g-err").hidden=true; gererRemettre(); $("compte").hidden=true; $("gerer").hidden=false;
+}
+function fermerGerer(){ $("gerer").hidden=true; gererRemettre(); }
+$("g-x").addEventListener("click", fermerGerer);
+$("gerer").addEventListener("click", e=>{ if(e.target===$("gerer")) fermerGerer(); });
+$("g-maj").addEventListener("click", ()=>{ const k=kidsAll.find(x=>x.id===gererId); if(!k) return; fermerGerer(); lancerAssistant(true, k); });
+$("g-sup").addEventListener("click", async ()=>{
+  const k=kidsAll.find(x=>x.id===gererId); if(!k) return;
+  if(!gererArme){
+    gererArme=true; $("g-sup").classList.add("armed"); $("g-sup").textContent="Confirmer : supprimer "+k.prenom+" pour toujours";
+    clearTimeout(gererTimer); gererTimer=setTimeout(gererRemettre, 7000); return;
+  }
+  const premier=kidsAll[0] && kidsAll[0].id===k.id;
+  const ids=reminders.filter(r=> r.enfant===k.id || (!r.enfant && premier)).map(r=>r.id);
+  $("g-sup").disabled=true;
+  try{
+    await store.supprimerEnfant(k.id, ids);
+    try{ if(localStorage.getItem(LS_KID)===k.id) localStorage.removeItem(LS_KID); }catch(err){}
+    fermerGerer(); toast(k.prenom+" a été supprimé");
+  }catch(err){
+    console.error(err); $("g-err").textContent="La suppression n'a pas fonctionné. Réessayez."; $("g-err").hidden=false; gererRemettre();
+  }finally{ $("g-sup").disabled=false; }
+});
 $("kid-add").addEventListener("click", ()=>{ $("compte").hidden=true; lancerAssistant(true); });
 $("kid-pick").addEventListener("click", ()=>$("kid-file").click());
 $("kid-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text(), "kid-err"); e.target.value=""; });
@@ -683,8 +724,12 @@ $("fam-import").addEventListener("click", async ()=>{
   }catch(e){ console.error(e); err.textContent = e.code==="permission-denied" ? "Entrez d'abord le code d'invitation, puis réessayez." : "L'importation n'a pas fonctionné. Réessayez."; err.hidden=false; b.disabled=false; montrerImport(); }
 });
 // Assistant : ajouter un enfant (photo de l'horaire et du calendrier, lues par l'IA)
-function lancerAssistant(annulable){
-  demarrerAssistant({ icone:icon, lireIA:(c,img,o)=>store.lireIA(c,img,o), enregistrer:d=>store.saveKid(d), toast, annuler: annulable ? ()=>{} : null });
+function lancerAssistant(annulable, ancien){
+  demarrerAssistant({ icone:icon, lireIA:(c,img,o)=>store.lireIA(c,img,o), enfant:ancien||null,
+    enregistrer: ancien
+      ? async d=>{ await store.majKid(ancien.id,d,ancien); current=null; setTimeout(()=>loadWeather(false),600); }
+      : d=>store.saveKid(d),
+    toast, annuler: annulable ? ()=>{} : null });
 }
 $("as-go").addEventListener("click", ()=>lancerAssistant(true));
 // Inviter l'autre parent : un lien à envoyer par texto ou courriel
