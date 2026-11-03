@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031250";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031521";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -57,8 +57,11 @@ Pour CHAQUE jour de semaine (lundi à vendredi) d'août à juin, donne son état
 - "-" s'il n'y a pas de classe parce que l'année n'est pas commencée ou est finie.
 Lis bien la LÉGENDE pour savoir quel symbole veut dire quoi. Une date qui porte un numéro de cycle est un jour de classe.
 Donne aussi le nom des congés connus (ex. « Action de grâce », « Congé des Fêtes », « Relâche »).
-Les événements sont presque toujours sur un jour de classe. Relève TOUS les événements marqués par une petite image, un symbole ou une parenthèse dans les cases et expliqués dans la légende :
-photographie scolaire, première communication, bulletin, début ou fin d'une étape, entrée des élèves, etc.
+Les événements sont presque toujours sur un jour de classe. Pour les événements, commence par lire attentivement la LÉGENDE : note chaque petite image ou symbole et ce qu'il signifie
+(ex. un appareil photo ou un casque jaune = photographie scolaire ; une coche ou un crayon = première communication ; un personnage avec des feuilles = bulletin ; [ et ] = début et fin d'étape ; une cloche = entrée des élèves).
+Mets ce que tu lis dans "legende". Ensuite relève TOUS les événements : chaque case qui porte l'un de ces symboles, avec le nom donné par la légende
+pour CE symbole. Un même symbole revient souvent plusieurs fois dans l'année (le bulletin, par exemple, 2 ou 3 fois ; la première communication une fois ;
+la photo scolaire une fois). Ne nomme pas un événement d'après un autre symbole.
 Donne pour chacun sa date, un titre court en français (ex. « Photo scolaire », « Première communication », « Bulletin », « Fin de la 1re étape ») et le JOUR DE LA SEMAINE
 de la colonne où se trouve le symbole (lundi, mardi, mercredi, jeudi ou vendredi) : regarde l'en-tête de la colonne (L, M, M, J, V), cela permet de vérifier la date.
 Ne les confonds pas avec les congés ni les journées pédagogiques (qui sont déjà dans « jours »).
@@ -68,6 +71,7 @@ Toutes les dates au format AAAA-MM-JJ ; août à décembre sont de la première 
 ${CONSIGNE_PRIVEE}
 Réponds seulement en JSON :
 {"ecole": "nom de l'école ou vide", "jours": {"AAAA-MM-JJ": "valeur", …}, "joursParMois": {"2026-08": 1, "2026-09": 20, …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
+ "legende": [{"symbole":"description courte du symbole","evenement":"…"}],
  "evenements": [{"date":"AAAA-MM-JJ","titre":"…","jour":"mercredi"}], "doutes": ["…"]}`;
 }
 
@@ -383,7 +387,8 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     const premierKo = diff.slice().sort()[0];
     const evtDe = {}, evtIc = {};
     e.evenements.forEach(x => { evtDe[x.date] = (evtDe[x.date] ? evtDe[x.date] + " · " : "") + x.titre; evtIc[x.date] = x.ic; });
-    const nbMois = {}; Object.keys(cyc).forEach(d => { const m = d.slice(0, 7); nbMois[m] = (nbMois[m] || 0) + 1; });
+    // Les totaux imprimés comptent aussi les pédagogiques d'école (jours où le cycle avance) : on fait pareil.
+    const nbMois = {}; [...Object.keys(cyc), ...Object.keys(e.off).filter(d => e.off[d].compte && d >= e.annee.debut && d <= e.annee.fin)].forEach(d => { const m = d.slice(0, 7); nbMois[m] = (nbMois[m] || 0) + 1; });
     let mois = "";
     if (valide){
       for (let m = e.annee.debut.slice(0, 7) + "-01"; m <= e.annee.fin; m = (() => { const x = parse(m); x.setMonth(x.getMonth() + 1); return key(x); })()){
