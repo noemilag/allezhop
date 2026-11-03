@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611030235"></script>
+<script src="../config.js?v=202611030251"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -545,6 +545,12 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 .as-ev-ic svg.i{width:19px;height:19px;stroke-width:2}
 .as-ev-nom{font:inherit;font-size:16px;background:var(--tint);border:0;border-radius:12px;padding:10px 12px;color:var(--ink);width:100%;box-sizing:border-box}
 .as-ajout select{font:inherit;font-size:16px;background:var(--tint);border:0;border-radius:12px;padding:12px;color:var(--ink);width:100%;box-sizing:border-box}
+.as-conf-t{margin:8px 0 4px;font-size:14px;font-weight:500}
+.as-conf{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(20,83,45,.18)}
+.as-conf>span:first-child{font-weight:700}
+.as-conf-b{display:flex;gap:6px}
+.as-conf-b button{font:inherit;font-size:14px;font-weight:600;border:2px solid transparent;border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.7);color:#14532D;cursor:pointer}
+.as-conf-b button.on{background:#2E9D4F;color:#fff}
 .as-j.hors{opacity:.3;cursor:default}
 .as-j.ko{background:#FFE9A8;border-color:#E8B923}
 .as-j.corr{outline:2px solid #2E9D4F;outline-offset:1px}
@@ -817,6 +823,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611030235"></script>
+<script type="module" src="app.js?v=202611030251"></script>
 </body>
 </html>

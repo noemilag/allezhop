@@ -77,7 +77,7 @@ function chargerEnfant(d){
   const ordre = Array.isArray(d.ordreCycle) && d.ordreCycle.length ? d.ordreCycle.map(String) : null;
   const n = ordre ? ordre.length : (d.joursCycle || Object.keys(CYCLE).length || 6);
   CYCLE_OF = {};
-  for(let x=parse(FIRST), i=0; key(x)<=LAST; x.setDate(x.getDate()+1)){
+  for(let x=parse(FIRST), i=d.debutCycle||0; key(x)<=LAST; x.setDate(x.getDate()+1)){
     const k=key(x), w=x.getDay();
     if(w>0 && w<6 && !OFF[k]){ CYCLE_OF[k]=ordre ? ordre[i%n] : (i%n)+1; i++; }
     else if(w>0 && w<6 && OFF[k].compte) i++;   // ex. pédagogique d'école : pas de classe, mais le cycle avance
