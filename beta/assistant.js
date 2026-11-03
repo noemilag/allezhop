@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030225";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030235";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -107,7 +107,10 @@ function autoCorriger(e, lus){
   if (!e.annee.debut || Object.keys(lus).length < 20) return changes;
   let base = accordDe(e, lus);
   const copie = { ...e.off };
-  for (let tour = 0; tour < 12 && base < .99; tour++){
+  // Seuils en nombre de jours (et non en pourcentage) : une journée près de la fin de l'année ne décale que quelques jours.
+  const total = Object.keys(lus).filter(d => d >= e.annee.debut && d <= e.annee.fin).length || 1;
+  const un = 1 / total, gainMin = 1.5 * un;   // il faut regagner au moins 2 jours pour changer quelque chose
+  for (let tour = 0; tour < 20 && base < 1 - gainMin; tour++){
     let mieux = null;
     // un jour à la fois, ou deux jours de suite (ex. un congé des Fêtes lu deux jours trop tôt)
     const offs = Object.keys(e.off).filter(d => d >= e.annee.debut && d <= e.annee.fin).sort();
@@ -125,7 +128,7 @@ function autoCorriger(e, lus){
       const a = accordDe(e, lus);
       x.ds.forEach((d, i) => { if (avant[i]) e.off[d] = avant[i]; else delete e.off[d]; });
       // à égalité, on garde le jour fermé (« compte ») plutôt que de le transformer en jour de classe
-      if (a > base + .02 && (!mieux || a > mieux.a + 1e-9 || (Math.abs(a - mieux.a) < 1e-9 && x.compte && !mieux.compte))) mieux = { ...x, a };
+      if (a > base + gainMin && (!mieux || a > mieux.a + 1e-9 || (Math.abs(a - mieux.a) < 1e-9 && x.compte && !mieux.compte))) mieux = { ...x, a };
     }
     if (!mieux) break;
     mieux.ds.forEach(d => { if (mieux.compte) e.off[d] = { ...(e.off[d] || { type: "ped", label: "Journée pédagogique" }), compte: true }; else if (mieux.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
