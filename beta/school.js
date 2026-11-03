@@ -72,7 +72,7 @@ function chargerEnfant(d){
   EVENTS = {};
   (d.evenements||[]).forEach(e=>{ (EVENTS[e.date] ??= []).push(e.note ? [e.ic, e.titre, e.note] : [e.ic, e.titre]); });
   OFF = {};
-  (d.conges||[]).forEach(c=>{ for(let x=parse(c.du); key(x)<=(c.au||c.du); x.setDate(x.getDate()+1)) OFF[key(x)] = {type:c.type, label:c.label}; });
+  (d.conges||[]).forEach(c=>{ for(let x=parse(c.du); key(x)<=(c.au||c.du); x.setDate(x.getDate()+1)) OFF[key(x)] = {type:c.type, label:c.label, compte:!!c.compte}; });
   // Le cycle avance seulement les jours d'école. Les jours peuvent avoir un nom (ex. « 1A » à « 5B » pour les semaines A et B).
   const ordre = Array.isArray(d.ordreCycle) && d.ordreCycle.length ? d.ordreCycle.map(String) : null;
   const n = ordre ? ordre.length : (d.joursCycle || Object.keys(CYCLE).length || 6);
@@ -80,6 +80,7 @@ function chargerEnfant(d){
   for(let x=parse(FIRST), i=0; key(x)<=LAST; x.setDate(x.getDate()+1)){
     const k=key(x), w=x.getDay();
     if(w>0 && w<6 && !OFF[k]){ CYCLE_OF[k]=ordre ? ordre[i%n] : (i%n)+1; i++; }
+    else if(w>0 && w<6 && OFF[k].compte) i++;   // ex. pédagogique d'école : pas de classe, mais le cycle avance
   }
   // Numéros lus sur le calendrier de l'école (ex. reprise après une fermeture) : ils ont priorité.
   if(d.calendrierCycle) for(const [k,j] of Object.entries(d.calendrierCycle)) if(CYCLE_OF[k]!==undefined && j) CYCLE_OF[k]=isNaN(j)?String(j):+j;

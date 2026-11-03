@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030152";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030208";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -73,7 +73,10 @@ function cycleDe(e){
   const o = ordreDe(e), out = {};
   for (let k = e.annee.debut, i = 0; k <= e.annee.fin; k = addDays(k, 1)){
     const w = parse(k).getDay();
-    if (w > 0 && w < 6 && !off.has(k)){ out[k] = o[i % o.length]; i++; }
+    if (w > 0 && w < 6){
+      if (!off.has(k)){ out[k] = o[i % o.length]; i++; }
+      else if (e.off[k].compte) i++;   // pédagogique d'école : le cycle avance quand même
+    }
   }
   return out;
 }
@@ -84,8 +87,8 @@ function congesDe(e){
   Object.keys(e.off || {}).sort().forEach(d => {
     const o = e.off[d], der = out[out.length - 1];
     let k = der ? addDays(der.au, 1) : null; while (k && k < d && [0, 6].includes(parse(k).getDay())) k = addDays(k, 1);
-    if (der && k === d && der.type === o.type && der.label === o.label) der.au = d;
-    else out.push({ du: d, au: d, type: o.type, label: o.label });
+    if (der && k === d && der.type === o.type && der.label === o.label && !!der.compte === !!o.compte) der.au = d;
+    else out.push({ du: d, au: d, type: o.type, label: o.label, ...(o.compte ? { compte: true } : {}) });
   });
   return out;
 }
@@ -110,20 +113,23 @@ function autoCorriger(e, lus){
       ...offs.map(d => ({ ds: [d], ajout: false })),
       ...offs.filter(d => e.off[suivant(d)]).map(d => ({ ds: [d, suivant(d)], ajout: false })),
       ...Object.keys(cycleDe(e)).filter(d => !lus[d]).map(d => ({ ds: [d], ajout: true })),
+      // « compte » seulement pour un jour sans numéro écrit sur le calendrier (un jour numéroté est un jour de classe)
+      ...offs.filter(d => !e.off[d].compte && !lus[d]).map(d => ({ ds: [d], compte: true })),
     ];
     for (const x of essais){
       const avant = x.ds.map(d => e.off[d]);
-      x.ds.forEach(d => { if (x.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
+      x.ds.forEach(d => { if (x.compte) e.off[d] = { ...(e.off[d] || { type: "ped", label: "Journée pédagogique" }), compte: true }; else if (x.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
       const a = accordDe(e, lus);
       x.ds.forEach((d, i) => { if (avant[i]) e.off[d] = avant[i]; else delete e.off[d]; });
-      if (a > base + .02 && (!mieux || a > mieux.a)) mieux = { ...x, a };
+      // à égalité, on garde le jour fermé (« compte ») plutôt que de le transformer en jour de classe
+      if (a > base + .02 && (!mieux || a > mieux.a + 1e-9 || (Math.abs(a - mieux.a) < 1e-9 && x.compte && !mieux.compte))) mieux = { ...x, a };
     }
     if (!mieux) break;
-    mieux.ds.forEach(d => { if (mieux.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
+    mieux.ds.forEach(d => { if (mieux.compte) e.off[d] = { ...(e.off[d] || { type: "ped", label: "Journée pédagogique" }), compte: true }; else if (mieux.ajout) e.off[d] = { type: "ped", label: "Journée pédagogique" }; else delete e.off[d]; });
     changes.push(...mieux.ds); base = mieux.a;
   }
   // Si on n'arrive pas à un accord presque parfait, les numéros eux-mêmes sont sans doute mal lus : on annule tout.
-  if (changes.length && base < .9){ Object.assign(e.off, copie); Object.keys(e.off).forEach(d => { if (!copie[d]) delete e.off[d]; }); return []; }
+  if (changes.length && base < .9){ Object.keys(e.off).forEach(d => delete e.off[d]); Object.assign(e.off, copie); Object.keys(e.off).forEach(d => { if (!copie[d]) delete e.off[d]; }); return []; }
   return changes;
 }
 const ICONES_EVT = { photo: "📸", bulletin: "📄", communication: "✉️", etape: "🏁", entree: "🔔" };
@@ -320,15 +326,15 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
           if (w === 0 || w === 6) continue;
           if (premier){ cases += "<span></span>".repeat(w - 1); premier = false; }
           const o = e.off[d], hors = d < e.annee.debut || d > e.annee.fin, ko = !utiliserLus && d === premierKo;
-          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i></button>`;
+          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${o && o.compte ? " compte" : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i></button>`;
         }
         mois += `<div class="as-mois"><div class="as-mois-t">${MOIS[x.getMonth()]} ${x.getFullYear()}</div><div class="as-sem"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span></div><div class="as-grille">${cases}</div></div>`;
       }
     }
     const nbOff = Object.keys(e.off).filter(d => d >= e.annee.debut && d <= e.annee.fin).length;
     page("Vérifiez le calendrier", "Étape 3 de 4", `
-      <p>Comparez avec votre calendrier. <b>Touchez un jour pour le changer</b> : classe → pédagogique → congé.</p>
-      <div class="as-legende"><span class="as-l"><i class="cl"></i>Classe (jour du cycle)</span><span class="as-l"><i class="ped"></i>Pédagogique</span><span class="as-l"><i class="conge"></i>Congé</span></div>
+      <p>Comparez avec votre calendrier. <b>Touchez un jour pour le changer</b> : classe → pédagogique → pédagogique d'école → congé.</p>
+      <div class="as-legende"><span class="as-l"><i class="cl"></i>Classe (jour du cycle)</span><span class="as-l"><i class="ped"></i>Pédagogique</span><span class="as-l"><i class="ped compte"></i>Pédagogique d'école (le cycle avance)</span><span class="as-l"><i class="conge"></i>Congé</span></div>
       <div class="heures"><div><label for="as-debut">Premier jour de classe</label><input type="date" id="as-debut" value="${esc(e.annee.debut)}"></div>
         <div><label for="as-fin">Dernier jour</label><input type="date" id="as-fin" value="${esc(e.annee.fin)}"></div></div>
       ${dates.length ? (accord >= .95
@@ -346,6 +352,7 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
     box.querySelectorAll(".as-j[data-d]").forEach(b => b.onclick = () => {
       const d = b.dataset.d, o = e.off[d], y = box.scrollTop;
       if (!o) e.off[d] = { type: "ped", label: "Journée pédagogique" };
+      else if (o.type === "ped" && !o.compte) e.off[d] = { type: "ped", label: "Pédagogique d'école", compte: true };
       else if (o.type === "ped") e.off[d] = { type: "conge", label: "Congé" };
       else delete e.off[d];
       pageVerifCalendrier(); box.scrollTop = y;
