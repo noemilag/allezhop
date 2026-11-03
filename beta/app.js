@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611031722";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031722";
+import { demarrerAssistant } from "./assistant.js?v=202611031735";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031735";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611031722";
+const VERSION = "202611031735";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -83,7 +83,9 @@ const RECAPTCHA_ENTERPRISE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
 // App Check actif : la clé ci-dessus doit être la même que celle enregistrée dans Firebase (App Check → Fraud Defense).
 const APP_CHECK_ACTIF=true;
 // Documents denses (calendrier) : d'abord un modèle « pro », plus précis, puis les rapides.
-const MODELES_FORTS=["gemini-3.6-pro","gemini-pro-latest","gemini-3.5-pro","gemini-2.5-pro"];
+// (désactivé : trop lent et limité en gratuit ; les modèles rapides lisent bien, et la page de vérification corrige le reste)
+const MODELES_FORTS=[];
+const DELAI_IA=120000;   // 2 minutes au maximum par modèle, puis on passe au suivant
 const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
@@ -172,13 +174,13 @@ async function initStore(){
         // Ordre d'essai : le modèle qui a déjà répondu, puis les autres. Toujours la liste complète, pour pouvoir changer de modèle en cas de problème.
         const base = options.fort ? [modeleFort, ...MODELES_FORTS, modeleIA, ...MODELES] : [modeleIA, ...MODELES];
         const liste = [...new Set(base.filter(Boolean))];
-        const SURCHARGE = /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later/i;
+        const SURCHARGE = /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later|abort|timed? ?out|timeout/i;
         for(let passe=0; passe<3; passe++){
           let surcharge=false;
           for(const nom of liste){
             if(epuises.has(nom)) continue;   // quota atteint ou modèle introuvable pendant cette séance
             try{
-              const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}});
+              const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}}, {timeout:DELAI_IA});
               const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
               // La réponse arrive par morceaux : la connexion reste vivante, même quand la lecture est longue (calendrier).
               // Si l'iPhone coupe quand même la connexion, on réessaie une fois.

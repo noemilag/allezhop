@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031722";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031735";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -48,6 +48,8 @@ Réponds seulement en JSON :
 function promptCalendrier(){
   return `Tu lis un calendrier scolaire d'une école primaire du Québec (une année scolaire, d'août à juin), en photo ou en PDF.
 Travaille MOIS PAR MOIS, ligne par ligne, avec soin : chaque case est une date.
+Réponds de façon COMPACTE : un objet par mois, avec pour clé le numéro du jour dans le mois (seulement lundi à vendredi), par exemple
+"2026-09": {"1":"2","2":"3","3":"4","4":"5","7":"C", …}.
 Pour CHAQUE jour de semaine (lundi à vendredi) d'août à juin, donne son état en une courte valeur :
 - le numéro du jour du cycle s'il est écrit près de la date (petit chiffre en exposant ou sous la date, parfois avec une lettre A ou B), ex. "3" ou "2B" ;
 - "P" si c'est une journée pédagogique (souvent la date est entourée d'un cercle ou d'une forme, selon la légende) ;
@@ -70,7 +72,7 @@ sinon laisse "joursParMois" vide. Ne le calcule pas toi-même : recopie seulemen
 Toutes les dates au format AAAA-MM-JJ ; août à décembre sont de la première année, janvier à juin de la deuxième.
 ${CONSIGNE_PRIVEE}
 Réponds seulement en JSON :
-{"ecole": "nom de l'école ou vide", "jours": {"AAAA-MM-JJ": "valeur", …}, "joursParMois": {"2026-08": 1, "2026-09": 20, …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
+{"ecole": "nom de l'école ou vide", "jours": {"2026-08": {"24":"-","25":"P", …}, "2026-09": {…}, …}, "joursParMois": {"2026-08": 1, "2026-09": 20, …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
  "legende": [{"symbole":"description courte du symbole","evenement":"…"}],
  "evenements": [{"date":"AAAA-MM-JJ","titre":"…","jour":"mercredi"}], "doutes": ["…"]}`;
 }
@@ -220,22 +222,24 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
   async function lirePhoto(input, prompt, quandFini, options = {}){
     const f = input.files[0]; if (!f) return;
     const etat = $(input.id + "-etat");
-    etat.hidden = false; etat.innerHTML = `<span class="as-spin"></span> Lecture… (${options.fort ? "jusqu'à une minute : le calendrier est dense" : "environ 20 secondes"})`;
+    etat.hidden = false; etat.innerHTML = `<span class="as-spin"></span> Lecture… (${options.fort ? "environ une minute : le calendrier est dense" : "environ 20 secondes"})`;
+    const t0 = Date.now(), minuteur = setInterval(() => { const sec = Math.round((Date.now() - t0) / 1000), span = etat.querySelector(".as-attente"); if (span) span.textContent = ` ${sec} s`; }, 1000);
     try {
       const img = await photoEnBase64(f);
-      etat.innerHTML = `${img.apercu ? `<img src="${img.apercu}" alt="">` : ""}<span><span class="as-spin"></span> L'IA lit le document…</span>`;
+      etat.innerHTML = `${img.apercu ? `<img src="${img.apercu}" alt="">` : ""}<span><span class="as-spin"></span> L'IA lit le document…<span class="as-attente"></span><br><small>Gardez l'écran allumé. Si Google est occupé, l'app réessaie toute seule.</small></span>`;
       const r = await lireIA(prompt, img, options);
       quandFini(r);
     } catch (err){
       console.error(err);
       // Le détail aide à trouver la cause (clé, accès à l'IA, modèle) : ce n'est pas toujours la photo.
       const detail = String(err.message || err).replace(/AIzaSy[\w-]+/g, "…").slice(0, 400);
-      const surcharge = /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later/i.test(detail);
-      const quota = !surcharge && /429|quota|resource.?exhausted|rate.?limit/i.test(detail);
-      const reseau = !quota && !surcharge && (err.code === "fetch-error" || /fetch|403|404|PERMISSION|API key|blocked/i.test(detail));
-      etat.innerHTML = `<span class="err">${surcharge ? "Les serveurs de Google sont très sollicités en ce moment (ce n'est pas votre photo). Patientez une minute, puis réessayez." : quota ? "L'IA a atteint sa limite gratuite pour le moment. Patientez une minute, puis réessayez." : reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
+      const delai = /abort|timed? ?out|timeout/i.test(detail);
+      const surcharge = !delai && /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later/i.test(detail);
+      const quota = !surcharge && !delai && /429|quota|resource.?exhausted|rate.?limit/i.test(detail);
+      const reseau = !quota && !surcharge && !delai && (err.code === "fetch-error" || /fetch|403|404|PERMISSION|API key|blocked/i.test(detail));
+      etat.innerHTML = `<span class="err">${delai ? "La lecture a pris trop de temps (Google est lent ou la connexion est faible). Ce n'est pas votre photo : réessayez dans une minute." : surcharge ? "Les serveurs de Google sont très sollicités en ce moment (ce n'est pas votre photo). Patientez une minute, puis réessayez." : quota ? "L'IA a atteint sa limite gratuite pour le moment. Patientez une minute, puis réessayez." : reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
         <details class="as-detail"><summary>Détail pour le dépannage</summary><code>${esc((err.code ? err.code + " · " : "") + detail)}</code></details>`;
-    } finally { input.value = ""; }
+    } finally { clearInterval(minuteur); input.value = ""; }
   }
 
   /* 2. L'horaire de la classe */
@@ -329,7 +333,13 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       if (!e.ecole && r.ecole) e.ecole = r.ecole;
       const noms = {}; (r.noms || []).forEach(x => { if (ok(x.date) && x.nom) noms[x.date] = x.nom; });
       lus = {}; e.off = {}; const classe = [];
-      Object.entries(r.jours || {}).forEach(([d, v]) => {
+      // Format compact { "AAAA-MM": { "jour": valeur } } ou ancien format { "AAAA-MM-JJ": valeur }
+      const jours = {};
+      Object.entries(r.jours || {}).forEach(([k, v]) => {
+        if (/^\d{4}-\d{2}$/.test(k) && v && typeof v === "object") Object.entries(v).forEach(([j, x]) => { jours[k + "-" + String(j).padStart(2, "0")] = x; });
+        else jours[k] = v;
+      });
+      Object.entries(jours).forEach(([d, v]) => {
         if (!ok(d) || [0, 6].includes(parse(d).getDay())) return;
         v = String(v ?? "").replace(/^jour\s*/i, "").trim().toUpperCase();
         if (v === "P" || v === "C" || v === "E") e.off[d] = { type: v === "C" ? "conge" : "ped", label: noms[d] || (v === "C" ? "Congé" : v === "E" ? "Pédagogique d'école" : "Journée pédagogique"), ...(v === "E" ? { ecole: true } : {}) };
