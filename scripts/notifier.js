@@ -1,7 +1,9 @@
 /* Allez Hop : notifications push, envoyées par GitHub Actions (.github/workflows/notification-matin.yml).
 
-   La tâche tourne aux 15 minutes. Pour chaque téléphone abonné (Firebase, collection « abonnements »),
-   elle envoie la notification une fois par jour, dès que l'heure choisie dans l'app est passée.
+   La tâche tourne aux 15 minutes. Pour chaque téléphone abonné (Firebase), elle envoie la notification
+   une fois par jour, dès que l'heure choisie dans l'app est passée.
+   Elle sert chaque famille de la bêta (familles/{id}/abonnements, enfants, rappels) et, jusqu'à la migration,
+   la famille d'origine (collections « abonnements », « enfants », « rappels » à la racine).
    Heure avant midi : la journée même. Heure à partir de midi : le lendemain.
 
    Variables :
@@ -14,7 +16,7 @@ import webpush from "web-push";
 import { pathToFileURL } from "node:url";
 import {
   chargerEnfant, ENFANT, LAST, EVENTS, addDays, parse, infoFor, specialsOf,
-} from "../school.js";
+} from "../beta/school.js";   // version complète (cycles A/B, pédagogiques d'école, matières libres) ; compatible avec l'ancienne fiche
 
 const TZ = "America/Toronto";
 const env = process.env;
@@ -64,6 +66,27 @@ function message(k, rappels, w, demain, activites = []){
   return { title, body: lines.join("\n"), tag: "jour-" + k + "-" + ENFANT.prenom, url: "./" };
 }
 
+// Toutes les familles : celles de la bêta d'abord, puis la famille d'origine (anciennes collections à la racine).
+async function lireFamilles(db){
+  const lire = async (ref) => {
+    const [ab, en, ra] = await Promise.all(["abonnements", "enfants", "rappels"].map(c => ref.collection(c).get()));
+    return {
+      abonnements: ab.docs,
+      enfants: en.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.creeLe || 0) - (b.creeLe || 0)),
+      rappels: ra.docs.map(d => d.data()),
+    };
+  };
+  const out = [];
+  for (const f of (await db.collection("familles").get()).docs) out.push({ id: f.id, ...(await lire(f.ref)) });
+  const origine = await lire(db);
+  if (origine.enfants.length || origine.abonnements.length) out.push({ id: "origine", ...origine });
+  // Un même téléphone (même adresse d'abonnement) n'est servi qu'une fois : la bêta gagne sur l'ancienne base.
+  const vus = new Set();
+  for (const f of out) f.abonnements = f.abonnements.filter(d => {
+    const ep = d.data().abonnement && d.data().abonnement.endpoint; if (!ep || vus.has(ep)) return false; vus.add(ep); return true; });
+  return out;
+}
+
 async function main(){
   const test = env.TEST === "1", dry = env.DRY === "1";
   // En test, rien d'envoyé = échec visible (en rouge dans GitHub), avec la raison.
@@ -79,25 +102,11 @@ async function main(){
   initializeApp({ credential: cert(compte) });
   const db = getFirestore();
 
-  const abonnements = (await db.collection("abonnements").get()).docs
-    .filter(d => d.data().actif !== false && d.data().abonnement && (test || d.data().pauseLe !== local().date));   // en pause : rien
-  if (!abonnements.length) { stop("Aucun téléphone abonné : dans l'app (ouverte par son icône), Menu → Notifications → Activer."); return; }
-
   const now = local(), maintenant = now.h * 60 + now.m;
-  const aTraiter = abonnements.filter(d => {
-    if (test) return true;
-    const x = d.data(), [hh, mm] = (x.heure || "07:00").split(":").map(Number), cible = hh * 60 + mm;
-    // L'heure est passée (jusqu'à 3 h de retard toléré) et rien n'a encore été envoyé aujourd'hui.
-    return x.dernierEnvoi !== now.date && maintenant >= cible && maintenant - cible <= 180;
-  });
-  // Alertes avant les activités choisies dans l'app (ex. « Karaté à 18 h 30 », 1 h avant)
-  const avecAlertes = test ? [] : abonnements.filter(d => (d.data().alertes || []).length);
-  if (!aTraiter.length && !avecAlertes.length) { console.log(`${now.date} ${now.h}:${String(now.m).padStart(2, "0")} : aucune notification à envoyer.`); return; }
-
-  const enfants = (await db.collection("enfants").get()).docs.map(d => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => (a.creeLe || 0) - (b.creeLe || 0));
-  const rappels = (await db.collection("rappels").get()).docs.map(d => d.data());
-  if (!enfants.length) { stop("Aucune fiche d'enfant dans Firebase."); return; }
+  const familles = await lireFamilles(db);
+  // en pause : rien
+  familles.forEach(f => { f.abonnements = f.abonnements.filter(d => d.data().actif !== false && (test || d.data().pauseLe !== now.date)); });
+  if (!familles.some(f => f.abonnements.length)) { stop("Aucun téléphone abonné : dans l'app (ouverte par son icône), Menu → Notifications → Activer."); return; }
 
   if (!dry) webpush.setVapidDetails("https://noemilag.github.io/allezhop/", env.VAPID_PUBLIC, env.VAPID_PRIVATE);
   const hote = x => { try { return new URL(x.abonnement.endpoint).host; } catch { return "?"; } };
@@ -118,46 +127,63 @@ async function main(){
   const activitesLe = (e, jour) => { const w = parse(jour).getDay();
     return (e.activites || []).filter(a => (a.jours || []).includes(w) && (!a.du || jour >= a.du) && (!a.au || jour <= a.au)).sort((a, b) => (a.debut || "").localeCompare(b.debut || "")); };
 
-  for (const d of avecAlertes) {
-    const x = d.data(), avance = x.avance ?? 60, faits = (x.alertesEnvoyees || []).filter(c => c.endsWith("@" + now.date)), nouveaux = [];
-    for (const e of enfants) {
-      chargerEnfant(e);
-      for (const a of activitesLe(e, now.date)) {
-        if (!(x.alertes || []).includes(a.id) || !a.debut) continue;
-        const [hh, mm] = a.debut.split(":").map(Number), debut = hh * 60 + mm, cle = a.id + "@" + now.date;
-        if (maintenant < debut - avance || maintenant >= debut || faits.includes(cle)) continue;
-        const sac = objets(a.apporter);
-        const ok = await envoyer(d, { title: `${ENFANT.prenom} – ${a.titre} à ${heureFr(a.debut)}`, body: sac.length ? sac.join(" – ") : "Dans " + (debut - maintenant) + " min", tag: "act-" + cle, url: "./" });
-        if (!ok) break;
-        nouveaux.push(cle);
-      }
-    }
-    if (nouveaux.length && !dry) await d.ref.set({ alertesEnvoyees: [...faits, ...nouveaux] }, { merge: true });
-  }
+  let envoyesQuelquechose = false;
+  for (const f of familles) {
+    const { abonnements, enfants, rappels } = f;
+    if (!abonnements.length) continue;
+    if (!enfants.length) { console.log(`Famille ${f.id} : aucune fiche d'enfant.`); continue; }
+    const aTraiter = abonnements.filter(d => {
+      if (test) return true;
+      const x = d.data(), [hh, mm] = (x.heure || "07:00").split(":").map(Number), cible = hh * 60 + mm;
+      // L'heure est passée (jusqu'à 3 h de retard toléré) et rien n'a encore été envoyé aujourd'hui.
+      return x.dernierEnvoi !== now.date && maintenant >= cible && maintenant - cible <= 180;
+    });
+    // Alertes avant les activités choisies dans l'app (ex. « Karaté à 18 h 30 », 1 h avant)
+    const avecAlertes = test ? [] : abonnements.filter(d => (d.data().alertes || []).length);
 
-  for (const d of aTraiter) {
-    const x = d.data(), demain = +(x.heure || "07:00").slice(0, 2) >= 12;
-    const jour = demain ? addDays(now.date, 1) : now.date;
-    const messages = [];
-    for (const e of enfants) {
-      chargerEnfant(e);
-      const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
-        .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
-      const acts = activitesLe(e, jour);
-      if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
-      // Option dans l'app : pas de notification les jours sans école
-      if (!test && x.conges === false && infoFor(jour).kind !== "ecole") continue;
-      messages.push(message(jour, siens, null, demain, acts));
+    for (const d of avecAlertes) {
+      const x = d.data(), avance = x.avance ?? 60, faits = (x.alertesEnvoyees || []).filter(c => c.endsWith("@" + now.date)), nouveaux = [];
+      for (const e of enfants) {
+        chargerEnfant(e);
+        for (const a of activitesLe(e, now.date)) {
+          if (!(x.alertes || []).includes(a.id) || !a.debut) continue;
+          const [hh, mm] = a.debut.split(":").map(Number), debut = hh * 60 + mm, cle = a.id + "@" + now.date;
+          if (maintenant < debut - avance || maintenant >= debut || faits.includes(cle)) continue;
+          const sac = objets(a.apporter);
+          const ok = await envoyer(d, { title: `${ENFANT.prenom} – ${a.titre} à ${heureFr(a.debut)}`, body: sac.length ? sac.join(" – ") : "Dans " + (debut - maintenant) + " min", tag: "act-" + cle, url: "./" });
+          if (!ok) break;
+          nouveaux.push(cle); envoyesQuelquechose = true;
+        }
+      }
+      if (nouveaux.length && !dry) await d.ref.set({ alertesEnvoyees: [...faits, ...nouveaux] }, { merge: true });
     }
-    let vivant = true;
-    for (const m of messages) {
-      if (test) m.title = "Test · " + m.title;
-      if (!(vivant = await envoyer(d, m))) break;
+
+    for (const d of aTraiter) {
+      const x = d.data(), demain = +(x.heure || "07:00").slice(0, 2) >= 12;
+      const jour = demain ? addDays(now.date, 1) : now.date;
+      const messages = [];
+      for (const e of enfants) {
+        chargerEnfant(e);
+        const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
+          .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
+        const acts = activitesLe(e, jour);
+        if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
+        // Option dans l'app : pas de notification les jours sans école
+        if (!test && x.conges === false && infoFor(jour).kind !== "ecole") continue;
+        messages.push(message(jour, siens, null, demain, acts));
+      }
+      let vivant = true;
+      for (const m of messages) {
+        if (test) m.title = "Test · " + m.title;
+        if (!(vivant = await envoyer(d, m))) break;
+        envoyesQuelquechose = true;
+      }
+      if (!vivant) continue;
+      if (!dry && !test) await d.ref.set({ dernierEnvoi: now.date }, { merge: true });
+      if (!messages.length) console.log(`→ ${x.par || "?"} : rien à annoncer pour ${jour}.`);
     }
-    if (!vivant) continue;
-    if (!dry && !test) await d.ref.set({ dernierEnvoi: now.date }, { merge: true });
-    if (!messages.length) console.log(`→ ${x.par || "?"} : rien à annoncer pour ${jour}.`);
   }
+  if (!envoyesQuelquechose) console.log(`${now.date} ${now.h}:${String(now.m).padStart(2, "0")} : aucune notification à envoyer.`);
 }
 
 export { message, aAnnoncer };
