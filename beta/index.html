@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611032054"></script>
+<script src="../config.js?v=202611032305"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -358,10 +358,17 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .ptitre .j.off{width:auto;height:auto;border-radius:999px;padding:6px 14px;font-size:15px;font-weight:800;background:var(--tint);color:var(--ink)}
 /* ===== Essai C, suite : en-tête sur une ligne, zone du haut teintée ===== */
 .cache{display:none!important}
+#btn-compte[hidden]{display:none!important}
 body,header{background:var(--tint)}
 .kid{cursor:pointer}
 .kid b::after{content:" ▾";font-size:.75em;color:var(--muted)}
 .kid.multi b::after{content:" ▾"}
+/* Pas de menu burger : le nom de l'enfant est à droite (flèche à sa gauche) et ouvre le profil ; loupe et calendrier près du logo */
+.kid b::after,.kid.multi b::after{content:none}
+.kid b::before{content:"▾ ";font-size:.75em;color:var(--muted)}
+header .kid{order:3;margin-left:auto;border-left:0;padding-left:8px;align-items:flex-end;text-align:right}
+header #btn-search{order:1;margin-left:8px}
+header #btn-month{order:2}
 header .ibtn.rond{width:40px;height:40px}
 /* bouton + : en bas à droite, à portée du pouce */
 .ibtn.plus{position:fixed;z-index:15;width:60px;height:60px;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);background:linear-gradient(160deg,var(--accent-2),var(--accent) 70%);color:#fff;box-shadow:0 8px 22px rgba(255,91,0,.35),0 2px 6px rgba(37,63,82,.18)}
@@ -574,7 +581,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
     <div class="kid"><b id="kid-name"></b><span id="kid-class"></span></div>
     <button class="ibtn rond" id="btn-search" aria-label="Rechercher"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
     <button class="ibtn rond" id="btn-month" aria-label="Vue du mois"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg></button>
-        <button class="ibtn profil-btn" id="btn-compte" aria-label="Menu : profil, notifications et compte"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg><span class="badge" id="compte-badge" hidden></span></button>
+        <button class="ibtn profil-btn cache" id="btn-compte" hidden aria-label="Menu : profil, notifications et compte"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg><span class="badge" id="compte-badge" hidden></span></button>
     <span class="cache">
     <button class="ibtn" id="btn-info" aria-label="Notifications du matin"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button></span>
   </header>
@@ -846,6 +853,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611032054"></script>
+<script type="module" src="app.js?v=202611032305"></script>
 </body>
 </html>
