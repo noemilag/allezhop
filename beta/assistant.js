@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030208";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030219";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -55,8 +55,11 @@ Pour CHAQUE jour de semaine (lundi à vendredi) d'août à juin, donne son état
 - "R" si c'est une journée de réserve en cas de force majeure (c'est un jour de classe) ;
 - "-" s'il n'y a pas de classe parce que l'année n'est pas commencée ou est finie.
 Lis bien la LÉGENDE pour savoir quel symbole veut dire quoi. Une date qui porte un numéro de cycle est un jour de classe.
-Donne aussi le nom des congés connus (ex. « Action de grâce », « Congé des Fêtes », « Relâche ») et les événements de la légende
-(photo scolaire, bulletin, première communication, fin d'étape) avec leur date.
+Donne aussi le nom des congés connus (ex. « Action de grâce », « Congé des Fêtes », « Relâche »).
+Relève TOUS les événements marqués par une petite image, un symbole ou une parenthèse dans les cases et expliqués dans la légende :
+photographie scolaire, première communication, bulletin, début ou fin d'une étape, entrée des élèves, etc.
+Donne pour chacun sa date et un titre court en français (ex. « Photo scolaire », « Première communication », « Bulletin », « Fin de la 1re étape »).
+Ne les confonds pas avec les congés ni les journées pédagogiques (qui sont déjà dans « jours »).
 Toutes les dates au format AAAA-MM-JJ ; août à décembre sont de la première année, janvier à juin de la deuxième.
 ${CONSIGNE_PRIVEE}
 Réponds seulement en JSON :
@@ -132,14 +135,15 @@ function autoCorriger(e, lus){
   if (changes.length && base < .9){ Object.keys(e.off).forEach(d => delete e.off[d]); Object.assign(e.off, copie); Object.keys(e.off).forEach(d => { if (!copie[d]) delete e.off[d]; }); return []; }
   return changes;
 }
-const ICONES_EVT = { photo: "📸", bulletin: "📄", communication: "✉️", etape: "🏁", entree: "🔔" };
+const ICONES_EVT = { photo: "photo", bulletin: "bulletin", communication: "communication", etape: "flag", entree: "bell" };
 function iconeEvenement(t){ const n = (t || "").toLowerCase();
   if (n.includes("photo")) return ICONES_EVT.photo; if (n.includes("bulletin")) return ICONES_EVT.bulletin;
   if (n.includes("communication")) return ICONES_EVT.communication; if (n.includes("étape") || n.includes("etape")) return ICONES_EVT.etape;
-  if (n.includes("entrée") || n.includes("rentrée")) return ICONES_EVT.entree; return "📌"; }
+  if (n.includes("entrée") || n.includes("rentrée")) return ICONES_EVT.entree; return "pin"; }
 
 /* ---------- L'assistant ---------- */
-export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
+export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }){
+  const ico = n => icone ? icone(n) : "";
   const box = document.createElement("section");
   box.className = "assistant"; box.id = "assistant";
   document.body.appendChild(box);
@@ -296,7 +300,8 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
       e.annee = { debut: classe[0] || "", fin: classe[classe.length - 1] || "" };
       // seulement les congés pendant l'année (et la semaine avant la rentrée)
       Object.keys(e.off).forEach(d => { if (!e.annee.debut || d < addDays(e.annee.debut, -10) || d > e.annee.fin) delete e.off[d]; });
-      e.evenements = (r.evenements || []).filter(x => ok(x.date) && x.titre).map(x => ({ date: x.date, titre: x.titre, ic: iconeEvenement(x.titre) }));
+      e.evenements = (r.evenements || []).filter(x => ok(x.date) && x.titre && x.date >= (e.annee.debut || "0") && x.date <= (e.annee.fin || "9"))
+        .map(x => ({ date: x.date, titre: String(x.titre).slice(0, 60), ic: iconeEvenement(x.titre) })).sort((a, b) => a.date.localeCompare(b.date));
       utiliserLus = null;
       doutes = r.doutes || [];
       corriges = autoCorriger(e, lus);
@@ -316,6 +321,8 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
     if (utiliserLus === null) utiliserLus = false;   // le calcul d'abord ; les numéros lus servent à vérifier
     const aff = d => utiliserLus && lus[d] ? lus[d] : cyc[d];
     const premierKo = diff.slice().sort()[0];
+    const evtDe = {}, evtIc = {};
+    e.evenements.forEach(x => { evtDe[x.date] = (evtDe[x.date] ? evtDe[x.date] + " · " : "") + x.titre; evtIc[x.date] = x.ic; });
     let mois = "";
     if (valide){
       for (let m = e.annee.debut.slice(0, 7) + "-01"; m <= e.annee.fin; m = (() => { const x = parse(m); x.setMonth(x.getMonth() + 1); return key(x); })()){
@@ -326,7 +333,7 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
           if (w === 0 || w === 6) continue;
           if (premier){ cases += "<span></span>".repeat(w - 1); premier = false; }
           const o = e.off[d], hors = d < e.annee.debut || d > e.annee.fin, ko = !utiliserLus && d === premierKo;
-          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${o && o.compte ? " compte" : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i></button>`;
+          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${o && o.compte ? " compte" : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i>${evtDe[d] ? `<em class="as-evt" title="${esc(evtDe[d])}">${ico(evtIc[d])}</em>` : ""}</button>`;
         }
         mois += `<div class="as-mois"><div class="as-mois-t">${MOIS[x.getMonth()]} ${x.getFullYear()}</div><div class="as-sem"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span></div><div class="as-grille">${cases}</div></div>`;
       }
@@ -344,11 +351,25 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
       ${corriges.length ? `<div class="as-ctrl ok">✓ ${corriges.length} jour(s) corrigé(s) automatiquement grâce aux numéros du cycle (encadrés en vert) : ${corriges.map(d => esc(longDate(d))).join(", ")}. Vérifiez-les.</div>` : ""}
       ${doutes.length ? `<details class="as-detail"><summary>Notes de l'IA</summary>${doutes.map(esc).join("<br>")}</details>` : ""}
       <div class="as-annee">${mois}</div>
+      <div class="as-titre-liste">Événements de l'école (${e.evenements.length})</div>
+      <ul class="as-conges">${e.evenements.map((x, i) => `<li><span class="as-ev-ic">${ico(x.ic)}</span><span><b>${esc(x.titre)}</b><small>${esc(longDate(x.date))}</small></span><button type="button" class="as-retirer as-ev-x" data-i="${i}" aria-label="Retirer">${xIcon}</button></li>`).join("") || "<li><small>Aucun événement relevé. Vous pouvez en ajouter.</small></li>"}</ul>
+      <details class="as-ajout"><summary>+ Ajouter un événement</summary>
+        <div class="heures"><div><label for="as-e-date">Date</label><input type="date" id="as-e-date"></div><div><label for="as-e-type">Genre</label><select id="as-e-type"><option value="photo|Photo scolaire">Photo scolaire</option><option value="communication|Première communication">Première communication</option><option value="bulletin|Bulletin">Bulletin</option><option value="flag|Fin d'étape">Fin d'étape</option><option value="pin|">Autre…</option></select></div></div>
+        <input type="text" id="as-e-nom" placeholder="Nom (si « Autre »)" maxlength="60" class="as-ev-nom">
+        <button type="button" class="btn ghost outline as-petit" id="as-e-ajout">Ajouter</button></details>
       <p class="note">${Object.keys(cyc).length} jours de classe · ${nbOff} jours pédagogiques ou de congé</p>`,
       `<button type="button" class="btn ghost" id="as-retour">Reprendre la photo</button><button type="button" class="btn primary" id="as-ok">C'est bon</button>`);
     const lireDates = () => { e.annee.debut = $("as-debut").value; e.annee.fin = $("as-fin").value; };
     $("as-debut").onchange = $("as-fin").onchange = () => { lireDates(); pageVerifCalendrier(); };
     if ($("as-lus")) $("as-lus").onchange = () => { utiliserLus = $("as-lus").checked; pageVerifCalendrier(); };
+    box.querySelectorAll(".as-ev-x").forEach(b => b.onclick = () => { const y = box.scrollTop; lireDates(); e.evenements.splice(+b.dataset.i, 1); pageVerifCalendrier(); box.scrollTop = y; });
+    $("as-e-ajout").onclick = () => {
+      const date = $("as-e-date").value, [ic, titre0] = $("as-e-type").value.split("|"), titre = $("as-e-nom").value.trim() || titre0;
+      if (!date || !titre){ toast("Choisissez une date et un nom."); return; }
+      const y = box.scrollTop; lireDates();
+      e.evenements.push({ date, titre, ic }); e.evenements.sort((a, b) => a.date.localeCompare(b.date));
+      pageVerifCalendrier(); box.scrollTop = y;
+    };
     box.querySelectorAll(".as-j[data-d]").forEach(b => b.onclick = () => {
       const d = b.dataset.d, o = e.off[d], y = box.scrollTop;
       if (!o) e.off[d] = { type: "ped", label: "Journée pédagogique" };
@@ -390,7 +411,7 @@ export function demarrerAssistant({ lireIA, enregistrer, toast, annuler }){
         const o = ordreDe(e), num = o.every((j, i) => j === String(i + 1));
         const cycle = {}; Object.entries(e.cycle).forEach(([j, l]) => { if (o.includes(j) && Object.keys(l).length){ cycle[j] = {}; Object.entries(l).forEach(([p, m]) => { cycle[j][p] = cleMatiere(m) || m; }); } });
         o.forEach(j => cycle[j] ??= {});
-        const evenements = [{ date: e.annee.debut, ic: "🔔", titre: "Entrée des élèves" }, ...e.evenements.filter(x => x.date !== e.annee.debut)];
+        const evenements = [{ date: e.annee.debut, ic: "bell", titre: "Entrée des élèves" }, ...e.evenements.filter(x => x.date !== e.annee.debut)];
         await enregistrer({
           prenom: e.prenom, classe: e.classe, ecole: e.ecole, ville: lieu.name || e.ville,
           lat: Math.round(lieu.latitude * 1000) / 1000, lon: Math.round(lieu.longitude * 1000) / 1000,

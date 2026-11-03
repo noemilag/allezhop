@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611030208"></script>
+<script src="../config.js?v=202611030219"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -538,6 +538,13 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 .as-j.conge{background:#D8F0DD;border-color:#8FCB9C}.as-j.conge i{color:#1E6B34;font-weight:600}
 .as-j.compte{border-style:dashed;border-width:2px}
 .as-l i.compte{border-style:dashed;border-width:2px}
+.as-j{position:relative}
+.as-evt{position:absolute;top:-5px;right:-4px;font-style:normal;width:16px;height:16px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center}
+.as-evt svg.i{width:10px;height:10px;stroke-width:2.6}
+.as-ev-ic{flex:none;width:34px;height:34px;border-radius:11px;background:var(--soft);color:var(--accent-ink);display:grid;place-items:center}
+.as-ev-ic svg.i{width:19px;height:19px;stroke-width:2}
+.as-ev-nom{font:inherit;font-size:16px;background:var(--tint);border:0;border-radius:12px;padding:10px 12px;color:var(--ink);width:100%;box-sizing:border-box}
+.as-ajout select{font:inherit;font-size:16px;background:var(--tint);border:0;border-radius:12px;padding:12px;color:var(--ink);width:100%;box-sizing:border-box}
 .as-j.hors{opacity:.3;cursor:default}
 .as-j.ko{background:#FFE9A8;border-color:#E8B923}
 .as-j.corr{outline:2px solid #2E9D4F;outline-offset:1px}
@@ -810,6 +817,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611030208"></script>
+<script type="module" src="app.js?v=202611030219"></script>
 </body>
 </html>

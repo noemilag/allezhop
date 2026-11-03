@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611030208";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030208";
+import { demarrerAssistant } from "./assistant.js?v=202611030219";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030219";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611030208";
+const VERSION = "202611030219";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -159,7 +159,8 @@ async function initStore(){
         if(verifierAppCheck) try{ await verifierAppCheck(); }
         catch(e){ throw new Error("App Check ("+(RECAPTCHA_ENTERPRISE?"Fraud Defense":"reCAPTCHA v3")+", version "+VERSION+") : "+(e.code||"")+" "+String(e.message||e).slice(0,300)); }
         const AI=await import(BASE_FB+"firebase-ai.js");
-        const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend()});
+        // Jetons App Check à usage unique : nécessaires parce que la protection contre la répétition est « Appliquée » dans Firebase.
+        const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend(), useLimitedUseAppCheckTokens:true});
         let derniere=null;
         const liste = options.fort ? [...(modeleFort ? [modeleFort] : MODELES_FORTS), ...(modeleIA ? [modeleIA] : MODELES)] : (modeleIA ? [modeleIA] : MODELES);
         for(const nom of liste){
@@ -402,6 +403,9 @@ const ICONS={
   music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   backpack:'<path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 10h8"/><path d="M8 18h8"/><path d="M8 22v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>',
   bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  photo:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  bulletin:'<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  communication:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>',
   camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   mail:'<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
   flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
@@ -420,7 +424,7 @@ const ICONS={
 };
 // Anciennes valeurs (émojis) -> icônes : événements, rappels déjà enregistrés, météo en cache
 const EMOJI_IC={"📌":"pin","🎉":"party","🚌":"bus","👕":"shirt","💰":"money","🍎":"apple","🎨":"palette","⚽":"ball","📝":"pencil","🎂":"cake","🏊":"waves","🎭":"ticket",
-  "🔔":"bell","📸":"camera","✉️":"mail","🏁":"flag","📄":"file","⚠️":"alert",
+  "🔔":"bell","📸":"photo","✉️":"communication","🏁":"flag","📄":"bulletin","⚠️":"alert",
   "☀️":"sun","🌤️":"cloudSun","☁️":"cloud","🌫️":"fog","🌧️":"rain","🌨️":"snow","⛈️":"storm","🧊":"hail",
   "🧤":"snow","🥾":"snow","🧥":"cloudSun","🧢":"sun","🧣":"cloud"};
 const PICK=["pin","party","bus","shirt","money","apple","palette","ball","pencil","cake","waves","ticket"];
@@ -674,7 +678,7 @@ $("fam-import").addEventListener("click", async ()=>{
 });
 // Assistant : ajouter un enfant (photo de l'horaire et du calendrier, lues par l'IA)
 function lancerAssistant(annulable){
-  demarrerAssistant({ lireIA:(c,img)=>store.lireIA(c,img), enregistrer:d=>store.saveKid(d), toast, annuler: annulable ? ()=>{} : null });
+  demarrerAssistant({ icone:icon, lireIA:(c,img,o)=>store.lireIA(c,img,o), enregistrer:d=>store.saveKid(d), toast, annuler: annulable ? ()=>{} : null });
 }
 $("as-go").addEventListener("click", ()=>lancerAssistant(true));
 // Inviter l'autre parent : un lien à envoyer par texto ou courriel
