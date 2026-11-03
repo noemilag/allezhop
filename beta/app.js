@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611031521";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031521";
+import { demarrerAssistant } from "./assistant.js?v=202611031525";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031525";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611031521";
+const VERSION = "202611031525";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -1323,6 +1323,7 @@ function buildICS(){
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
   const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Allez Hop//FR","CALSCALE:GREGORIAN","X-WR-CALNAME:Allez Hop · "+ENFANT.prenom];
   const start=todayKey()>FIRST?todayKey():FIRST;
+  const uid=String(kidId||"enfant").replace(/[^A-Za-z0-9]/g,"");   // un calendrier par enfant : les identifiants ne se mélangent pas
   for(let k=start; k<=LAST; k=addDays(k,1)){
     const inf=infoFor(k); if(inf.kind!=="ecole") continue;
     const ymd=k.replace(/-/g,""), sp=specialsOf(inf.jour), rem=remindersOn(k);
@@ -1332,13 +1333,26 @@ function buildICS(){
     sp.filter(s=>s.apporter).forEach(s=>desc.push("À apporter : "+s.apporter));
     (EVENTS[k]||[]).forEach(e=>desc.push(e[0]+" "+e[1]));
     rem.forEach(r=>desc.push("📌 "+r.titre+(r.notes?" : "+r.notes:"")));
-    L.push("BEGIN:VEVENT","UID:allezhop-"+ymd+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T070000","DTEND:"+ymd+"T071000",
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-"+ymd+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T070000","DTEND:"+ymd+"T071000",
       fold("SUMMARY:"+icsEsc(sum)),fold("DESCRIPTION:"+icsEsc(desc.join("\n"))),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(sum)),"TRIGGER:PT0M","END:VALARM","END:VEVENT");
   }
+  // Activités de la semaine (karaté, soccer…) : un événement qui se répète chaque semaine jusqu'à sa fin
+  const JC=["SU","MO","TU","WE","TH","FR","SA"], hm=h=>(h||"").replace(":","").padEnd(4,"0")+"00";
+  activites().forEach(a=>{
+    if(!a.debut || !(a.jours||[]).length) return;
+    const fin=a.au||LAST; let d=(a.du && a.du>todayKey()) ? a.du : todayKey();
+    for(let i=0;i<7 && !(a.jours.includes(parse(d).getDay()));i++) d=addDays(d,1);
+    if(d>fin) return;
+    const ymd=d.replace(/-/g,""), [hh,mm]=a.debut.split(":").map(Number), fh=a.fin?a.fin:String(Math.min(hh+1,23)).padStart(2,"0")+":"+String(mm).padStart(2,"0");
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-act-"+String(a.id).replace(/[^A-Za-z0-9]/g,"")+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T"+hm(a.debut),"DTEND:"+ymd+"T"+hm(fh),
+      "RRULE:FREQ=WEEKLY;BYDAY="+[...a.jours].sort().map(j=>JC[j]).join(",")+";UNTIL="+fin.replace(/-/g,"")+"T235959",
+      fold("SUMMARY:"+icsEsc("⭐ "+ENFANT.prenom+" : "+a.titre)),fold("DESCRIPTION:"+icsEsc(a.apporter?"À apporter : "+a.apporter:"")),
+      "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(a.titre+" dans 1 h")),"TRIGGER:-PT1H","END:VALARM","END:VEVENT");
+  });
   mine().filter(r=>r.date>=todayKey()).forEach(r=>{
     const ymd=r.date.replace(/-/g,""), nxt=addDays(r.date,1).replace(/-/g,"");
-    L.push("BEGIN:VEVENT","UID:allezhop-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt,
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt,
       fold("SUMMARY:"+icsEsc("📌 "+ENFANT.prenom+" : "+r.titre)),fold("DESCRIPTION:"+icsEsc(r.notes||"")),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc("Demain : "+r.titre)),"TRIGGER:-PT5H","END:VALARM","END:VEVENT");
   });
