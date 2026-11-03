@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202610302049";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202610302049";
+import { demarrerAssistant } from "./assistant.js?v=202611030141";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030141";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202610302049";
+const VERSION = "202611030141";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -80,8 +80,8 @@ const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
 const RECAPTCHA_SITE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
 // Fraud Defense (ex-reCAPTCHA Enterprise) : utilisé en priorité s'il est rempli.
 const RECAPTCHA_ENTERPRISE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
-// App Check est en pause pendant les tests (Firebase refuse encore la preuve : erreur 403 à régler avant d'inviter des amis).
-const APP_CHECK_ACTIF=false;
+// App Check actif : la clé ci-dessus doit être la même que celle enregistrée dans Firebase (App Check → Fraud Defense).
+const APP_CHECK_ACTIF=true;
 // Documents denses (calendrier) : d'abord un modèle « pro », plus précis, puis les rapides.
 const MODELES_FORTS=["gemini-3.6-pro","gemini-pro-latest","gemini-3.5-pro","gemini-2.5-pro"];
 const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
