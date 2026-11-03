@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611030141";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030141";
+import { demarrerAssistant } from "./assistant.js?v=202611030152";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030152";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611030141";
+const VERSION = "202611030152";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -165,9 +165,23 @@ async function initStore(){
         for(const nom of liste){
           try{
             const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}});
-            const r=await m.generateContent([consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}]);
+            const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
+            // La réponse arrive par morceaux : la connexion reste vivante, même quand la lecture est longue (calendrier).
+            // Si l'iPhone coupe quand même la connexion, on réessaie une fois.
+            let texte="";
+            for(let essai=0; essai<2; essai++){
+              try{
+                texte="";
+                const flux=await m.generateContentStream(parties);
+                for await (const morceau of flux.stream) texte+=morceau.text();
+                break;
+              }catch(err){
+                if(essai===0 && /load failed|network|failed to fetch/i.test(String(err.message||err))) continue;
+                throw err;
+              }
+            }
             if(MODELES_FORTS.includes(nom)) modeleFort=nom; else modeleIA=nom;
-            const t=r.response.text().replace(/^```(json)?|```$/g,"").trim();
+            const t=texte.replace(/^\s*```(json)?|```\s*$/g,"").trim();
             return JSON.parse(t);
           }catch(e){ derniere=e; if(!/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(String(e.message||e))) throw e; }
         }
