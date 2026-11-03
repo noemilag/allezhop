@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611031525";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031525";
+import { demarrerAssistant } from "./assistant.js?v=202611031722";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031722";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611031525";
+const VERSION = "202611031722";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -169,35 +169,46 @@ async function initStore(){
         // Jetons App Check à usage unique : nécessaires parce que la protection contre la répétition est « Appliquée » dans Firebase.
         const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend(), useLimitedUseAppCheckTokens:true});
         let derniere=null;
-        const liste = options.fort ? [...(modeleFort ? [modeleFort] : MODELES_FORTS), ...(modeleIA ? [modeleIA] : MODELES)] : (modeleIA ? [modeleIA] : MODELES);
-        for(const nom of liste){
-          if(epuises.has(nom)) continue;   // quota déjà atteint pendant cette séance
-          try{
-            const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}});
-            const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
-            // La réponse arrive par morceaux : la connexion reste vivante, même quand la lecture est longue (calendrier).
-            // Si l'iPhone coupe quand même la connexion, on réessaie une fois.
-            let texte="";
-            for(let essai=0; essai<2; essai++){
-              try{
-                texte="";
-                const flux=await m.generateContentStream(parties);
-                for await (const morceau of flux.stream) texte+=morceau.text();
-                break;
-              }catch(err){
-                if(essai===0 && /load failed|network|failed to fetch/i.test(String(err.message||err))) continue;
-                throw err;
+        // Ordre d'essai : le modèle qui a déjà répondu, puis les autres. Toujours la liste complète, pour pouvoir changer de modèle en cas de problème.
+        const base = options.fort ? [modeleFort, ...MODELES_FORTS, modeleIA, ...MODELES] : [modeleIA, ...MODELES];
+        const liste = [...new Set(base.filter(Boolean))];
+        const SURCHARGE = /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later/i;
+        for(let passe=0; passe<3; passe++){
+          let surcharge=false;
+          for(const nom of liste){
+            if(epuises.has(nom)) continue;   // quota atteint ou modèle introuvable pendant cette séance
+            try{
+              const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}});
+              const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
+              // La réponse arrive par morceaux : la connexion reste vivante, même quand la lecture est longue (calendrier).
+              // Si l'iPhone coupe quand même la connexion, on réessaie une fois.
+              let texte="";
+              for(let essai=0; essai<2; essai++){
+                try{
+                  texte="";
+                  const flux=await m.generateContentStream(parties);
+                  for await (const morceau of flux.stream) texte+=morceau.text();
+                  break;
+                }catch(err){
+                  if(essai===0 && /load failed|network|failed to fetch/i.test(String(err.message||err))) continue;
+                  throw err;
+                }
               }
+              if(MODELES_FORTS.includes(nom)) modeleFort=nom; else modeleIA=nom;
+              const t=texte.replace(/^\s*```(json)?|```\s*$/g,"").trim();
+              return JSON.parse(t);
+            }catch(e){
+              derniere=e; const msg=String(e.message||e);
+              // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
+              if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
+              // Serveurs de Google surchargés : on essaie le modèle suivant, puis on recommence après une courte pause.
+              if(SURCHARGE.test(msg)){ surcharge=true; continue; }
+              if(/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(msg)){ epuises.add(nom); continue; }
+              throw e;
             }
-            if(MODELES_FORTS.includes(nom)) modeleFort=nom; else modeleIA=nom;
-            const t=texte.replace(/^\s*```(json)?|```\s*$/g,"").trim();
-            return JSON.parse(t);
-          }catch(e){
-            derniere=e; const msg=String(e.message||e);
-            // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
-            if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
-            if(!/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(msg)) throw e;
           }
+          if(!surcharge) break;
+          await new Promise(r=>setTimeout(r, 3000*(passe+1)));
         }
         throw derniere;
       },
