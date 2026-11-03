@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031735";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031755";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -45,8 +45,14 @@ ${CONSIGNE_PRIVEE}
 Réponds seulement en JSON :
 {"jours": ["1","2",…], "periodes": {"1":"HH:MM", …}, "cycle": {"<nom court du jour>": {"<numéro de période>": "<matière>"}, …}, "doutes": ["<ce qui était difficile à lire>"]}`;
 
-function promptCalendrier(){
+// Le calendrier est lu en DEUX demandes en parallèle (chacune la moitié des mois) : deux fois moins long à écrire pour l'IA.
+const MOITIES = [
+  "juillet, août, septembre, octobre, novembre et décembre (première année : 2026 par exemple)",
+  "janvier, février, mars, avril, mai et juin (deuxième année : 2027 par exemple)",
+];
+function promptCalendrier(moitie){
   return `Tu lis un calendrier scolaire d'une école primaire du Québec (une année scolaire, d'août à juin), en photo ou en PDF.
+IMPORTANT : cette demande ne porte QUE sur les mois de ${MOITIES[moitie]}. Ignore complètement les autres mois (pour les jours, les totaux, les noms de congés et les événements).
 Travaille MOIS PAR MOIS, ligne par ligne, avec soin : chaque case est une date.
 Réponds de façon COMPACTE : un objet par mois, avec pour clé le numéro du jour dans le mois (seulement lundi à vendredi), par exemple
 "2026-09": {"1":"2","2":"3","3":"4","4":"5","7":"C", …}.
@@ -75,6 +81,20 @@ Réponds seulement en JSON :
 {"ecole": "nom de l'école ou vide", "jours": {"2026-08": {"24":"-","25":"P", …}, "2026-09": {…}, …}, "joursParMois": {"2026-08": 1, "2026-09": 20, …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
  "legende": [{"symbole":"description courte du symbole","evenement":"…"}],
  "evenements": [{"date":"AAAA-MM-JJ","titre":"…","jour":"mercredi"}], "doutes": ["…"]}`;
+}
+
+// Fusionne les deux moitiés du calendrier lues séparément
+function fusionnerCalendrier(rs){
+  const out = { ecole: "", jours: {}, joursParMois: {}, noms: [], legende: [], evenements: [], doutes: [] };
+  for (const r of rs){
+    if (!r) continue;
+    out.ecole = out.ecole || r.ecole || "";
+    Object.assign(out.jours, r.jours || {}); Object.assign(out.joursParMois, r.joursParMois || {});
+    out.noms.push(...(r.noms || [])); out.legende.push(...(r.legende || [])); out.doutes.push(...(r.doutes || []));
+    out.evenements.push(...(r.evenements || []));
+  }
+  const vus = new Set(); out.evenements = out.evenements.filter(x => { const c = x.date + "|" + x.titre; if (vus.has(c)) return false; vus.add(c); return true; });
+  return out;
 }
 
 /* ---------- Le cycle, calculé comme dans l'app : il avance seulement les jours de classe ---------- */
@@ -222,12 +242,12 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
   async function lirePhoto(input, prompt, quandFini, options = {}){
     const f = input.files[0]; if (!f) return;
     const etat = $(input.id + "-etat");
-    etat.hidden = false; etat.innerHTML = `<span class="as-spin"></span> Lecture… (${options.fort ? "environ une minute : le calendrier est dense" : "environ 20 secondes"})`;
+    etat.hidden = false; etat.innerHTML = `<span class="as-spin"></span> Lecture… (${options.fort ? "environ une minute : le calendrier est dense, il est lu en deux parties" : "environ 20 secondes"})`;
     const t0 = Date.now(), minuteur = setInterval(() => { const sec = Math.round((Date.now() - t0) / 1000), span = etat.querySelector(".as-attente"); if (span) span.textContent = ` ${sec} s`; }, 1000);
     try {
       const img = await photoEnBase64(f);
       etat.innerHTML = `${img.apercu ? `<img src="${img.apercu}" alt="">` : ""}<span><span class="as-spin"></span> L'IA lit le document…<span class="as-attente"></span><br><small>Gardez l'écran allumé. Si Google est occupé, l'app réessaie toute seule.</small></span>`;
-      const r = await lireIA(prompt, img, options);
+      const r = Array.isArray(prompt) ? fusionnerCalendrier(await Promise.all(prompt.map(p => lireIA(p, img, options)))) : await lireIA(prompt, img, options);
       quandFini(r);
     } catch (err){
       console.error(err);
@@ -328,7 +348,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     $("as-retour").onclick = pageVerifHoraire;
     $("as-main").onclick = () => { const y = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1;
       if (!e.annee.debut) e.annee = { debut: `${y}-08-28`, fin: `${y + 1}-06-22` }; e.off ??= {}; lus = {}; doutes = []; pageVerifCalendrier(); };
-    $("as-f-cal").onchange = ev => lirePhoto(ev.target, promptCalendrier(), r => {
+    $("as-f-cal").onchange = ev => lirePhoto(ev.target, [promptCalendrier(0), promptCalendrier(1)], r => {
       const ok = d => /^\d{4}-\d{2}-\d{2}$/.test(d || "");
       if (!e.ecole && r.ecole) e.ecole = r.ecole;
       const noms = {}; (r.noms || []).forEach(x => { if (ok(x.date) && x.nom) noms[x.date] = x.nom; });

@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611031735";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031735";
+import { demarrerAssistant } from "./assistant.js?v=202611031755";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031755";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611031735";
+const VERSION = "202611031755";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -104,7 +104,7 @@ async function initStore(){
     catch(e){ db=F.getFirestore(app); }
     const fam=(...p)=>F.doc(db,"familles",famId,...p), famColl=(...p)=>F.collection(db,"familles",famId,...p);
     let unsub=null, unsubK=null, unsubF=null, user=null;
-    let modeleIA=null, modeleFort=null; const epuises=new Set();
+    let modeleIA=null, modeleFort=null; const epuises=new Set(), sansReglage=new Set();
     store={
       google:async ()=>{
         const prov=new A.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
@@ -180,7 +180,11 @@ async function initStore(){
           for(const nom of liste){
             if(epuises.has(nom)) continue;   // quota atteint ou modèle introuvable pendant cette séance
             try{
-              const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}}, {timeout:DELAI_IA});
+              // Réflexion réduite : lire un document demande surtout de la perception, et ça évite des minutes d'attente.
+              // Si un modèle refuse ce réglage, on le réessaie sans.
+              const sansReflexion = sansReglage.has(nom);
+              const reflexion = sansReflexion ? {} : /gemini-2\.5/.test(nom) ? {thinkingConfig:{thinkingBudget:1024}} : {thinkingConfig:{thinkingLevel:(AI.ThinkingLevel&&AI.ThinkingLevel.LOW)||"LOW"}};
+              const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0, ...reflexion}}, {timeout:DELAI_IA});
               const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
               // La réponse arrive par morceaux : la connexion reste vivante, même quand la lecture est longue (calendrier).
               // Si l'iPhone coupe quand même la connexion, on réessaie une fois.
@@ -201,6 +205,7 @@ async function initStore(){
               return JSON.parse(t);
             }catch(e){
               derniere=e; const msg=String(e.message||e);
+              if(/thinking/i.test(msg) && !sansReglage.has(nom)){ sansReglage.add(nom); liste.splice(liste.indexOf(nom)+1, 0, nom); continue; }   // réessaie ce modèle sans le réglage
               // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
               if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
               // Serveurs de Google surchargés : on essaie le modèle suivant, puis on recommence après une courte pause.
