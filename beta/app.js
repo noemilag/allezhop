@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611030219";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030219";
+import { demarrerAssistant } from "./assistant.js?v=202611030225";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611030225";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611030219";
+const VERSION = "202611030225";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -102,7 +102,7 @@ async function initStore(){
     catch(e){ db=F.getFirestore(app); }
     const fam=(...p)=>F.doc(db,"familles",famId,...p), famColl=(...p)=>F.collection(db,"familles",famId,...p);
     let unsub=null, unsubK=null, unsubF=null, user=null;
-    let modeleIA=null, modeleFort=null;
+    let modeleIA=null, modeleFort=null; const epuises=new Set();
     store={
       google:async ()=>{
         const prov=new A.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
@@ -164,6 +164,7 @@ async function initStore(){
         let derniere=null;
         const liste = options.fort ? [...(modeleFort ? [modeleFort] : MODELES_FORTS), ...(modeleIA ? [modeleIA] : MODELES)] : (modeleIA ? [modeleIA] : MODELES);
         for(const nom of liste){
+          if(epuises.has(nom)) continue;   // quota déjà atteint pendant cette séance
           try{
             const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0}});
             const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
@@ -184,7 +185,12 @@ async function initStore(){
             if(MODELES_FORTS.includes(nom)) modeleFort=nom; else modeleIA=nom;
             const t=texte.replace(/^\s*```(json)?|```\s*$/g,"").trim();
             return JSON.parse(t);
-          }catch(e){ derniere=e; if(!/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(String(e.message||e))) throw e; }
+          }catch(e){
+            derniere=e; const msg=String(e.message||e);
+            // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
+            if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
+            if(!/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(msg)) throw e;
+          }
         }
         throw derniere;
       },

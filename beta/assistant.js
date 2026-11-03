@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030219";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611030225";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -199,8 +199,9 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler }
       console.error(err);
       // Le détail aide à trouver la cause (clé, accès à l'IA, modèle) : ce n'est pas toujours la photo.
       const detail = String(err.message || err).replace(/AIzaSy[\w-]+/g, "…").slice(0, 400);
-      const reseau = err.code === "fetch-error" || /fetch|403|404|PERMISSION|API key|blocked/i.test(detail);
-      etat.innerHTML = `<span class="err">${reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
+      const quota = /429|quota|resource.?exhausted|rate.?limit/i.test(detail);
+      const reseau = !quota && (err.code === "fetch-error" || /fetch|403|404|PERMISSION|API key|blocked/i.test(detail));
+      etat.innerHTML = `<span class="err">${quota ? "L'IA a atteint sa limite gratuite pour le moment. Patientez une minute, puis réessayez." : reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
         <details class="as-detail"><summary>Détail pour le dépannage</summary><code>${esc((err.code ? err.code + " · " : "") + detail)}</code></details>`;
     } finally { input.value = ""; }
   }
