@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031040";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031250";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -62,10 +62,12 @@ photographie scolaire, première communication, bulletin, début ou fin d'une é
 Donne pour chacun sa date, un titre court en français (ex. « Photo scolaire », « Première communication », « Bulletin », « Fin de la 1re étape ») et le JOUR DE LA SEMAINE
 de la colonne où se trouve le symbole (lundi, mardi, mercredi, jeudi ou vendredi) : regarde l'en-tête de la colonne (L, M, M, J, V), cela permet de vérifier la date.
 Ne les confonds pas avec les congés ni les journées pédagogiques (qui sont déjà dans « jours »).
+Si le calendrier IMPRIME le nombre de jours de classe de chaque mois (par exemple « 20 jours », « 20 jours / 1 péd. » ou « (20) » dans ou sous le tableau du mois), donne-le dans "joursParMois" ;
+sinon laisse "joursParMois" vide. Ne le calcule pas toi-même : recopie seulement ce qui est imprimé. Ce total sert à vérifier ta lecture, surtout le premier et le dernier mois.
 Toutes les dates au format AAAA-MM-JJ ; août à décembre sont de la première année, janvier à juin de la deuxième.
 ${CONSIGNE_PRIVEE}
 Réponds seulement en JSON :
-{"ecole": "nom de l'école ou vide", "jours": {"AAAA-MM-JJ": "valeur", …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
+{"ecole": "nom de l'école ou vide", "jours": {"AAAA-MM-JJ": "valeur", …}, "joursParMois": {"2026-08": 1, "2026-09": 20, …}, "noms": [{"date":"AAAA-MM-JJ","nom":"…"}],
  "evenements": [{"date":"AAAA-MM-JJ","titre":"…","jour":"mercredi"}], "doutes": ["…"]}`;
 }
 
@@ -165,7 +167,14 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
   const maj = !!enfant;
   if (maj){ e.prenom = enfant.prenom || ""; e.classe = enfant.classe || ""; e.ecole = enfant.ecole || ""; e.ville = enfant.ville || ""; }
   const hhmm = t => { const m = /(\d{1,2})\s*h\s*(\d{2})?/.exec(t || ""); return m ? m[1].padStart(2, "0") + ":" + (m[2] || "00") : ""; };
-  let doutes = [], lus = {}, utiliserLus = null, corriges = [], etape = "enfant";
+  let doutes = [], lus = {}, lusBrut = {}, utiliserLus = null, corriges = [], etape = "enfant";
+  // lus = numéros lus, décalés pour que le premier jour numéroté de l'année ait le numéro choisi (e.debutIdx)
+  const appliquerDebut = () => {
+    const o = ordreDe(e), prem = Object.keys(lusBrut).filter(d => d >= e.annee.debut && d <= e.annee.fin).sort()[0];
+    lus = {}; if (!prem || o.indexOf(lusBrut[prem]) < 0) { lus = { ...lusBrut }; return; }
+    const dec = o.indexOf(lusBrut[prem]);
+    Object.entries(lusBrut).forEach(([d, v]) => { const i = o.indexOf(v); lus[d] = i < 0 ? v : o[(((i - dec + (e.debutIdx || 0)) % o.length) + o.length) % o.length]; });
+  };
 
   const fermer = () => box.remove();
   const page = (titre, sousTitre, corps, boutons) => {
@@ -323,10 +332,6 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
         else if (v && v !== "-"){ lus[d] = v; classe.push(d); }
       });
       classe.sort();
-      e.annee = { debut: classe[0] || "", fin: classe[classe.length - 1] || "" };
-      // seulement les congés pendant l'année (et la semaine avant la rentrée)
-      Object.keys(e.off).forEach(d => { if (!e.annee.debut || d < addDays(e.annee.debut, -10) || d > e.annee.fin) delete e.off[d]; });
-      // Le jour de la semaine (colonne du calendrier) sert à vérifier la date : si les deux ne concordent pas, on prend le jour voisin qui concorde.
       const NOMS_J = { dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6 };
       const recaler = (date, jour) => {
         const w = NOMS_J[String(jour || "").trim().toLowerCase()];
@@ -334,16 +339,31 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
         for (const dx of [-1, 1, -2, 2, -3, 3]) if (parse(addDays(date, dx)).getDay() === w) return addDays(date, dx);
         return date;
       };
-      e.evenements = (r.evenements || []).filter(x => ok(x.date) && x.titre)
-        .map(x => ({ date: recaler(x.date, x.jour), titre: String(x.titre).slice(0, 60), ic: iconeEvenement(x.titre) }))
-        .filter(x => x.date >= (e.annee.debut || "0") && x.date <= (e.annee.fin || "9"))
+      const evts = (r.evenements || []).filter(x => ok(x.date) && x.titre)
+        .map(x => ({ date: recaler(x.date, x.jour), titre: String(x.titre).slice(0, 60), ic: iconeEvenement(x.titre) }));
+      // Totaux de jours de classe imprimés pour chaque mois (si le calendrier en a)
+      e.totaux = {}; Object.entries(r.joursParMois || {}).forEach(([m, n]) => { if (/^\d{4}-\d{2}$/.test(m) && Number.isFinite(+n) && +n >= 0) e.totaux[m] = +n; });
+      // Le début et la fin de l'année sont vérifiés par des repères indépendants des numéros du cycle :
+      // le total du mois imprimé, et l'événement « entrée des élèves ». Les jours en trop sont des pédagogiques.
+      const retirer = d => { delete lus[d]; e.off[d] = { type: "ped", label: "Journée pédagogique" }; };
+      let cl = classe.slice();
+      const m1 = cl[0] && cl[0].slice(0, 7), m2 = cl.length && cl[cl.length - 1].slice(0, 7);
+      if (m1 && e.totaux[m1] !== undefined){ const du = cl.filter(d => d.startsWith(m1)), extra = du.length - e.totaux[m1];
+        if (extra > 0 && extra <= 8){ const out = du.slice(0, extra); out.forEach(retirer); cl = cl.filter(d => !out.includes(d)); } }
+      if (m2 && e.totaux[m2] !== undefined){ const du = cl.filter(d => d.startsWith(m2)), extra = du.length - e.totaux[m2];
+        if (extra > 0 && extra <= 8){ const out = du.slice(-extra); out.forEach(retirer); cl = cl.filter(d => !out.includes(d)); } }
+      const entree = evts.find(x => /entr[ée]e|rentr[ée]e|premier jour/i.test(x.titre));
+      if (entree && cl.length){ let d0 = entree.date; while ([0, 6].includes(parse(d0).getDay())) d0 = addDays(d0, 1);
+        const avant = cl.filter(d => d < d0 && d >= addDays(d0, -10)); if (avant.length){ avant.forEach(retirer); cl = cl.filter(d => !avant.includes(d)); } }
+      e.annee = { debut: cl[0] || "", fin: cl[cl.length - 1] || "" };
+      // seulement les congés pendant l'année (et la semaine avant la rentrée)
+      Object.keys(e.off).forEach(d => { if (!e.annee.debut || d < addDays(e.annee.debut, -10) || d > e.annee.fin) delete e.off[d]; });
+      e.evenements = evts.filter(x => x.date >= (e.annee.debut || "0") && x.date <= (e.annee.fin || "9"))
         .sort((a, b) => a.date.localeCompare(b.date));
       utiliserLus = null;
       doutes = r.doutes || [];
-      // Le cycle ne commence pas toujours à 1 : on prend le numéro du premier jour numéroté.
-      e.debutIdx = 0;
-      { const o = ordreDe(e), prem = Object.keys(lus).filter(d => d >= e.annee.debut && d <= e.annee.fin).sort()[0];
-        if (prem && o.indexOf(lus[prem]) > 0){ let avant = 0; for (let k = e.annee.debut; k < prem; k = addDays(k, 1)) if ([1,2,3,4,5].includes(parse(k).getDay()) && !e.off[k]) avant++; e.debutIdx = ((o.indexOf(lus[prem]) - avant) % o.length + o.length) % o.length; } }
+      // Les numéros lus sont recalés : le premier jour de classe est le jour 1 (modifiable dans la page de vérification).
+      lusBrut = { ...lus }; e.debutIdx = 0; appliquerDebut();
       corriges = autoCorriger(e, lus);
       pageVerifCalendrier();
     }, { fort: true });
@@ -363,6 +383,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     const premierKo = diff.slice().sort()[0];
     const evtDe = {}, evtIc = {};
     e.evenements.forEach(x => { evtDe[x.date] = (evtDe[x.date] ? evtDe[x.date] + " · " : "") + x.titre; evtIc[x.date] = x.ic; });
+    const nbMois = {}; Object.keys(cyc).forEach(d => { const m = d.slice(0, 7); nbMois[m] = (nbMois[m] || 0) + 1; });
     let mois = "";
     if (valide){
       for (let m = e.annee.debut.slice(0, 7) + "-01"; m <= e.annee.fin; m = (() => { const x = parse(m); x.setMonth(x.getMonth() + 1); return key(x); })()){
@@ -375,15 +396,23 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
           const o = e.off[d], hors = d < e.annee.debut || d > e.annee.fin, ko = !utiliserLus && d === premierKo;
           cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${o && o.compte ? " compte" : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i>${evtDe[d] ? `<em class="as-evt" title="${esc(evtDe[d])}">${ico(evtIc[d])}</em>` : ""}</button>`;
         }
-        mois += `<div class="as-mois"><div class="as-mois-t">${MOIS[x.getMonth()]} ${x.getFullYear()}</div><div class="as-sem"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span></div><div class="as-grille">${cases}</div></div>`;
+        const ym = m.slice(0, 7), nbCl = nbMois[ym] || 0, tot = e.totaux && e.totaux[ym];
+        const cpt = tot === undefined ? `<span class="as-mois-n">${nbCl} j.</span>` : nbCl === tot ? `<span class="as-mois-n ok">${nbCl} j. ✓</span>` : `<span class="as-mois-n ko">${nbCl} j. (calendrier : ${tot})</span>`;
+        mois += `<div class="as-mois"><div class="as-mois-t">${MOIS[x.getMonth()]} ${x.getFullYear()} ${cpt}</div><div class="as-sem"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span></div><div class="as-grille">${cases}</div></div>`;
       }
     }
     const nbOff = Object.keys(e.off).filter(d => d >= e.annee.debut && d <= e.annee.fin).length;
+    const ecartsMois = Object.keys(e.totaux || {}).filter(m => nbMois[m] !== undefined || (e.totaux[m] > 0 && m >= e.annee.debut.slice(0, 7) && m <= e.annee.fin.slice(0, 7)))
+      .filter(m => (nbMois[m] || 0) !== e.totaux[m]).sort();
     page("Vérifiez le calendrier", "Étape 3 de 4", `
       <p>Comparez avec votre calendrier. <b>Touchez un jour pour le changer</b> : classe → pédagogique → pédagogique d'école → congé.</p>
       <div class="as-legende"><span class="as-l"><i class="cl"></i>Classe (jour du cycle)</span><span class="as-l"><i class="ped"></i>Pédagogique</span><span class="as-l"><i class="ped compte"></i>Pédagogique d'école (le cycle avance)</span><span class="as-l"><i class="conge"></i>Congé</span></div>
       <div class="heures"><div><label for="as-debut">Premier jour de classe</label><input type="date" id="as-debut" value="${esc(e.annee.debut)}"></div>
         <div><label for="as-fin">Dernier jour</label><input type="date" id="as-fin" value="${esc(e.annee.fin)}"></div></div>
+      <p class="note">Vérifiez avec votre calendrier : le <b>premier jour de classe</b> est celui de la rentrée des <b>élèves</b>. Les jours de formation du personnel (pédagogiques) juste avant n'en font pas partie.</p>
+      <div class="field"><label for="as-pj">Au premier jour de classe, le cycle est au jour</label>
+        <select id="as-pj" class="as-pj">${ordreDe(e).map((j, i) => `<option value="${i}"${(e.debutIdx || 0) === i ? " selected" : ""}>${esc(j)}</option>`).join("")}</select>
+        <small class="note">Presque toujours le jour 1 : la rentrée des élèves commence le cycle.</small></div>
       ${dates.length ? (accord >= .95
         ? `<div class="as-ctrl ok">✓ Les numéros du cycle concordent avec votre calendrier.</div>`
         : `<div class="as-ctrl info"><b>À vérifier autour du ${esc(longDate(diff.sort()[0]))}</b> : à partir de cette date (en jaune), les numéros du cycle écrits sur votre calendrier ne suivent plus. Il y a sans doute un congé de trop ou manquant juste avant : touchez le jour pour le corriger.
@@ -391,6 +420,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       ${corriges.length ? `<div class="as-ctrl ok"><b>✓ Le calendrier a permis de corriger ${corriges.length} jour(s)</b> (encadrés en vert), grâce aux numéros du cycle.
         ${(corriges.aConfirmer || []).length ? `<p class="as-conf-t">Le numéro du cycle avance ces jours-là. Mais y a-t-il classe pour les élèves? À vous de confirmer :</p>${corriges.aConfirmer.map(d => `<div class="as-conf"><span>${esc(longDate(d))}</span><span class="as-conf-b"><button type="button" data-conf="${d}" data-v="classe" class="${!e.off[d] ? "on" : ""}">Classe</button><button type="button" data-conf="${d}" data-v="ferme" class="${e.off[d] ? "on" : ""}">Pas de classe</button></span></div>`).join("")}` : ""}
         ${corriges.filter(d => !(corriges.aConfirmer || []).includes(d)).map(d => `<p class="as-conf-t">${esc(longDate(d))} : ${esc(corriges.notes[d] || "")}</p>`).join("")}</div>` : ""}
+      ${ecartsMois.length ? `<div class="as-ctrl info"><b>Nombre de jours de classe à vérifier</b> : ${ecartsMois.map(m => `${esc(MOIS[+m.slice(5, 7) - 1])} (calendrier : ${e.totaux[m]}, ici : ${nbMois[m] || 0})`).join(" · ")}. Les mois concernés sont marqués en rouge ci-dessous.</div>` : ""}
       ${doutes.length ? `<details class="as-detail"><summary>Notes de l'IA</summary>${doutes.map(esc).join("<br>")}</details>` : ""}
       <div class="as-annee">${mois}</div>
       <div class="as-titre-liste">Événements de l'école (${e.evenements.length})</div>
@@ -402,7 +432,8 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       <p class="note">${Object.keys(cyc).length} jours de classe · ${nbOff} jours pédagogiques ou de congé</p>`,
       `<button type="button" class="btn ghost" id="as-retour">Reprendre la photo</button><button type="button" class="btn primary" id="as-ok">C'est bon</button>`);
     const lireDates = () => { e.annee.debut = $("as-debut").value; e.annee.fin = $("as-fin").value; };
-    $("as-debut").onchange = $("as-fin").onchange = () => { lireDates(); pageVerifCalendrier(); };
+    $("as-debut").onchange = $("as-fin").onchange = () => { lireDates(); appliquerDebut(); pageVerifCalendrier(); };
+    $("as-pj").onchange = () => { lireDates(); e.debutIdx = +$("as-pj").value; appliquerDebut(); pageVerifCalendrier(); };
     if ($("as-lus")) $("as-lus").onchange = () => { utiliserLus = $("as-lus").checked; pageVerifCalendrier(); };
     box.querySelectorAll("[data-conf]").forEach(b => b.onclick = () => {
       const d = b.dataset.conf, y = box.scrollTop;

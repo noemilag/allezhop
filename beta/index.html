@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611031040"></script>
+<script src="../config.js?v=202611031250"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -551,6 +551,9 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 .as-conf-b{display:flex;gap:6px}
 .as-conf-b button{font:inherit;font-size:14px;font-weight:600;border:2px solid transparent;border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.7);color:#14532D;cursor:pointer}
 .as-conf-b button.on{background:#2E9D4F;color:#fff}
+.as-mois-n{font-size:11px;font-weight:700;color:var(--muted);margin-left:4px;text-transform:none}
+.as-mois-n.ok{color:#1E6B34}.as-mois-n.ko{color:#B3261E}
+.as-pj{font:inherit;font-size:17px;background:var(--tint);border:0;border-radius:12px;padding:11px 12px;color:var(--ink);width:100%;box-sizing:border-box}
 .as-j.hors{opacity:.3;cursor:default}
 .as-j.ko{background:#FFE9A8;border-color:#E8B923}
 .as-j.corr{outline:2px solid #2E9D4F;outline-offset:1px}
@@ -843,6 +846,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611031040"></script>
+<script type="module" src="app.js?v=202611031250"></script>
 </body>
 </html>
