@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611031755";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611031755";
+import { demarrerAssistant } from "./assistant.js?v=202611032054";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611032054";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611031755";
+const VERSION = "202611032054";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -86,7 +86,8 @@ const APP_CHECK_ACTIF=true;
 // (désactivé : trop lent et limité en gratuit ; les modèles rapides lisent bien, et la page de vérification corrige le reste)
 const MODELES_FORTS=[];
 const DELAI_IA=120000;   // 2 minutes au maximum par modèle, puis on passe au suivant
-const MODELES=["gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash"];   // le premier qui répond
+// Modèles essayés dans l'ordre. Si Google en retire un (erreur 404), il indique souvent son remplaçant : l'app l'essaie alors automatiquement.
+const MODELES=["gemini-3.8-flash","gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash"];
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
   mode="loading"; paintAccount(); setAccess("loading");
@@ -174,6 +175,7 @@ async function initStore(){
         // Ordre d'essai : le modèle qui a déjà répondu, puis les autres. Toujours la liste complète, pour pouvoir changer de modèle en cas de problème.
         const base = options.fort ? [modeleFort, ...MODELES_FORTS, modeleIA, ...MODELES] : [modeleIA, ...MODELES];
         const liste = [...new Set(base.filter(Boolean))];
+        const echecs = [];   // un résumé par essai raté : montré dans « Détail pour le dépannage »
         const SURCHARGE = /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later|abort|timed? ?out|timeout/i;
         for(let passe=0; passe<3; passe++){
           let surcharge=false;
@@ -205,18 +207,27 @@ async function initStore(){
               return JSON.parse(t);
             }catch(e){
               derniere=e; const msg=String(e.message||e);
+              echecs.push(nom+" : "+msg.replace(/\s+/g," ").slice(0,170));
               if(/thinking/i.test(msg) && !sansReglage.has(nom)){ sansReglage.add(nom); liste.splice(liste.indexOf(nom)+1, 0, nom); continue; }   // réessaie ce modèle sans le réglage
               // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
               if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
               // Serveurs de Google surchargés : on essaie le modèle suivant, puis on recommence après une courte pause.
               if(SURCHARGE.test(msg)){ surcharge=true; continue; }
-              if(/not.?found|404|unsupported|not supported|invalid model|is not available/i.test(msg)){ epuises.add(nom); continue; }
+              if(/not.?found|404|unsupported|not supported|invalid model|is not available|no longer available/i.test(msg)){
+                epuises.add(nom);
+                // « Please update your code to use models/gemini-3.8-flash » : on essaie le modèle proposé par Google
+                const conseil=(/use\s+(?:the\s+)?models\/([a-z0-9.\-]+)/i.exec(msg)||[])[1];
+                if(conseil && !liste.includes(conseil) && !epuises.has(conseil)) liste.splice(liste.indexOf(nom)+1, 0, conseil);
+                continue;
+              }
               throw e;
             }
           }
           if(!surcharge) break;
           await new Promise(r=>setTimeout(r, 3000*(passe+1)));
         }
+        if(!derniere) derniere=new Error("Aucun modèle d'IA n'est disponible pour le moment (tous ont été refusés pendant cette séance). Rechargez la page et réessayez.");
+        derniere.tous=echecs.join("\n");
         throw derniere;
       },
     };

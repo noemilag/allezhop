@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611031755";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611032054";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -258,7 +258,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       const quota = !surcharge && !delai && /429|quota|resource.?exhausted|rate.?limit/i.test(detail);
       const reseau = !quota && !surcharge && !delai && (err.code === "fetch-error" || /fetch|403|404|PERMISSION|API key|blocked/i.test(detail));
       etat.innerHTML = `<span class="err">${delai ? "La lecture a pris trop de temps (Google est lent ou la connexion est faible). Ce n'est pas votre photo : réessayez dans une minute." : surcharge ? "Les serveurs de Google sont très sollicités en ce moment (ce n'est pas votre photo). Patientez une minute, puis réessayez." : quota ? "L'IA a atteint sa limite gratuite pour le moment. Patientez une minute, puis réessayez." : reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
-        <details class="as-detail"><summary>Détail pour le dépannage</summary><code>${esc((err.code ? err.code + " · " : "") + detail)}</code></details>`;
+        <details class="as-detail"><summary>Détail pour le dépannage</summary><code>${esc((err.code ? err.code + " · " : "") + detail)}${err.tous ? esc("\n\nTous les essais :\n" + String(err.tous).replace(/AIzaSy[\w-]+/g, "…").slice(0, 900)) : ""}</code></details>`;
     } finally { clearInterval(minuteur); input.value = ""; }
   }
 
