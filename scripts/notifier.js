@@ -116,7 +116,8 @@ async function main(){
   // Envoie un message à un téléphone ; false si l'abonnement a expiré (il est alors supprimé).
   async function envoyer(d, m){
     const x = d.data();
-    console.log(`→ ${x.par || "?"} (${x.appareil || "?"})\n${m.title}\n${m.body}\n`);
+    // Les journaux de GitHub sont publics : ni courriel, ni prénom, ni contenu du message (sauf en essai local, DRY=1).
+    if (dry) console.log(`→ ${x.par || "?"} (${x.appareil || "?"})\n${m.title}\n${m.body}\n`); else console.log(`→ message pour ${x.appareil || "un appareil"}`);
     if (dry) return true;
     try {
       const r = await webpush.sendNotification(x.abonnement, JSON.stringify(m), { TTL: 4 * 3600, urgency: "high" });
@@ -156,7 +157,7 @@ async function main(){
   for (const f of familles) {
     const { abonnements, enfants, rappels } = f;
     if (!abonnements.length) continue;
-    if (!enfants.length) { console.log(`Famille ${f.id} : aucune fiche d'enfant.`); continue; }
+    if (!enfants.length) { console.log("Une famille n'a aucune fiche d'enfant."); continue; }
     const aTraiter = abonnements.filter(d => {
       if (test) return true;
       const x = d.data(), [hh, mm] = (x.heure || "07:00").split(":").map(Number), cible = hh * 60 + mm;
@@ -205,7 +206,7 @@ async function main(){
       }
       if (!vivant) continue;
       if (!dry && !test) await d.ref.set({ dernierEnvoi: now.date }, { merge: true });
-      if (!messages.length) console.log(`→ ${x.par || "?"} : rien à annoncer pour ${jour}.`);
+      if (!messages.length) console.log(`→ ${x.appareil || "un appareil"} : rien à annoncer pour ${jour}.`);
     }
   }
   if (!envoyesQuelquechose) console.log(`${now.date} ${now.h}:${String(now.m).padStart(2, "0")} : aucune notification à envoyer.`);
