@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611041125";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041125";
+import { demarrerAssistant } from "./assistant.js?v=202611041320";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041320";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611041125";
+const VERSION = "202611041320";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -87,7 +87,8 @@ const APP_CHECK_ACTIF=true;
 const MODELES_FORTS=[];
 const DELAI_IA=120000;   // 2 minutes au maximum par modèle, puis on passe au suivant
 // Modèles essayés dans l'ordre. Si Google en retire un (erreur 404), il indique souvent son remplaçant : l'app l'essaie alors automatiquement.
-const MODELES=["gemini-3.8-flash","gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash"];
+// Les « flash-lite » (limites gratuites plus larges, plus rapides) ne servent qu'en dernier recours, quand les modèles Flash sont à leur limite : l'analyse ne rallonge pas.
+const MODELES=["gemini-3.8-flash","gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3.5-flash-lite","gemini-3.1-flash-lite"];
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
   mode="loading"; paintAccount(); setAccess("loading");
