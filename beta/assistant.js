@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611040147";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611041030";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -61,7 +61,7 @@ Pour CHAQUE jour de semaine (lundi à vendredi) d'août à juin, donne son état
 - "P" si c'est une journée pédagogique (souvent la date est entourée d'un cercle ou d'une forme, selon la légende) ;
 - "E" si c'est une journée pédagogique propre à l'école, quand la légende la distingue des autres pédagogiques (par exemple « pédagogique école » avec un soleil, une étoile ou une autre petite image) ;
 - "C" si c'est un congé (férié, vacances, relâche ; souvent une case colorée, selon la légende) ;
-- "R" si c'est une journée de réserve en cas de force majeure (c'est un jour de classe) ;
+- "R" si c'est une journée de reprise ou de réserve prévue en cas de force majeure (tempête, fermeture de l'école) : normalement c'est un congé, sans numéro de cycle ;
 - "-" s'il n'y a pas de classe parce que l'année n'est pas commencée ou est finie.
 Lis bien la LÉGENDE pour savoir quel symbole veut dire quoi. Une date qui porte un numéro de cycle est un jour de classe.
 Donne aussi le nom des congés connus (ex. « Action de grâce », « Congé des Fêtes », « Relâche »).
@@ -363,7 +363,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
         if (!ok(d) || [0, 6].includes(parse(d).getDay())) return;
         v = String(v ?? "").replace(/^jour\s*/i, "").trim().toUpperCase();
         if (v === "P" || v === "C" || v === "E") e.off[d] = { type: v === "C" ? "conge" : "ped", label: noms[d] || (v === "C" ? "Congé" : v === "E" ? "Pédagogique d'école" : "Journée pédagogique"), ...(v === "E" ? { ecole: true } : {}) };
-        else if (v === "R") classe.push(d);
+        else if (v === "R") e.off[d] = { type: "conge", label: noms[d] || "Journée de reprise (si fermeture)" };
         else if (v && v !== "-"){ lus[d] = v; classe.push(d); }
       });
       classe.sort();
@@ -430,7 +430,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
           if (w === 0 || w === 6) continue;
           if (premier){ cases += "<span></span>".repeat(w - 1); premier = false; }
           const o = e.off[d], hors = d < e.annee.debut || d > e.annee.fin, ko = !utiliserLus && d === premierKo;
-          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${o && o.compte ? " compte" : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : "congé") : hors ? "" : esc(aff(d) ?? "")}</i>${evtDe[d] ? `<em class="as-evt" title="${esc(evtDe[d])}">${ico(evtIc[d])}</em>` : ""}</button>`;
+          cases += `<button type="button" class="as-j${o ? " " + o.type : ""}${o && /reprise/i.test(o.label) ? " reprise" : ""}${o && o.compte ? " compte" : ""}${hors && !o ? " hors" : ""}${ko ? " ko" : ""}${corriges.includes(d) ? " corr" : ""}" data-d="${d}" ${hors && !o ? "disabled" : ""} title="${esc(longDate(d))}${o ? " : " + esc(o.label) : ""}"><b>${j}</b><i>${o ? (o.type === "ped" ? "péd." : /reprise/i.test(o.label) ? "reprise" : "congé") : hors ? "" : esc(aff(d) ?? "")}</i>${evtDe[d] ? `<em class="as-evt" title="${esc(evtDe[d])}">${ico(evtIc[d])}</em>` : ""}</button>`;
         }
         const ym = m.slice(0, 7), nbCl = nbMois[ym] || 0, tot = e.totaux && e.totaux[ym];
         const cpt = tot === undefined ? `<span class="as-mois-n">${nbCl} j.</span>` : nbCl === tot ? `<span class="as-mois-n ok">${nbCl} j. ✓</span>` : `<span class="as-mois-n ko">${nbCl} j. (calendrier : ${tot})</span>`;
@@ -441,8 +441,8 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     const ecartsMois = Object.keys(e.totaux || {}).filter(m => nbMois[m] !== undefined || (e.totaux[m] > 0 && m >= e.annee.debut.slice(0, 7) && m <= e.annee.fin.slice(0, 7)))
       .filter(m => (nbMois[m] || 0) !== e.totaux[m]).sort();
     page("Vérifiez le calendrier", "Étape 3 de 4", `
-      <p>Comparez avec votre calendrier. <b>Touchez un jour pour le changer</b> : classe → pédagogique → pédagogique d'école → congé.</p>
-      <div class="as-legende"><span class="as-l"><i class="cl"></i>Classe (jour du cycle)</span><span class="as-l"><i class="ped"></i>Pédagogique</span><span class="as-l"><i class="ped compte"></i>Pédagogique d'école (le cycle avance)</span><span class="as-l"><i class="conge"></i>Congé</span></div>
+      <p>Comparez avec votre calendrier. <b>Touchez un jour pour le changer</b> : classe → pédagogique → pédagogique d'école → congé. Une journée de reprise (congé qui devient jour de classe en cas de fermeture) est un congé : touchez-la une fois de plus pour en faire un jour de classe.</p>
+      <div class="as-legende"><span class="as-l"><i class="cl"></i>Classe (jour du cycle)</span><span class="as-l"><i class="ped"></i>Pédagogique</span><span class="as-l"><i class="ped compte"></i>Pédagogique d'école (le cycle avance)</span><span class="as-l"><i class="conge"></i>Congé</span><span class="as-l"><i class="conge reprise"></i>Reprise possible (tempête)</span></div>
       <div class="heures"><div><label for="as-debut">Premier jour de classe</label><input type="date" id="as-debut" value="${esc(e.annee.debut)}"></div>
         <div><label for="as-fin">Dernier jour</label><input type="date" id="as-fin" value="${esc(e.annee.fin)}"></div></div>
       <p class="note">Vérifiez avec votre calendrier : le <b>premier jour de classe</b> est celui de la rentrée des <b>élèves</b>. Les jours de formation du personnel (pédagogiques) juste avant n'en font pas partie.</p>
