@@ -81,6 +81,9 @@ async function lireFamilles(db){
   const origine = await lire(db);
   if (origine.enfants.length || origine.abonnements.length) out.push({ id: "origine", ...origine });
   // Un même téléphone (même adresse d'abonnement) n'est servi qu'une fois : la bêta gagne sur l'ancienne base.
+  // Les familles qui ont au moins un enfant passent d'abord : un téléphone abonné aussi dans une ancienne famille vide
+  // (essai) est servi par la famille qui a vraiment une fiche. L'ancienne base reste en dernier.
+  out.sort((x, y) => (x.id === "origine") - (y.id === "origine") || (y.enfants.length > 0) - (x.enfants.length > 0));
   const vus = new Set();
   for (const f of out) f.abonnements = f.abonnements.filter(d => {
     const ep = d.data().abonnement && d.data().abonnement.endpoint; if (!ep || vus.has(ep)) return false; vus.add(ep); return true; });
