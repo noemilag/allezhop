@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611040134"></script>
+<script src="../config.js?v=202611040142"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -368,7 +368,9 @@ body,header{background:var(--tint)}
 header .kid{position:relative;padding-right:24px}
 header .kid::after{content:"▾";position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:19px;color:var(--muted)}
 header .kid{order:3;margin-left:auto;border-left:0;padding-left:8px;align-items:flex-end;text-align:right}
-header #btn-search{order:1;margin-left:8px}
+header .brand{position:relative}
+header .brand::after{content:"";position:absolute;right:-12px;top:50%;height:36px;transform:translateY(-50%);border-left:1px solid var(--line)}
+header #btn-search{order:1;margin-left:20px}
 header #btn-month{order:2}
 header .ibtn.rond{width:40px;height:40px}
 /* bouton + : en bas à droite, à portée du pouce */
@@ -854,6 +856,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611040134"></script>
+<script type="module" src="app.js?v=202611040142"></script>
 </body>
 </html>
