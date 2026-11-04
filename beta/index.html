@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611041104"></script>
+<script src="../config.js?v=202611041107"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -800,6 +800,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       <button type="button" class="btn ghost outline" id="fam-inviter">Inviter l'autre parent</button>
       <p class="note" id="fam-lien" hidden></p>
       <button type="button" class="btn ghost outline" id="fam-import-rappels" hidden>Copier mes rappels de l'app principale</button>
+      <button type="button" class="btn ghost outline" id="fam-attribuer" hidden>Mettre mes rappels sur l'enfant affiché</button>
       <div class="notif-row" style="margin-top:6px">
         <button type="button" class="notif-ouvrir" id="c-notifs"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="tx"><b>Notifications</b><small id="c-notif-etat">…</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         <label class="switch" aria-label="Notifications activées"><input type="checkbox" role="switch" id="c-notif-sw"><span></span></label>
@@ -860,6 +861,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611041104"></script>
+<script type="module" src="app.js?v=202611041107"></script>
 </body>
 </html>

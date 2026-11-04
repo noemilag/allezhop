@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611041104";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041104";
+import { demarrerAssistant } from "./assistant.js?v=202611041107";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041107";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611041104";
+const VERSION = "202611041107";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -160,7 +160,8 @@ async function initStore(){
       rappelsAManquants:async ()=>{ try{
         const [r,d]=await Promise.all([F.getDocs(F.collection(db,"rappels")), F.getDocs(famColl("rappels"))]);
         const ici=new Set(d.docs.map(x=>x.id)); return r.docs.filter(x=>!ici.has(x.id)); }catch(e){ return []; } },
-      importerRappels:async ()=>{ const a=await store.rappelsAManquants(); for(const d of a) await F.setDoc(fam("rappels",d.id), d.data()); return a.length; },
+      importerRappels:async ()=>{ const a=await store.rappelsAManquants(); for(const d of a) await F.setDoc(fam("rappels",d.id), {...d.data(), enfant:kidId||null}); return a.length; },
+      attribuerRappels:async (ids,enfant)=>{ for(const id of ids) await F.setDoc(fam("rappels",id), {enfant}, {merge:true}); return ids.length; },
       importerAncienne:async ()=>{
         const [k,r]=await Promise.all([F.getDocs(F.collection(db,"enfants")), F.getDocs(F.collection(db,"rappels"))]);
         for(const d of k.docs) await F.setDoc(fam("enfants",d.id), d.data());
@@ -750,9 +751,19 @@ $("l-creer").addEventListener("click", async ()=>{
 // Profil : copier dans la famille les rappels de l'app principale qui n'y sont pas encore
 async function montrerImportRappels(){
   const b=$("fam-import-rappels"); if(!b||!store||access!=="open") return;
+  const k=kidsAll.find(x=>x.id===kidId), nom=k?k.prenom:"cet enfant";
   const n=(await store.rappelsAManquants()).length; b.hidden=!n; b.disabled=false;
-  if(n) b.textContent="Copier mes "+n+" rappel"+(n>1?"s":"")+" de l'app principale";
+  if(n) b.textContent="Copier mes "+n+" rappel"+(n>1?"s":"")+" de l'app principale pour "+nom;
+  // Rappels copiés sans enfant : ils s'affichent sur le premier enfant de la liste. On propose de les mettre sur l'enfant affiché.
+  const a=$("fam-attribuer"), orph=reminders.filter(r=>r.id && !r.enfant);
+  a.hidden=!(orph.length && k && kidsAll[0] && k.id!==kidsAll[0].id); a.disabled=false;
+  if(!a.hidden) a.textContent="Mettre mes "+orph.length+" rappel"+(orph.length>1?"s":"")+" sur "+nom;
 }
+$("fam-attribuer").addEventListener("click", async ()=>{
+  const b=$("fam-attribuer"), k=kidsAll.find(x=>x.id===kidId); if(!k) return; b.disabled=true;
+  try{ const n=await store.attribuerRappels(reminders.filter(r=>r.id && !r.enfant).map(r=>r.id), k.id); toast(n+" rappel"+(n>1?"s":"")+" mis sur "+k.prenom); b.hidden=true; }
+  catch(e){ console.error(e); toast("Ça n'a pas fonctionné. Réessayez."); b.disabled=false; }
+});
 $("fam-import-rappels").addEventListener("click", async ()=>{
   const b=$("fam-import-rappels"); b.disabled=true; b.textContent="Copie…";
   try{ const n=await store.importerRappels(); toast(n+" rappel"+(n>1?"s":"")+" copié"+(n>1?"s":"")); b.hidden=true; }
