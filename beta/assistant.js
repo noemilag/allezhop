@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611041038";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611041045";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -391,6 +391,13 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       if (entree && cl.length){ let d0 = entree.date; while ([0, 6].includes(parse(d0).getDay())) d0 = addDays(d0, 1);
         const avant = cl.filter(d => d < d0 && d >= addDays(d0, -10)); if (avant.length){ avant.forEach(retirer); cl = cl.filter(d => !avant.includes(d)); } }
       e.annee = { debut: cl[0] || "", fin: cl[cl.length - 1] || "" };
+      // « Fin de l'année scolaire (élèves) » et « Début de l'année » tombent sur le dernier et le premier jour de classe :
+      // si l'IA les a placés sur une journée pédagogique voisine, on les remet sur le bon jour.
+      const proche = (x, d) => d && x.date !== d && Math.abs(parse(x.date) - parse(d)) <= 10 * 864e5;
+      evts.forEach(x => {
+        if (/fin de l.ann[ée]e|derni(er|ère) (jour|journ[ée]e)|fin des classes/i.test(x.titre) && proche(x, e.annee.fin)) x.date = e.annee.fin;
+        else if (/d[ée]but de l.ann[ée]e|rentr[ée]e des [ée]l[èe]ves/i.test(x.titre) && proche(x, e.annee.debut)) x.date = e.annee.debut;
+      });
       // seulement les congés pendant l'année (et la semaine avant la rentrée)
       Object.keys(e.off).forEach(d => { if (!e.annee.debut || d < addDays(e.annee.debut, -10) || d > e.annee.fin) delete e.off[d]; });
       e.evenements = evts.filter(x => x.date >= (e.annee.debut || "0") && x.date <= (e.annee.fin || "9"))
