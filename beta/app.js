@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611041030";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041030";
+import { demarrerAssistant } from "./assistant.js?v=202611041038";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041038";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611041030";
+const VERSION = "202611041038";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -194,11 +194,16 @@ async function initStore(){
               for(let essai=0; essai<2; essai++){
                 try{
                   texte="";
-                  const flux=await m.generateContentStream(parties);
-                  for await (const morceau of flux.stream) texte+=morceau.text();
+                  if(essai===0){
+                    const flux=await m.generateContentStream(parties);
+                    for await (const morceau of flux.stream) texte+=morceau.text();
+                  }else{
+                    // 2e essai : réponse en un seul bloc (sans flux), plus simple quand le flux a été mal reçu
+                    texte=(await m.generateContent(parties)).response.text();
+                  }
                   break;
                 }catch(err){
-                  if(essai===0 && /load failed|network|failed to fetch/i.test(String(err.message||err))) continue;
+                  if(essai===0 && /load failed|network|failed to fetch|parse|stream|fetch/i.test(String(err.message||err))) continue;
                   throw err;
                 }
               }
@@ -208,6 +213,8 @@ async function initStore(){
             }catch(e){
               derniere=e; const msg=String(e.message||e);
               echecs.push(nom+" : "+msg.replace(/\s+/g," ").slice(0,170));
+              // Réponse coupée ou illisible (flux mal reçu, JSON incomplet) : on réessaie, d'abord ce modèle puis les suivants
+              if(e instanceof SyntaxError || /parse-failed|failed to parse|unexpected end|json/i.test(msg)){ surcharge=true; continue; }
               if(/thinking/i.test(msg) && !sansReglage.has(nom)){ sansReglage.add(nom); liste.splice(liste.indexOf(nom)+1, 0, nom); continue; }   // réessaie ce modèle sans le réglage
               // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
               if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
