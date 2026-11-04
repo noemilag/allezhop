@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611041320";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611041424";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -248,7 +248,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     const t0 = Date.now(), minuteur = setInterval(() => { const sec = Math.round((Date.now() - t0) / 1000), span = etat.querySelector(".as-attente"); if (span) span.textContent = ` ${sec} s`; }, 1000);
     try {
       const img = await photoEnBase64(f);
-      etat.innerHTML = `${img.apercu ? `<img src="${img.apercu}" alt="">` : ""}<span><span class="as-spin"></span> ${attente}<span class="as-attente"></span><br><small>Gardez l'écran allumé. Si Google est occupé, l'app réessaie toute seule.</small></span>`;
+      etat.innerHTML = `${img.apercu ? `<img src="${img.apercu}" alt="">` : ""}<span><span class="as-spin"></span> ${attente}<span class="as-attente"></span><br><small>Gardez l'écran allumé. Si l'IA est occupée, l'app réessaie toute seule.</small></span>`;
       const r = Array.isArray(prompt) ? fusionnerCalendrier(await Promise.all(prompt.map(p => lireIA(p, img, options)))) : await lireIA(prompt, img, options);
       quandFini(r);
     } catch (err){
@@ -259,7 +259,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       const surcharge = !delai && /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later/i.test(detail);
       const quota = !surcharge && !delai && /429|quota|resource.?exhausted|rate.?limit/i.test(detail);
       const reseau = !quota && !surcharge && !delai && (err.code === "fetch-error" || /fetch|403|404|PERMISSION|API key|blocked/i.test(detail));
-      etat.innerHTML = `<span class="err">${delai ? "La lecture a pris trop de temps (Google est lent ou la connexion est faible). Ce n'est pas votre photo : réessayez dans une minute." : surcharge ? "Les serveurs de Google sont très sollicités en ce moment (ce n'est pas votre photo). Patientez une minute, puis réessayez." : quota ? "L'IA a atteint sa limite gratuite. Si vous avez déjà fait plusieurs lectures aujourd'hui, la limite du jour est atteinte : elle se renouvelle vers 3 h du matin. Sinon, patientez une minute. Vous pouvez aussi remplir à la main." : reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
+      etat.innerHTML = `<span class="err">${delai ? "La lecture a pris trop de temps (l'IA est lente ou la connexion est faible). Ce n'est pas votre photo : réessayez dans une minute." : surcharge ? "L'IA est très sollicitée en ce moment (ce n'est pas votre photo). Patientez une minute, puis réessayez." : quota ? "L'IA a atteint sa limite gratuite. Si vous avez déjà fait plusieurs lectures aujourd'hui, la limite du jour est atteinte : elle se renouvelle vers 3 h du matin. Sinon, patientez une minute. Vous pouvez aussi remplir à la main." : reseau ? "L'IA n'a pas pu être jointe : ce n'est pas la photo, c'est un réglage à vérifier." : "La lecture n'a pas fonctionné. Réessayez avec une photo plus nette, ou remplissez à la main."}</span>
         <button type="button" class="as-bug" aria-label="Signaler un bug"><svg class="i" viewBox="0 0 24 24"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg> Signaler un bug</button>
         <details class="as-detail"><summary>Détail pour le dépannage</summary><code>${esc((err.code ? err.code + " · " : "") + detail)}${err.tous ? esc("\n\nTous les essais :\n" + String(err.tous).replace(/AIzaSy[\w-]+/g, "…").slice(0, 900)) : ""}</code></details>`;
       const bug = etat.querySelector(".as-bug");
