@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611041115";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041115";
+import { demarrerAssistant } from "./assistant.js?v=202611041121";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041121";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611041115";
+const VERSION = "202611041121";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -161,6 +161,8 @@ async function initStore(){
         const [r,d]=await Promise.all([F.getDocs(F.collection(db,"rappels")), F.getDocs(famColl("rappels"))]);
         const ici=new Set(d.docs.map(x=>x.id)); return r.docs.filter(x=>!ici.has(x.id)); }catch(e){ return []; } },
       importerRappels:async ()=>{ const a=await store.rappelsAManquants(); for(const d of a) await F.setDoc(fam("rappels",d.id), {...d.data(), enfant:kidId||null}); return a.length; },
+      // Signaler un bug : un petit rapport (sans photo) est gardé dans la base, lisible seulement dans la console Firebase
+      signaler:r=>F.addDoc(F.collection(db,"signalements"), {quand:Date.now(), version:VERSION, famille:famId||null, par:userEmail||null, appareil:String(navigator.userAgent||"").slice(0,160), ...r}),
       attribuerRappels:async (ids,enfant)=>{ for(const id of ids) await F.setDoc(fam("rappels",id), {enfant}, {merge:true}); return ids.length; },
       importerAncienne:async ()=>{
         const [k,r]=await Promise.all([F.getDocs(F.collection(db,"enfants")), F.getDocs(F.collection(db,"rappels"))]);
@@ -788,7 +790,7 @@ $("fam-import").addEventListener("click", async ()=>{
 });
 // Assistant : ajouter un enfant (photo de l'horaire et du calendrier, lues par l'IA)
 function lancerAssistant(annulable, ancien){
-  demarrerAssistant({ icone:icon, lireIA:(c,img,o)=>store.lireIA(c,img,o), enfant:ancien||null,
+  demarrerAssistant({ icone:icon, lireIA:(c,img,o)=>store.lireIA(c,img,o), enfant:ancien||null, signaler:r=>store.signaler(r),
     enregistrer: ancien
       ? async d=>{ await store.majKid(ancien.id,d,ancien); current=null; setTimeout(()=>loadWeather(false),600); }
       : d=>store.saveKid(d),

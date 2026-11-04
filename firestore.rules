@@ -47,6 +47,13 @@ service cloud.firestore {
       }
     }
 
+    // Signalements de bugs (bouton « Signaler un bug ») : tout compte connecté peut en envoyer un ;
+    // personne ne peut les relire dans l'app, seulement la propriétaire dans la console Firebase.
+    match /signalements/{id} {
+      allow create: if connecte() && request.resource.data.keys().size() <= 14;
+      allow read, update, delete: if false;
+    }
+
     match /rappels/{id} {
       allow read, delete: if estParent();
       allow create, update: if estParent()
