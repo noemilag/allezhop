@@ -128,6 +128,28 @@ async function main(){
     return (e.activites || []).filter(a => (a.jours || []).includes(w) && (!a.du || jour >= a.du) && (!a.au || jour <= a.au)).sort((a, b) => (a.debut || "").localeCompare(b.debut || "")); };
 
   let envoyesQuelquechose = false;
+
+  // Bugs signalés depuis l'app (bouton « Signaler un bug ») : un message à la propriétaire, une seule fois par signalement.
+  // Ses téléphones : ceux du compte ADMIN_EMAIL (secret GitHub facultatif), sinon ceux de la famille d'origine ou de la plus ancienne.
+  try {
+    const nouveaux = (await db.collection("signalements").get()).docs.filter(d => d.data().notifie !== true).slice(0, 5);
+    if (nouveaux.length) {
+      const admin = (env.ADMIN_EMAIL || "").trim().toLowerCase();
+      const tous = familles.flatMap(f => f.abonnements);
+      let appareils = admin ? tous.filter(d => String(d.data().par || "").toLowerCase() === admin)
+                            : (familles.find(f => f.id === "origine") || familles.find(f => f.abonnements.length) || { abonnements: [] }).abonnements;
+      if (!appareils.length) console.log(`${nouveaux.length} bug(s) signalé(s), mais aucun téléphone à prévenir (activez les notifications dans l'app).`);
+      else for (const doc of nouveaux) {
+        const b = doc.data();
+        const m = { title: "🐞 Bug signalé", body: [b.etape, b.code, String(b.detail || "").replace(/\s+/g, " ").slice(0, 110)].filter(Boolean).join(" · ") || "Ouvrez la console Firebase", tag: "bug-" + doc.id, url: "./" };
+        let ok = false;
+        for (const d of appareils) if (await envoyer(d, m)) ok = true;
+        if (ok && !dry) await doc.ref.set({ notifie: true }, { merge: true });
+        if (ok) envoyesQuelquechose = true;
+      }
+    }
+  } catch (err) { console.log("Signalements : " + (err.message || err)); }
+
   for (const f of familles) {
     const { abonnements, enfants, rappels } = f;
     if (!abonnements.length) continue;
