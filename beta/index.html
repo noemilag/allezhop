@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611032305"></script>
+<script src="../config.js?v=202611040047"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -363,9 +363,9 @@ body,header{background:var(--tint)}
 .kid{cursor:pointer}
 .kid b::after{content:" ▾";font-size:.75em;color:var(--muted)}
 .kid.multi b::after{content:" ▾"}
-/* Pas de menu burger : le nom de l'enfant est à droite (flèche à sa gauche) et ouvre le profil ; loupe et calendrier près du logo */
-.kid b::after,.kid.multi b::after{content:none}
-.kid b::before{content:"▾ ";font-size:.75em;color:var(--muted)}
+/* Pas de menu burger : le nom de l'enfant est à droite (flèche à sa droite) et ouvre le profil ; loupe et calendrier près du logo */
+.kid b::before{content:none}
+.kid b::after,.kid.multi b::after{content:" ▾";font-size:.75em;color:var(--muted)}
 header .kid{order:3;margin-left:auto;border-left:0;padding-left:8px;align-items:flex-end;text-align:right}
 header #btn-search{order:1;margin-left:8px}
 header #btn-month{order:2}
@@ -853,6 +853,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611032305"></script>
+<script type="module" src="app.js?v=202611040047"></script>
 </body>
 </html>
