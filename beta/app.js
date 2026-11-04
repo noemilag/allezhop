@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611041045";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041045";
+import { demarrerAssistant } from "./assistant.js?v=202611041104";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611041104";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611041045";
+const VERSION = "202611041104";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -156,6 +156,11 @@ async function initStore(){
       },
       // Pour la famille d'origine : copie des données de l'app principale (enfants et rappels)
       ancienneFamille:async ()=>{ try{ const s=await F.getDocs(F.collection(db,"enfants")); return s.docs.map(d=>({id:d.id, ...d.data()})); }catch(e){ return null; } },
+      // Rappels de l'app principale pas encore dans la famille (on ne touche ni aux enfants ni aux rappels déjà présents)
+      rappelsAManquants:async ()=>{ try{
+        const [r,d]=await Promise.all([F.getDocs(F.collection(db,"rappels")), F.getDocs(famColl("rappels"))]);
+        const ici=new Set(d.docs.map(x=>x.id)); return r.docs.filter(x=>!ici.has(x.id)); }catch(e){ return []; } },
+      importerRappels:async ()=>{ const a=await store.rappelsAManquants(); for(const d of a) await F.setDoc(fam("rappels",d.id), d.data()); return a.length; },
       importerAncienne:async ()=>{
         const [k,r]=await Promise.all([F.getDocs(F.collection(db,"enfants")), F.getDocs(F.collection(db,"rappels"))]);
         for(const d of k.docs) await F.setDoc(fam("enfants",d.id), d.data());
@@ -405,7 +410,7 @@ $("kid-pick").addEventListener("click", ()=>$("kid-file").click());
 $("kid-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text(), "kid-err"); e.target.value=""; });
 $("kid-paste").addEventListener("click", ()=>enregistrerEnfant($("kid-text").value, "kid-err"));
 // Toucher le prénom en haut : ouvre le profil pour changer d'enfant
-document.querySelector(".kid").addEventListener("click", ()=>{ if(access==="open"){ $("compte").hidden=false; } });
+document.querySelector(".kid").addEventListener("click", ()=>{ if(access==="open"){ $("compte").hidden=false; montrerImportRappels(); } });
 function paintAccount(){
   $("c-off").hidden = mode!=="local";
   $("c-out").hidden = mode!=="signedout";
@@ -416,7 +421,7 @@ function paintAccount(){
   $("banner-wrap").hidden=true;
   const m=$("fam-membres"); if(m) m.textContent = famille && famille.courriels ? "Parents : "+famille.courriels.join(", ") : "";
 }
-$("btn-compte").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; });
+$("btn-compte").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; montrerImportRappels(); });
 $("banner-btn").addEventListener("click", e=>{
   if(e.currentTarget.textContent==="Réessayer"){ location.reload(); return; }
   $("l-err").hidden=true; $("compte").hidden=false;
@@ -741,6 +746,17 @@ $("l-creer").addEventListener("click", async ()=>{
   if(!em || pw.length<6){ err.textContent="Entrez un courriel et un mot de passe d'au moins 6 caractères."; err.hidden=false; return; }
   try{ await store.signUp(em,pw); $("l-pass").value=""; $("compte").hidden=true; toast("Compte créé"); }
   catch(e){ err.textContent=messageAuth(e); err.hidden=false; }
+});
+// Profil : copier dans la famille les rappels de l'app principale qui n'y sont pas encore
+async function montrerImportRappels(){
+  const b=$("fam-import-rappels"); if(!b||!store||access!=="open") return;
+  const n=(await store.rappelsAManquants()).length; b.hidden=!n; b.disabled=false;
+  if(n) b.textContent="Copier mes "+n+" rappel"+(n>1?"s":"")+" de l'app principale";
+}
+$("fam-import-rappels").addEventListener("click", async ()=>{
+  const b=$("fam-import-rappels"); b.disabled=true; b.textContent="Copie…";
+  try{ const n=await store.importerRappels(); toast(n+" rappel"+(n>1?"s":"")+" copié"+(n>1?"s":"")); b.hidden=true; }
+  catch(e){ console.error(e); toast("La copie n'a pas fonctionné. Réessayez."); montrerImportRappels(); }
 });
 // Famille : créer avec le code d'essai, ou importer celle de l'app principale
 async function montrerImport(){ const k=store && await store.ancienneFamille(); const b=$("fam-import"); b.hidden=!(k && k.length); if(k && k.length) b.textContent="Importer ma famille de l'app principale ("+k.map(x=>x.prenom).join(", ")+")"; }
