@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611051050";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611051149";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -227,7 +227,23 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       const err = $("as-err");
       if (!e.prenom){ err.textContent = "Écrivez le prénom de l'enfant."; err.hidden = false; return; }
       if (!e.ville){ err.textContent = "Écrivez la ville, pour la météo."; err.hidden = false; return; }
-      pageHoraire();
+      // On vérifie la ville tout de suite : une ville qui n'existe pas donnerait la météo d'un endroit au hasard.
+      const norm = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const memeVille = maj && enfant && enfant.lat != null && norm(enfant.ville) === norm(e.ville);
+      if (memeVille || (e.lieu && norm(e.lieu.name) === norm(e.ville))){ pageHoraire(); return; }
+      const b = $("as-suivant"); b.disabled = true; b.textContent = "Vérification de la ville…";
+      let res = null;
+      try { res = (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(e.ville)}&count=5&language=fr&countryCode=CA`).then(r => r.json())).results || []; } catch (x){ res = null; }
+      b.disabled = false; b.textContent = "Continuer";
+      if (res === null){ pageHoraire(); return; }   // pas de réseau : la ville sera vérifiée à l'enregistrement
+      const exact = res.find(r => norm(r.name) === norm(e.ville));
+      if (exact){ e.lieu = exact; pageHoraire(); return; }
+      if (!res.length){ err.textContent = `La ville « ${e.ville} » est introuvable. Vérifiez l'orthographe (ex. : Sherbrooke).`; err.hidden = false; return; }
+      // Aucune ville exactement de ce nom : on propose les plus proches
+      const lib = r => [r.name, r.admin1].filter(Boolean).join(", ");
+      err.innerHTML = `Aucune ville nommée « ${esc(e.ville)} ». Vouliez-vous dire :<span class="as-prop">${res.slice(0, 3).map((r, i) => `<button type="button" class="btn ghost outline" data-i="${i}">${esc(lib(r))}</button>`).join("")}</span>`;
+      err.hidden = false;
+      err.querySelectorAll("[data-i]").forEach(bt => bt.onclick = () => { const r = res[+bt.dataset.i]; e.lieu = r; e.ville = r.name; pageHoraire(); });
     };
   }
 
@@ -545,8 +561,8 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
         // position pour la météo (Open-Meteo, sans clé)
         // Mise à jour sans changement de ville : on garde la position déjà connue
         const memeVille = maj && enfant.lat != null && (enfant.ville || "").trim().toLowerCase() === e.ville.trim().toLowerCase();
-        const g = memeVille ? {} : await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(e.ville)}&count=1&language=fr&countryCode=CA`).then(r => r.json()).catch(() => ({}));
-        const lieu = memeVille ? { name: enfant.ville, latitude: enfant.lat, longitude: enfant.lon } : g.results && g.results[0];
+        const g = memeVille || (e.lieu && e.lieu.name === e.ville) ? {} : await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(e.ville)}&count=1&language=fr&countryCode=CA`).then(r => r.json()).catch(() => ({}));
+        const lieu = memeVille ? { name: enfant.ville, latitude: enfant.lat, longitude: enfant.lon } : (e.lieu && e.lieu.name === e.ville ? e.lieu : g.results && g.results[0]);
         if (!lieu) throw new Error(`Ville introuvable : « ${e.ville} ». Vérifiez l'orthographe à l'étape 1.`);
         const fin = e.annee.fin, finEte = addDays(fin, 7);
         const periodes = {}; Object.entries(e.periodes).forEach(([p, h]) => { periodes[p] = heureFr(h); });
