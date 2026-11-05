@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611052329";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052329";
+import { demarrerAssistant } from "./assistant.js?v=202611052334";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052334";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611052329";
+const VERSION = "202611052334";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -990,6 +990,7 @@ function paintMois(){
   // Toujours 6 rangées de semaines : la fenêtre garde la même hauteur d'un mois à l'autre (utile quand on balaie)
   for(let i=Math.ceil((lead+dim)/7); i<6; i++) h+='<button type="button" class="vide" tabindex="-1" aria-hidden="true"><b>0</b><i>&nbsp;</i><span class="pts"></span></button>'.repeat(7);
   $("m-grid").innerHTML=h;
+  { const f=$("mois").querySelector(".sheet"); if(f) f.scrollTop=0; }   // la fenêtre repart toujours du haut : même position du titre d'un mois à l'autre
   liste.sort((x,y)=>x.date.localeCompare(y.date));
   $("m-list").innerHTML = liste.length ? `<div class="grp">Ce mois-ci</div>`+liste.map(ligneHit).join("") : `<div class="vide">Aucun rappel ni événement ce mois-ci.</div>`;
 }
