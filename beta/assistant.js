@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611052255";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611052329";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -217,12 +217,11 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     page(maj ? `Nouvelle année pour ${e.prenom}` : "Votre enfant", "Étape 1 de 4", `
       ${maj ? `<p>Vérifiez les informations. Les <b>rappels</b> et les <b>activités</b> de ${esc(e.prenom)} sont gardés.</p>` : ""}
       <div class="field"><label for="as-prenom">Prénom</label><input type="text" id="as-prenom" maxlength="40" autocomplete="off" value="${esc(e.prenom)}"></div>
-      <div class="field"><label for="as-ecole">École</label><input type="text" id="as-ecole" maxlength="80" value="${esc(e.ecole)}"></div>
       <div class="field"><label for="as-ville">Ville (pour la météo)</label><input type="text" id="as-ville" maxlength="60" placeholder="Ex. : Sherbrooke" value="${esc(e.ville)}"></div>
       <p class="err" id="as-err" hidden></p>`,
       `<button type="button" class="btn primary" id="as-suivant">Continuer</button>`);
     $("as-suivant").onclick = async () => {
-      e.prenom = $("as-prenom").value.trim(); e.ecole = $("as-ecole").value.trim(); e.ville = $("as-ville").value.trim();
+      e.prenom = $("as-prenom").value.trim(); e.ville = $("as-ville").value.trim();
       const err = $("as-err");
       if (!e.prenom){ err.textContent = "Écrivez le prénom de l'enfant."; err.hidden = false; return; }
       if (!e.ville){ err.textContent = "Écrivez la ville, pour la météo."; err.hidden = false; return; }
@@ -396,7 +395,6 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       if (!e.annee.debut) e.annee = { debut: `${y}-08-28`, fin: `${y + 1}-06-22` }; e.off ??= {}; lus = {}; doutes = []; pageVerifCalendrier(); };
     $("as-f-cal").onchange = ev => lirePhoto(ev.target, [promptCalendrier(0), promptCalendrier(1)], r => {
       const ok = d => /^\d{4}-\d{2}-\d{2}$/.test(d || "");
-      if (!e.ecole && r.ecole) e.ecole = r.ecole;
       const noms = {}; (r.noms || []).forEach(x => { if (ok(x.date) && x.nom) noms[x.date] = x.nom; });
       lus = {}; e.off = {}; const classe = [];
       // Format compact { "AAAA-MM": { "jour": valeur } } ou ancien format { "AAAA-MM-JJ": valeur }
@@ -556,7 +554,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     const nbSp = Object.values(e.cycle).reduce((s, l) => s + Object.keys(l).length, 0);
     page(`Tout est prêt pour ${e.prenom}`, "Étape 4 de 4", `
       <ul class="as-resume">
-        <li><b>${esc(e.prenom)}</b>${e.ecole ? ` · ${esc(e.ecole)}` : ""}</li>
+        <li><b>${esc(e.prenom)}</b></li>
         <li>Cycle de <b>${ordreDe(e).length} jours</b> (${esc(ordreDe(e)[0])} à ${esc(ordreDe(e).at(-1))}), ${Object.keys(e.periodes).length} périodes, ${nbSp} cours avec un spécialiste</li>
         <li>Du ${esc(longDate(e.annee.debut))} au ${esc(longDate(e.annee.fin))} : <b>${jours} jours de classe</b></li>
         <li>${congesDe(e).length} congés et journées pédagogiques${e.evenements.length ? `, ${e.evenements.length} événements de l'école` : ""}</li>
@@ -582,7 +580,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
         o.forEach(j => cycle[j] ??= {});
         const evenements = [{ date: e.annee.debut, ic: "bell", titre: "Entrée des élèves" }, ...e.evenements.filter(x => x.date !== e.annee.debut)];
         await enregistrer({
-          prenom: e.prenom, classe: e.classe, ecole: e.ecole, ville: lieu.name || e.ville,
+          prenom: e.prenom, classe: "", ecole: "", ville: lieu.name || e.ville,
           lat: Math.round(lieu.latitude * 1000) / 1000, lon: Math.round(lieu.longitude * 1000) / 1000,
           annee: { debut: e.annee.debut, fin, finEte }, joursCycle: o.length, ...(num ? {} : { ordreCycle: o }), ...(e.debutIdx ? { debutCycle: e.debutIdx } : {}), periodes, cycle, conges: congesDe(e), evenements,
           ...(utiliserLus && Object.keys(lus).length ? { calendrierCycle: lus } : {}),

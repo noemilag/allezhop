@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611052255";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052255";
+import { demarrerAssistant } from "./assistant.js?v=202611052329";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052329";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611052255";
+const VERSION = "202611052329";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -370,7 +370,7 @@ function paintKids(){
   $("kids-count").textContent=pad2(kidsAll.length);
   $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
     <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
-    <span class="tx"><b>${esc(k.prenom||"")}</b><span>${esc(k.ecole||"")}</span></span>
+    <span class="tx"><b>${esc(k.prenom||"")}</b></span>
     ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>
     <button type="button" class="kid-gerer" data-gerer="${esc(k.id)}" aria-label="Gérer ${esc(k.prenom||"")} : nouvelle année, supprimer"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`).join("");
   document.querySelector(".kid").classList.toggle("multi", kidsAll.length>1);
@@ -385,7 +385,7 @@ function gererRemettre(){ gererArme=false; clearTimeout(gererTimer); const b=$("
 function ouvrirGerer(id){
   const k=kidsAll.find(x=>x.id===id); if(!k) return;
   gererId=id; $("g-titre").textContent=k.prenom||"Enfant";
-  $("g-sous").textContent=[k.ecole||"", k.annee&&k.annee.debut?"Année "+k.annee.debut.slice(0,4)+"-"+(k.annee.fin||"").slice(0,4):""].filter(Boolean).join(" · ");
+  $("g-sous").textContent=[k.annee&&k.annee.debut?"Année "+k.annee.debut.slice(0,4)+"-"+(k.annee.fin||"").slice(0,4):""].filter(Boolean).join(" · ");
   $("g-err").hidden=true; gererRemettre(); $("compte").hidden=true; $("gerer").hidden=false;
 }
 function fermerGerer(){ $("gerer").hidden=true; gererRemettre(); }
@@ -524,20 +524,18 @@ function icOf(x){ return ICONS[x] ? x : (EMOJI_IC[x] || "pin"); }
 function icon(n){ return `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[icOf(n)]}</svg>`; }
 
 /* ---------- Météo : affichage ---------- */
-// Nom de l'école, en petit, en haut de la case météo
-function ecoleLigne(){ return ENFANT.ecole ? `<div class="wx-e">${esc(ENFANT.ecole)}</div>` : ""; }
 function weatherHTML(k){
   const w=wx[k];
   if(w){
     const sub=wxSub(w);
-    return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false" aria-label="Météo de 7 h 30 à 18 h">`+ecoleLigne()+
+    return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false" aria-label="Météo de 7 h 30 à 18 h">`+
       `<div class="wx-a">${icon(w.icon)}<span class="wx-t">${deg(w.tmin)}<i>→</i>${deg(w.tmax)}</span><span class="wx-p">${esc(precipShort(w))}</span></div>`+
       (sub?`<div class="wx-sub">${esc(sub)}</div>`:"")+
       `<div class="wx-c">${icon("shirt")}<span>${esc(habits(w))}</span></div></a>`;
   }
   if(infoFor(k).kind!=="ecole" && daysFromToday(k)>1) return "";
   const [e,txt]=SAISON[parse(k).getMonth()];
-  return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false">`+ecoleLigne()+
+  return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false">`+
     `<div class="wx-a">${icon(e)}<span class="wx-p" style="margin-left:0;text-align:left">Habituellement en ${MOIS[parse(k).getMonth()]}</span></div>`+
     `<div class="wx-c">${icon("shirt")}<span>${esc(txt)}</span></div></a>`;
 }
