@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611052249";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052249";
+import { demarrerAssistant } from "./assistant.js?v=202611052255";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052255";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611052249";
+const VERSION = "202611052255";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -362,7 +362,7 @@ function choisirEnfant(id){
   const k=kidsAll.find(x=>x.id===id); if(!k || id===kidId) return;
   try{ localStorage.setItem(LS_KID, id); }catch(e){}
   kidId=id; chargerEnfant(k); current=null;
-  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent=ENFANT.ecole||"";
+  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent="";
   paintKids(); render(); loadWeather(false);
   toast("Horaire de "+ENFANT.prenom);
 }
@@ -524,18 +524,20 @@ function icOf(x){ return ICONS[x] ? x : (EMOJI_IC[x] || "pin"); }
 function icon(n){ return `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[icOf(n)]}</svg>`; }
 
 /* ---------- Météo : affichage ---------- */
+// Nom de l'école, en petit, en haut de la case météo
+function ecoleLigne(){ return ENFANT.ecole ? `<div class="wx-e">${esc(ENFANT.ecole)}</div>` : ""; }
 function weatherHTML(k){
   const w=wx[k];
   if(w){
     const sub=wxSub(w);
-    return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false" aria-label="Météo de 7 h 30 à 18 h">`+
+    return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false" aria-label="Météo de 7 h 30 à 18 h">`+ecoleLigne()+
       `<div class="wx-a">${icon(w.icon)}<span class="wx-t">${deg(w.tmin)}<i>→</i>${deg(w.tmax)}</span><span class="wx-p">${esc(precipShort(w))}</span></div>`+
       (sub?`<div class="wx-sub">${esc(sub)}</div>`:"")+
       `<div class="wx-c">${icon("shirt")}<span>${esc(habits(w))}</span></div></a>`;
   }
   if(infoFor(k).kind!=="ecole" && daysFromToday(k)>1) return "";
   const [e,txt]=SAISON[parse(k).getMonth()];
-  return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false">`+
+  return `<a class="wx" href="${METEO_URL}" target="_blank" rel="noopener" draggable="false">`+ecoleLigne()+
     `<div class="wx-a">${icon(e)}<span class="wx-p" style="margin-left:0;text-align:left">Habituellement en ${MOIS[parse(k).getMonth()]}</span></div>`+
     `<div class="wx-c">${icon("shirt")}<span>${esc(txt)}</span></div></a>`;
 }
@@ -720,7 +722,7 @@ function setAccess(state, msg, alt){
   if(state==="setup"){ msg = "Ajoutons votre enfant : son école, l'horaire de sa classe et le calendrier scolaire. Prévoyez 3 minutes et les deux feuilles à photographier."; alt = "Me déconnecter"; }
   const showKid = state==="open";
   $("kid-name").textContent = showKid ? ENFANT.prenom : "";
-  $("kid-class").textContent = showKid ? (ENFANT.ecole||"") : "";
+  $("kid-class").textContent = "";
   $("gate-msg").textContent = msg || GATE_TXT;
   $("gate-login").hidden = !!alt || state==="setup" || state==="famille";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
@@ -987,6 +989,8 @@ function paintMois(){
     ev.forEach(([ic,tt,n])=>liste.push({date:k, ic, t:tt, n, tag:"École"}));
   }
   CONGES.forEach(c=>{ if(c.du.slice(0,7)===moisVue || c.au.slice(0,7)===moisVue) liste.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
+  // Toujours 6 rangées de semaines : la fenêtre garde la même hauteur d'un mois à l'autre (utile quand on balaie)
+  for(let i=Math.ceil((lead+dim)/7); i<6; i++) h+='<button type="button" class="vide" tabindex="-1" aria-hidden="true"><b>0</b><i>&nbsp;</i><span class="pts"></span></button>'.repeat(7);
   $("m-grid").innerHTML=h;
   liste.sort((x,y)=>x.date.localeCompare(y.date));
   $("m-list").innerHTML = liste.length ? `<div class="grp">Ce mois-ci</div>`+liste.map(ligneHit).join("") : `<div class="vide">Aucun rappel ni événement ce mois-ci.</div>`;

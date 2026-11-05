@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611052249"></script>
+<script src="../config.js?v=202611052255"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -178,6 +178,8 @@ button.line{cursor:pointer;padding-inline:0;margin:0;font:inherit;color:inherit}
 .wx-t i{font-style:normal;color:var(--muted);font-weight:500;font-size:18px;margin:0 6px;vertical-align:3px}
 .wx-p{margin-left:auto;font-size:15px;color:var(--muted);text-align:right;min-width:0}
 .wx-sub{font-size:15px;color:var(--muted);margin:6px 0 0 36px}
+.wx-e{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card.tighter .wx-e,.card.mini .wx-e{display:none}
 .wx-c{display:flex;align-items:center;gap:10px;border-top:1px solid var(--pool-line);margin-top:10px;padding-top:9px;font-size:15px;font-weight:500}
 
 /* carte trop remplie : on resserre */
@@ -367,7 +369,6 @@ body,header{background:var(--tint)}
 header .kid{padding-right:6px;cursor:pointer}
 header .kid span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-width:100%;overflow:hidden;white-space:normal;font-size:12px;line-height:1.2}
 header #btn-compte{order:4;margin-left:2px}
-header #btn-compte svg.i{width:26px;height:34px;stroke-width:2.4}
 header .kid{order:3;margin-left:auto;border-left:0;padding-left:8px;align-items:flex-end;text-align:right}
 header .brand{position:relative}
 header .brand::after{content:"";position:absolute;right:-12px;top:50%;height:36px;transform:translateY(-50%);border-left:1px solid var(--line)}
@@ -534,7 +535,8 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 .as-lecture{flex-wrap:wrap}
 .as-bug{display:inline-flex;align-items:center;gap:8px;margin:8px 0 4px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
 .as-bug svg.i{width:18px;height:18px}
-#mois .sheet{touch-action:pan-y}
+#mois .sheet{touch-action:pan-y;height:92%}
+.mgrid .vide{visibility:hidden;pointer-events:none}
 @keyframes glisseG{from{opacity:.3;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes glisseD{from{opacity:.3;transform:translateX(-28px)}to{opacity:1;transform:none}}
 #m-grid.glisse-g{animation:glisseG .2s ease-out}#m-grid.glisse-d{animation:glisseD .2s ease-out}
@@ -597,7 +599,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
     <div class="kid"><b id="kid-name"></b><span id="kid-class"></span></div>
     <button class="ibtn rond" id="btn-search" aria-label="Rechercher"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
     <button class="ibtn rond" id="btn-month" aria-label="Vue du mois"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg></button>
-        <button class="ibtn profil-btn" id="btn-compte" aria-label="Menu : profil, notifications et compte"><svg class="i" viewBox="0 0 26 34" preserveAspectRatio="xMidYMid meet"><path d="M3 7h20"/><path d="M3 17h20"/><path d="M3 27h20"/></svg><span class="badge" id="compte-badge" hidden></span></button>
+        <button class="ibtn profil-btn" id="btn-compte" aria-label="Menu : profil, notifications et compte"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg><span class="badge" id="compte-badge" hidden></span></button>
     <span class="cache">
     <button class="ibtn" id="btn-info" aria-label="Notifications du matin"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button></span>
   </header>
@@ -871,6 +873,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611052249"></script>
+<script type="module" src="app.js?v=202611052255"></script>
 </body>
 </html>
