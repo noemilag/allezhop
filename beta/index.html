@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop Beta">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="../config.js?v=202611052334"></script>
+<script src="../config.js?v=202611052337"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
@@ -234,6 +234,7 @@ button.line{cursor:pointer;padding-inline:0;margin:0;font:inherit;color:inherit}
 .scrim{position:fixed;inset:0;background:rgba(37,63,82,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--card);color:var(--ink);width:100%;max-width:480px;border-radius:28px 28px 0 0;padding-block:10px calc(env(safe-area-inset-bottom,0px) + 18px);max-height:94%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-sizing:border-box}
 .grab{width:44px;height:5px;border-radius:3px;background:var(--line);align-self:center}
+.sheet>*{flex-shrink:0}   /* sinon, quand le contenu dépasse la fenêtre, la petite barre du haut et les marges s'écrasent */
 .sheet h2{margin:0;font-weight:800;font-size:26px;letter-spacing:-.03em}
 .sheet p{margin:0}
 .field{display:flex;flex-direction:column;gap:8px}
@@ -871,6 +872,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611052334"></script>
+<script type="module" src="app.js?v=202611052337"></script>
 </body>
 </html>
