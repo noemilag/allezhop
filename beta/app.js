@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611052246";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052246";
+import { demarrerAssistant } from "./assistant.js?v=202611052249";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052249";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611052246";
+const VERSION = "202611052249";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -994,6 +994,21 @@ function paintMois(){
 tap($("btn-month"), ()=>{ moisVue=(current||todayKey()).slice(0,7); paintMois(); $("mois").hidden=false; });
 $("m-prev").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,-1); paintMois(); });
 $("m-next").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,1); paintMois(); });
+// Glisser le doigt sur le calendrier du mois : à gauche = mois suivant, à droite = mois précédent
+(function(){
+  const feuille=$("mois").querySelector(".sheet"); if(!feuille) return;
+  let x0=null,y0=null,t0=0;
+  feuille.addEventListener("touchstart", e=>{ if(e.touches.length!==1){ x0=null; return; } x0=e.touches[0].clientX; y0=e.touches[0].clientY; t0=Date.now(); }, {passive:true});
+  feuille.addEventListener("touchend", e=>{
+    if(x0===null) return;
+    const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; x0=null;
+    if(Math.abs(dx)<50 || Math.abs(dx)<Math.abs(dy)*1.5 || Date.now()-t0>800) return;   // trop court, trop vertical ou trop lent
+    const sens=dx<0?1:-1, cible=shiftMonth(moisVue,sens);
+    if(cible<FIRST.slice(0,7) || cible>END.slice(0,7)) return;
+    moisVue=cible; paintMois();
+    const g=$("m-grid"); g.classList.remove("glisse-g","glisse-d"); void g.offsetWidth; g.classList.add(sens>0?"glisse-g":"glisse-d");
+  }, {passive:true});
+})();
 $("m-close").addEventListener("click", ()=>$("mois").hidden=true);
 $("mois").addEventListener("click", e=>{
   if(e.target===$("mois")){ $("mois").hidden=true; return; }
