@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611051153";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611051153";
+import { demarrerAssistant } from "./assistant.js?v=202611052239";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052239";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611051153";
+const VERSION = "202611052239";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -362,7 +362,7 @@ function choisirEnfant(id){
   const k=kidsAll.find(x=>x.id===id); if(!k || id===kidId) return;
   try{ localStorage.setItem(LS_KID, id); }catch(e){}
   kidId=id; chargerEnfant(k); current=null;
-  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent="Classe "+ENFANT.classe;
+  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent=ENFANT.ecole||"";
   paintKids(); render(); loadWeather(false);
   toast("Horaire de "+ENFANT.prenom);
 }
@@ -370,7 +370,7 @@ function paintKids(){
   $("kids-count").textContent=pad2(kidsAll.length);
   $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
     <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
-    <span class="tx"><b>${esc(k.prenom||"")}</b><span>${esc([k.classe?"Classe "+k.classe:"", k.ecole||""].filter(Boolean).join(" · "))}</span></span>
+    <span class="tx"><b>${esc(k.prenom||"")}</b><span>${esc(k.ecole||"")}</span></span>
     ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>
     <button type="button" class="kid-gerer" data-gerer="${esc(k.id)}" aria-label="Gérer ${esc(k.prenom||"")} : nouvelle année, supprimer"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`).join("");
   document.querySelector(".kid").classList.toggle("multi", kidsAll.length>1);
@@ -385,7 +385,7 @@ function gererRemettre(){ gererArme=false; clearTimeout(gererTimer); const b=$("
 function ouvrirGerer(id){
   const k=kidsAll.find(x=>x.id===id); if(!k) return;
   gererId=id; $("g-titre").textContent=k.prenom||"Enfant";
-  $("g-sous").textContent=[k.classe?"Classe "+k.classe:"", k.ecole||"", k.annee&&k.annee.debut?"Année "+k.annee.debut.slice(0,4)+"-"+(k.annee.fin||"").slice(0,4):""].filter(Boolean).join(" · ");
+  $("g-sous").textContent=[k.ecole||"", k.annee&&k.annee.debut?"Année "+k.annee.debut.slice(0,4)+"-"+(k.annee.fin||"").slice(0,4):""].filter(Boolean).join(" · ");
   $("g-err").hidden=true; gererRemettre(); $("compte").hidden=true; $("gerer").hidden=false;
 }
 function fermerGerer(){ $("gerer").hidden=true; gererRemettre(); }
@@ -720,7 +720,7 @@ function setAccess(state, msg, alt){
   if(state==="setup"){ msg = "Ajoutons votre enfant : son école, l'horaire de sa classe et le calendrier scolaire. Prévoyez 3 minutes et les deux feuilles à photographier."; alt = "Me déconnecter"; }
   const showKid = state==="open";
   $("kid-name").textContent = showKid ? ENFANT.prenom : "";
-  $("kid-class").textContent = showKid ? "Classe "+ENFANT.classe : "";
+  $("kid-class").textContent = showKid ? (ENFANT.ecole||"") : "";
   $("gate-msg").textContent = msg || GATE_TXT;
   $("gate-login").hidden = !!alt || state==="setup" || state==="famille";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";

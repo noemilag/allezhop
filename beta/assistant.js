@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611051153";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611052239";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -215,15 +215,14 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
   function pageEnfant(){
     etape = "enfant";
     page(maj ? `Nouvelle année pour ${e.prenom}` : "Votre enfant", "Étape 1 de 4", `
-      ${maj ? `<p>Vérifiez les informations (la classe change souvent d'une année à l'autre). Les <b>rappels</b> et les <b>activités</b> de ${esc(e.prenom)} sont gardés.</p>` : ""}
+      ${maj ? `<p>Vérifiez les informations. Les <b>rappels</b> et les <b>activités</b> de ${esc(e.prenom)} sont gardés.</p>` : ""}
       <div class="field"><label for="as-prenom">Prénom</label><input type="text" id="as-prenom" maxlength="40" autocomplete="off" value="${esc(e.prenom)}"></div>
-      <div class="field"><label for="as-classe">Classe ou groupe</label><input type="text" id="as-classe" maxlength="20" placeholder="Ex. : 101" value="${esc(e.classe)}"></div>
       <div class="field"><label for="as-ecole">École</label><input type="text" id="as-ecole" maxlength="80" value="${esc(e.ecole)}"></div>
       <div class="field"><label for="as-ville">Ville (pour la météo)</label><input type="text" id="as-ville" maxlength="60" placeholder="Ex. : Sherbrooke" value="${esc(e.ville)}"></div>
       <p class="err" id="as-err" hidden></p>`,
       `<button type="button" class="btn primary" id="as-suivant">Continuer</button>`);
     $("as-suivant").onclick = async () => {
-      e.prenom = $("as-prenom").value.trim(); e.classe = $("as-classe").value.trim(); e.ecole = $("as-ecole").value.trim(); e.ville = $("as-ville").value.trim();
+      e.prenom = $("as-prenom").value.trim(); e.ecole = $("as-ecole").value.trim(); e.ville = $("as-ville").value.trim();
       const err = $("as-err");
       if (!e.prenom){ err.textContent = "Écrivez le prénom de l'enfant."; err.hidden = false; return; }
       if (!e.ville){ err.textContent = "Écrivez la ville, pour la météo."; err.hidden = false; return; }
@@ -557,7 +556,7 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
     const nbSp = Object.values(e.cycle).reduce((s, l) => s + Object.keys(l).length, 0);
     page(`Tout est prêt pour ${e.prenom}`, "Étape 4 de 4", `
       <ul class="as-resume">
-        <li><b>${esc(e.prenom)}</b>${e.classe ? `, classe ${esc(e.classe)}` : ""}${e.ecole ? ` · ${esc(e.ecole)}` : ""}</li>
+        <li><b>${esc(e.prenom)}</b>${e.ecole ? ` · ${esc(e.ecole)}` : ""}</li>
         <li>Cycle de <b>${ordreDe(e).length} jours</b> (${esc(ordreDe(e)[0])} à ${esc(ordreDe(e).at(-1))}), ${Object.keys(e.periodes).length} périodes, ${nbSp} cours avec un spécialiste</li>
         <li>Du ${esc(longDate(e.annee.debut))} au ${esc(longDate(e.annee.fin))} : <b>${jours} jours de classe</b></li>
         <li>${congesDe(e).length} congés et journées pédagogiques${e.evenements.length ? `, ${e.evenements.length} événements de l'école` : ""}</li>
