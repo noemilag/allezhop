@@ -138,9 +138,10 @@ async function main(){
   try {
     const nouveaux = (await db.collection("signalements").get()).docs.filter(d => d.data().notifie !== true).slice(0, 5);
     if (nouveaux.length) {
-      const admin = (env.ADMIN_EMAIL || "").trim().toLowerCase();
+      const admins = (env.ADMIN_EMAIL || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean);   // une ou plusieurs adresses, séparées par une virgule
+      const admin = admins.length > 0;
       const tous = familles.flatMap(f => f.abonnements);
-      let appareils = admin ? tous.filter(d => String(d.data().par || "").toLowerCase() === admin)
+      let appareils = admin ? tous.filter(d => admins.includes(String(d.data().par || "").toLowerCase()))
                             : (familles.find(f => f.id === "origine") || familles.find(f => f.abonnements.length) || { abonnements: [] }).abonnements;
       if (!appareils.length) console.log(`${nouveaux.length} bug(s) signalé(s), mais aucun téléphone à prévenir (activez les notifications dans l'app).`);
       else for (const doc of nouveaux) {
