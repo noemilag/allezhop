@@ -12,7 +12,23 @@ const SUBJ = {
   ccq:    {ic:"globe", nom:"Culture et citoyenneté", court:"CCQ", em:"🌎"},
   ordi:   {ic:"laptop", nom:"Ordinateurs", court:"Ordis", em:"💻"},
   mus:    {ic:"music", nom:"Musique", court:"Musique", em:"🎵"},
+  danse:  {ic:"music", nom:"Danse", court:"Danse", em:"💃"},
+  drama:  {ic:"star", nom:"Art dramatique", court:"Théâtre", em:"🎭"},
+  sci:    {ic:"star", nom:"Sciences", court:"Sciences", em:"🔬"},
+  esp:    {ic:"chat", nom:"Espagnol", court:"Espagnol", em:"🗣️"},
 };
+// Essai B : un nom de matière écrit tel quel (lu par l'IA) est reconnu s'il correspond à une matière connue,
+// sinon il est affiché tel quel avec une icône générique.
+const norm = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z]/g,"");
+const SYNONYMES = {educ:["educ","educationphysique","edphys","eps","gym","educationphysiqueetalasante"], biblio:["biblio","bibliotheque"],
+  angl:["angl","anglais","english","anglaislanguesecondes","anglaislanguesecondee"], arts:["arts","artsplastiques","art"], ccq:["ccq","cultureetcitoyennete","cultureetcitoyennetequebecoise","ecr","ethique"],
+  ordi:["ordi","ordis","ordinateurs","informatique","techno"], mus:["mus","musique"], danse:["danse"], drama:["drama","artdramatique","theatre"], sci:["sci","sciences","science"], esp:["esp","espagnol"]};
+function cleMatiere(nom){ const n=norm(nom); for(const [k,l] of Object.entries(SYNONYMES)) if(l.includes(n)) return k; return null; }
+function matiere(s){
+  if(SUBJ[s]) return SUBJ[s];
+  const k=cleMatiere(s); if(k) return SUBJ[k];
+  return {ic:"star", nom:s, court:s.length>10?s.slice(0,9)+".":s, em:"📌"};
+}
 // Habillement typique par mois (0 = janvier), pour les jours sans prévision
 const SAISON = [
   ["🧤","Habit de neige, bottes, tuque, mitaines et cache-cou"],
@@ -56,14 +72,18 @@ function chargerEnfant(d){
   EVENTS = {};
   (d.evenements||[]).forEach(e=>{ (EVENTS[e.date] ??= []).push(e.note ? [e.ic, e.titre, e.note] : [e.ic, e.titre]); });
   OFF = {};
-  (d.conges||[]).forEach(c=>{ for(let x=parse(c.du); key(x)<=(c.au||c.du); x.setDate(x.getDate()+1)) OFF[key(x)] = {type:c.type, label:c.label}; });
-  // Le cycle avance seulement les jours d'école.
-  const n = d.joursCycle || Object.keys(CYCLE).length || 6;
+  (d.conges||[]).forEach(c=>{ for(let x=parse(c.du); key(x)<=(c.au||c.du); x.setDate(x.getDate()+1)) OFF[key(x)] = {type:c.type, label:c.label, compte:!!c.compte}; });
+  // Le cycle avance seulement les jours d'école. Les jours peuvent avoir un nom (ex. « 1A » à « 5B » pour les semaines A et B).
+  const ordre = Array.isArray(d.ordreCycle) && d.ordreCycle.length ? d.ordreCycle.map(String) : null;
+  const n = ordre ? ordre.length : (d.joursCycle || Object.keys(CYCLE).length || 6);
   CYCLE_OF = {};
-  for(let x=parse(FIRST), i=0; key(x)<=LAST; x.setDate(x.getDate()+1)){
+  for(let x=parse(FIRST), i=d.debutCycle||0; key(x)<=LAST; x.setDate(x.getDate()+1)){
     const k=key(x), w=x.getDay();
-    if(w>0 && w<6 && !OFF[k]){ CYCLE_OF[k]=(i%n)+1; i++; }
+    if(w>0 && w<6 && !OFF[k]){ CYCLE_OF[k]=ordre ? ordre[i%n] : (i%n)+1; i++; }
+    else if(w>0 && w<6 && OFF[k].compte) i++;   // ex. pédagogique d'école : pas de classe, mais le cycle avance
   }
+  // Numéros lus sur le calendrier de l'école (ex. reprise après une fermeture) : ils ont priorité.
+  if(d.calendrierCycle) for(const [k,j] of Object.entries(d.calendrierCycle)) if(CYCLE_OF[k]!==undefined && j) CYCLE_OF[k]=isNaN(j)?String(j):+j;
   LAT = d.lat; LON = d.lon;
   METEO_URL = d.meteoUrl || `https://meteo.gc.ca/fr/location/index.html?coords=${LAT},${LON}`;
   WX_URL = "https://api.open-meteo.com/v1/forecast?latitude="+LAT+"&longitude="+LON+
@@ -88,7 +108,7 @@ function infoFor(k){
   if(k>LAST) return {kind:"off", type:"conge", label:"Vacances d'été"};
   return {kind:"off", type:"conge", label:"Pas d'école"};
 }
-function specialsOf(j){ return Object.entries(CYCLE[j]||{}).map(([p,s])=>({p:+p, ...SUBJ[s]})).sort((a,b)=>a.p-b.p); }
+function specialsOf(j){ return Object.entries(CYCLE[j]||{}).map(([p,s])=>({p:+p, ...matiere(s)})).sort((a,b)=>a.p-b.p); }
 function nextSchoolDay(k){ for(let x=addDays(k,1), i=0; i<30; x=addDays(x,1), i++) if(CYCLE_OF[x]) return x; return null; }
 
 /* ---------- Météo : prévisions horaires d'Open-Meteo, résumées de 7 h à 18 h ---------- */
@@ -171,4 +191,4 @@ function wxSub(w){
 }
 
 
-export { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES };
+export { cleMatiere, matiere, CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES };

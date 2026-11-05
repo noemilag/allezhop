@@ -1,9 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052337";
+import { demarrerAssistant } from "./assistant.js?v=202611052352";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611052352";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611052337";
+const VERSION = "202611052352";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -33,7 +34,7 @@ async function mettreAJour(){
   btn.disabled=true; btn.textContent="Mise à jour…";
   // On force le téléphone à retélécharger chaque fichier de l'app (sa mémoire est remplacée).
   const base=new URL("./", location.href).href;
-  const fichiers=["", "index.html", "version.json", "manifest.webmanifest", "app.js?v="+v, "school.js?v="+v, "config.js?v="+v];
+  const fichiers=["", "index.html", "version.json", "manifest.webmanifest", "app.js?v="+v, "school.js?v="+v, "assistant.js?v="+v, "config.js?v="+v];
   await Promise.all(fichiers.map(f=>fetch(base+f, {cache:"reload"}).catch(()=>{})));
   try{ localStorage.setItem(LS_MAJ, JSON.stringify({v, t:Date.now()})); }catch(e){}
   const u=new URL(location.href); u.searchParams.set("v", v);
@@ -72,79 +73,239 @@ const LS="allezhop.rappels", LS_ANCIEN="goleo.rappels";   // ancien nom, encore 
 function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||localStorage.getItem(LS_ANCIEN)||"[]"); }catch(e){ return []; } }
 function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }catch(e){} }
 
+/* ---------- Essai B : chaque famille a ses données (familles/{id}/enfants, rappels, abonnements) ---------- */
+let famId=null, famille=null, verifierAppCheck=null;
+const VFB="12.19.0", BASE_FB="https://www.gstatic.com/firebasejs/"+VFB+"/";
+// App Check (reCAPTCHA v3) : prouve à Google que les demandes à l'IA viennent bien de cette app. Clé de site publique.
+const RECAPTCHA_SITE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
+// Fraud Defense (ex-reCAPTCHA Enterprise) : utilisé en priorité s'il est rempli.
+const RECAPTCHA_ENTERPRISE="6LduzAguAAAAABbQTqDoVg1j2C6jTIVWYwc3o5Sl";
+// App Check actif : la clé ci-dessus doit être la même que celle enregistrée dans Firebase (App Check → Fraud Defense).
+const APP_CHECK_ACTIF=true;
+// Documents denses (calendrier) : d'abord un modèle « pro », plus précis, puis les rapides.
+// (désactivé : trop lent et limité en gratuit ; les modèles rapides lisent bien, et la page de vérification corrige le reste)
+const MODELES_FORTS=[];
+const DELAI_IA=120000;   // 2 minutes au maximum par modèle, puis on passe au suivant
+// Modèles essayés dans l'ordre. Si Google en retire un (erreur 404), il indique souvent son remplaçant : l'app l'essaie alors automatiquement.
+// Les « flash-lite » (limites gratuites plus larges, plus rapides) ne servent qu'en dernier recours, quand les modèles Flash sont à leur limite : l'analyse ne rallonge pas.
+const MODELES=["gemini-3.8-flash","gemini-3.6-flash","gemini-flash-latest","gemini-3.5-flash","gemini-3.5-flash-lite","gemini-3.1-flash-lite"];
 async function initStore(){
   const cfg=window.ALLEZHOP_FIREBASE;
-  if(!cfg || !cfg.apiKey){ mode="local"; reminders=lsLoad(); paintAccount(); setAccess("open"); return; }
   mode="loading"; paintAccount(); setAccess("loading");
   try{
-    const V="10.12.2", base="https://www.gstatic.com/firebasejs/"+V+"/";
-    const [{initializeApp}, A, F] = await Promise.all([import(base+"firebase-app.js"), import(base+"firebase-auth.js"), import(base+"firebase-firestore.js")]);
-    const app=initializeApp(cfg), auth=A.getAuth(app);
+    const [{initializeApp}, A, F] = await Promise.all([import(BASE_FB+"firebase-app.js"), import(BASE_FB+"firebase-auth.js"), import(BASE_FB+"firebase-firestore.js")]);
+    // Nom distinct : la connexion de l'essai reste séparée de celle de l'app principale (même site)
+    const app=initializeApp(cfg, "essai-b"), auth=A.getAuth(app); auth.languageCode="fr";
+    if(APP_CHECK_ACTIF && RECAPTCHA_SITE){
+      try{ const AC=await import(BASE_FB+"firebase-app-check.js"); const ac=AC.initializeAppCheck(app, {provider: RECAPTCHA_ENTERPRISE ? new AC.ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE) : new AC.ReCaptchaV3Provider(RECAPTCHA_SITE), isTokenAutoRefreshEnabled:true});
+        verifierAppCheck=()=>AC.getToken(ac, false); }
+      catch(e){ console.error("App Check", e); }
+    }
     let db;
     try{ db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})}); }
     catch(e){ db=F.getFirestore(app); }
-    const coll=F.collection(db,"rappels"), kids=F.collection(db,"enfants");
-    let unsub=null, unsubK=null;
+    const fam=(...p)=>F.doc(db,"familles",famId,...p), famColl=(...p)=>F.collection(db,"familles",famId,...p);
+    let unsub=null, unsubK=null, unsubF=null, user=null;
+    let modeleIA=null, modeleFort=null; const epuises=new Set(), sansReglage=new Set();
     store={
-      signIn:(e,p)=>A.signInWithEmailAndPassword(auth,e,p),
       google:async ()=>{
         const prov=new A.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
         try{ return await A.signInWithPopup(auth, prov); }
         catch(e){ if(["auth/popup-blocked","auth/operation-not-supported-in-this-environment","auth/cancelled-popup-request"].includes(e.code)) return A.signInWithRedirect(auth, prov); throw e; }
       },
-      reset:e=>{ auth.languageCode="fr"; return A.sendPasswordResetEmail(auth,e); },
+      signIn:(e,p)=>A.signInWithEmailAndPassword(auth,e,p),
+      signUp:(e,p)=>A.createUserWithEmailAndPassword(auth,e,p),
+      reset:e=>A.sendPasswordResetEmail(auth,e),
       signOut:()=>A.signOut(auth),
       save:r=>{
         const body={titre:r.titre, date:r.date, notes:r.notes, ic:r.ic, enfant:r.enfant||kidId||null, maj:Date.now(), par:userEmail};
-        return r.id ? F.setDoc(F.doc(db,"rappels",r.id), body) : F.addDoc(coll, body);
+        return r.id ? F.setDoc(fam("rappels",r.id), body) : F.addDoc(famColl("rappels"), body);
       },
-      del:id=>F.deleteDoc(F.doc(db,"rappels",id)),
-      // Téléphones abonnés aux notifications (un document par téléphone)
-      getSub:async id=>{ const s=await F.getDoc(F.doc(db,"abonnements",id)); return s.exists()?s.data():null; },
-      saveSub:(id,d)=>F.setDoc(F.doc(db,"abonnements",id), {...d, maj:Date.now(), par:userEmail}, {merge:true}),
-      delSub:id=>F.deleteDoc(F.doc(db,"abonnements",id)),
-      saveActs:(id,list)=>F.setDoc(F.doc(db,"enfants",id), {activites:list, maj:Date.now()}, {merge:true}),
-      saveKid:d=>F.addDoc(kids, {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
+      del:id=>F.deleteDoc(fam("rappels",id)),
+      getSub:async id=>{ const s=await F.getDoc(fam("abonnements",id)); return s.exists()?s.data():null; },
+      saveSub:(id,d)=>F.setDoc(fam("abonnements",id), {...d, maj:Date.now(), par:userEmail}, {merge:true}),
+      delSub:id=>F.deleteDoc(fam("abonnements",id)),
+      saveActs:(id,list)=>F.setDoc(fam("enfants",id), {activites:list, maj:Date.now()}, {merge:true}),
+      // Nouvelle année : remplace l'horaire et le calendrier, garde les activités (qui durent « toute l'année » : prolongées) et la date de création
+      majKid:(id,d,ancien)=>{
+        const activites=(ancien.activites||[]).map(a=>(a.duree==="annee" || (!a.duree && (!a.au || a.au===(ancien.annee&&ancien.annee.fin)))) ? {...a, au:d.annee.fin} : a);
+        return F.setDoc(fam("enfants",id), {...d, activites, creeLe:ancien.creeLe||Date.now(), par:ancien.par||userEmail, maj:Date.now()});
+      },
+      // Supprimer un enfant : sa fiche (avec ses activités) et ses rappels
+      supprimerEnfant:async (id,rappelIds)=>{ for(const r of rappelIds) await F.deleteDoc(fam("rappels",r)); await F.deleteDoc(fam("enfants",id)); },
+      saveKid:d=>F.addDoc(famColl("enfants"), {...d, creeLe:Date.now(), par:userEmail}).then(ref=>{ try{ localStorage.setItem(LS_KID, ref.id); }catch(e){} return ref; }),
+      // Créer sa famille (code d'invitation de la période d'essai)
+      creerFamille:async code=>{
+        const ref=F.doc(F.collection(db,"familles"));
+        await F.setDoc(ref, {membres:[user.uid], courriels:[userEmail], creeLe:Date.now(), invitation:code});
+        await F.setDoc(F.doc(db,"profils",user.uid), {famille:ref.id, courriel:userEmail});
+        return ref.id;
+      },
+      // Lien pour inviter l'autre parent
+      inviter:async ()=>{
+        const secret=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,"0")).join("").slice(0,20);
+        await F.setDoc(F.doc(db,"invitations",secret), {famille:famId, creeLe:Date.now(), par:userEmail});
+        return new URL("./?rejoindre="+secret, location.href).href;
+      },
+      rejoindre:async secret=>{
+        const inv=await F.getDoc(F.doc(db,"invitations",secret));
+        if(!inv.exists()) throw new Error("Ce lien d'invitation n'est plus valide.");
+        const fid=inv.data().famille;
+        await F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayUnion(user.uid), courriels:F.arrayUnion(userEmail), parInvitation:secret});
+        await F.setDoc(F.doc(db,"profils",user.uid), {famille:fid, courriel:userEmail});
+        return fid;
+      },
+      // Pour la famille d'origine : copie des données de l'app principale (enfants et rappels)
+      ancienneFamille:async ()=>{ try{ const s=await F.getDocs(F.collection(db,"enfants")); return s.docs.map(d=>({id:d.id, ...d.data()})); }catch(e){ return null; } },
+      // Rappels de l'app principale pas encore dans la famille (on ne touche ni aux enfants ni aux rappels déjà présents)
+      rappelsAManquants:async ()=>{ try{
+        const [r,d]=await Promise.all([F.getDocs(F.collection(db,"rappels")), F.getDocs(famColl("rappels"))]);
+        const ici=new Set(d.docs.map(x=>x.id)); return r.docs.filter(x=>!ici.has(x.id)); }catch(e){ return []; } },
+      importerRappels:async ()=>{ const a=await store.rappelsAManquants(); for(const d of a) await F.setDoc(fam("rappels",d.id), {...d.data(), enfant:kidId||null}); return a.length; },
+      // Signaler un bug : un petit rapport (sans photo) est gardé dans la base, lisible seulement dans la console Firebase
+      signaler:r=>F.addDoc(F.collection(db,"signalements"), {quand:Date.now(), version:VERSION, famille:famId||null, par:userEmail||null, appareil:String(navigator.userAgent||"").slice(0,160), ...r}),
+      attribuerRappels:async (ids,enfant)=>{ for(const id of ids) await F.setDoc(fam("rappels",id), {enfant}, {merge:true}); return ids.length; },
+      importerAncienne:async ()=>{
+        const [k,r]=await Promise.all([F.getDocs(F.collection(db,"enfants")), F.getDocs(F.collection(db,"rappels"))]);
+        for(const d of k.docs) await F.setDoc(fam("enfants",d.id), d.data());
+        for(const d of r.docs) await F.setDoc(fam("rappels",d.id), d.data());
+        return {enfants:k.size, rappels:r.size};
+      },
+      // Lecture d'une photo par Gemini (Firebase AI Logic), réponse en JSON
+      lireIA:async (consigne, img, options={})=>{
+        // Diagnostic : la preuve App Check est-elle obtenue? (sinon Google refuse l'IA)
+        if(APP_CHECK_ACTIF && !verifierAppCheck) throw new Error("App Check n'est pas chargé dans cette version : rechargez la page (version "+VERSION+").");
+        if(verifierAppCheck) try{ await verifierAppCheck(); }
+        catch(e){ throw new Error("App Check ("+(RECAPTCHA_ENTERPRISE?"Fraud Defense":"reCAPTCHA v3")+", version "+VERSION+") : "+(e.code||"")+" "+String(e.message||e).slice(0,300)); }
+        const AI=await import(BASE_FB+"firebase-ai.js");
+        // Jetons App Check à usage unique : nécessaires parce que la protection contre la répétition est « Appliquée » dans Firebase.
+        const ai=AI.getAI(app, {backend:new AI.GoogleAIBackend(), useLimitedUseAppCheckTokens:true});
+        let derniere=null;
+        // Ordre d'essai : le modèle qui a déjà répondu, puis les autres. Toujours la liste complète, pour pouvoir changer de modèle en cas de problème.
+        const base = options.fort ? [modeleFort, ...MODELES_FORTS, modeleIA, ...MODELES] : [modeleIA, ...MODELES];
+        const liste = [...new Set(base.filter(Boolean))];
+        const echecs = [];   // un résumé par essai raté : montré dans « Détail pour le dépannage »
+        const SURCHARGE = /\b(500|502|503|504)\b|overload|high demand|unavailable|try again later|abort|timed? ?out|timeout/i;
+        for(let passe=0; passe<3; passe++){
+          let surcharge=false;
+          for(const nom of liste){
+            if(epuises.has(nom)) continue;   // quota atteint ou modèle introuvable pendant cette séance
+            try{
+              // Réflexion réduite : lire un document demande surtout de la perception, et ça évite des minutes d'attente.
+              // Si un modèle refuse ce réglage, on le réessaie sans.
+              const sansReflexion = sansReglage.has(nom);
+              const reflexion = sansReflexion ? {} : /gemini-2\.5/.test(nom) ? {thinkingConfig:{thinkingBudget:1024}} : {thinkingConfig:{thinkingLevel:(AI.ThinkingLevel&&AI.ThinkingLevel.LOW)||"LOW"}};
+              const m=AI.getGenerativeModel(ai, {model:nom, generationConfig:{responseMimeType:"application/json", temperature:0, ...reflexion}}, {timeout:DELAI_IA});
+              const parties=[consigne, {inlineData:{data:img.data, mimeType:img.mimeType}}];
+              // La réponse arrive par morceaux : la connexion reste vivante, même quand la lecture est longue (calendrier).
+              // Si l'iPhone coupe quand même la connexion, on réessaie une fois.
+              let texte="";
+              for(let essai=0; essai<2; essai++){
+                try{
+                  texte="";
+                  if(essai===0){
+                    const flux=await m.generateContentStream(parties);
+                    for await (const morceau of flux.stream) texte+=morceau.text();
+                  }else{
+                    // 2e essai : réponse en un seul bloc (sans flux), plus simple quand le flux a été mal reçu
+                    texte=(await m.generateContent(parties)).response.text();
+                  }
+                  break;
+                }catch(err){
+                  if(essai===0 && /load failed|network|failed to fetch|parse|stream|fetch/i.test(String(err.message||err))) continue;
+                  throw err;
+                }
+              }
+              if(MODELES_FORTS.includes(nom)) modeleFort=nom; else modeleIA=nom;
+              const t=texte.replace(/^\s*```(json)?|```\s*$/g,"").trim();
+              return JSON.parse(t);
+            }catch(e){
+              derniere=e; const msg=String(e.message||e);
+              echecs.push(nom+" : "+msg.replace(/\s+/g," ").slice(0,170));
+              // Réponse coupée ou illisible (flux mal reçu, JSON incomplet) : on réessaie, d'abord ce modèle puis les suivants
+              if(e instanceof SyntaxError || /parse-failed|failed to parse|unexpected end|json/i.test(msg)){ surcharge=true; continue; }
+              if(/thinking/i.test(msg) && !sansReglage.has(nom)){ sansReglage.add(nom); liste.splice(liste.indexOf(nom)+1, 0, nom); continue; }   // réessaie ce modèle sans le réglage
+              // Quota atteint (les modèles « Pro » sont très limités en gratuit) : on passe au modèle suivant, plus léger.
+              if(/429|quota|resource.?exhausted|rate.?limit/i.test(msg)){ epuises.add(nom); continue; }
+              // Serveurs de Google surchargés : on essaie le modèle suivant, puis on recommence après une courte pause.
+              if(SURCHARGE.test(msg)){ surcharge=true; continue; }
+              if(/not.?found|404|unsupported|not supported|invalid model|is not available|no longer available/i.test(msg)){
+                epuises.add(nom);
+                // « Please update your code to use models/gemini-3.8-flash » : on essaie le modèle proposé par Google
+                const conseil=(/use\s+(?:the\s+)?models\/([a-z0-9.\-]+)/i.exec(msg)||[])[1];
+                if(conseil && !liste.includes(conseil) && !epuises.has(conseil)) liste.splice(liste.indexOf(nom)+1, 0, conseil);
+                continue;
+              }
+              throw e;
+            }
+          }
+          if(!surcharge) break;
+          await new Promise(r=>setTimeout(r, 3000*(passe+1)));
+        }
+        if(!derniere) derniere=new Error("Aucun modèle d'IA n'est disponible pour le moment (tous ont été refusés pendant cette séance). Rechargez la page et réessayez.");
+        derniere.tous=echecs.join("\n");
+        throw derniere;
+      },
     };
-    A.getRedirectResult(auth).catch(()=>{});
-    A.onAuthStateChanged(auth, user=>{
-      if(unsub){ unsub(); unsub=null; }
-      if(unsubK){ unsubK(); unsubK=null; }
-      userEmail=user?user.email:null;
-      mode=user?"shared":"signedout";
-      reminders=[];
-      if(user){
-        setAccess("loading");
-        let haveKid=false, haveRem=false;
-        const ready=()=>{
-          if(!haveKid || !haveRem) return;
-          if(access!=="open"){ setAccess("open"); importLocal(); loadWeather(false); } else render();
-        };
-        const fail=err=>{
-          if(err.code==="permission-denied") setAccess("locked", `Le compte ${userEmail} n'a pas accès à cette famille.`, "Me déconnecter");
-          else setAccess("locked", "L'horaire ne se charge pas. Vérifie ta connexion internet.", "Réessayer");
-        };
-        // Fiche de l'enfant (prénom, classe, calendrier, horaire) : seulement pour les membres de la famille
-        unsubK=F.onSnapshot(kids, snap=>{
-          kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
-          if(!kidsAll.length){ haveKid=false; setAccess("setup"); return; }
-          let want=null; try{ want=localStorage.getItem(LS_KID); }catch(e){}
-          const k=kidsAll.find(x=>x.id===want) || kidsAll.find(x=>x.id===kidId) || kidsAll[0];
-          const changed=k.id!==kidId; kidId=k.id; chargerEnfant(k);
-          paintKids();
-          if(haveKid && changed && access==="open"){ current=null; loadWeather(false); }
-          haveKid=true; ready();
-        }, fail);
-        unsub=F.onSnapshot(coll, snap=>{
-          reminders=snap.docs.map(d=>({id:d.id, ...d.data()}));
-          haveRem=true; ready();
-        }, fail);
-      } else setAccess("locked");
+    const arreter=()=>{ [unsub,unsubK,unsubF].forEach(f=>f&&f()); unsub=unsubK=unsubF=null; };
+    const fail=err=>{
+      if(err.code==="permission-denied") setAccess("locked", `Le compte ${userEmail} n'a pas accès à cette famille.`, "Me déconnecter");
+      else setAccess("locked", "L'horaire ne se charge pas. Vérifiez votre connexion internet.", "Réessayer");
+    };
+    function ouvrirFamille(fid){
+      arreter(); famId=fid; kidsAll=[]; reminders=[];
+      let haveKid=false, haveRem=false;
+      const ready=()=>{
+        if(!haveKid || !haveRem) return;
+        if(access!=="open"){ setAccess("open"); loadWeather(false); } else render();
+      };
+      unsubF=F.onSnapshot(F.doc(db,"familles",fid), s=>{ famille=s.exists()?s.data():null; paintAccount(); }, ()=>{});
+      unsubK=F.onSnapshot(famColl("enfants"), snap=>{
+        kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
+        if(!kidsAll.length){ haveKid=false; setAccess("setup"); return; }
+        let want=null; try{ want=localStorage.getItem(LS_KID); }catch(e){}
+        const k=kidsAll.find(x=>x.id===want) || kidsAll.find(x=>x.id===kidId) || kidsAll[0];
+        const changed=k.id!==kidId; kidId=k.id; chargerEnfant(k);
+        paintKids();
+        if(haveKid && changed && access==="open"){ current=null; loadWeather(false); }
+        haveKid=true; ready();
+      }, fail);
+      unsub=F.onSnapshot(famColl("rappels"), snap=>{ reminders=snap.docs.map(d=>({id:d.id, ...d.data()})); haveRem=true; ready(); }, fail);
+    }
+    A.getRedirectResult(auth).catch(e=>toast(messageAuth(e)));
+    A.onAuthStateChanged(auth, async u=>{
+      arreter(); user=u; famId=null; famille=null;
+      userEmail=u?u.email:null;
+      mode=u?"shared":"signedout";
+      reminders=[]; kidsAll=[];
       paintAccount();
+      if(!u){ setAccess("locked"); return; }
+      setAccess("loading");
+      try{
+        const invite=new URLSearchParams(location.search).get("rejoindre");
+        const p=await F.getDoc(F.doc(db,"profils",u.uid));
+        let fid=p.exists()?p.data().famille:null;
+        if(!fid && invite){ fid=await store.rejoindre(invite); toast("Bienvenue dans la famille!"); }
+        if(invite){ const url=new URL(location.href); url.searchParams.delete("rejoindre"); history.replaceState(null,"",url.pathname+url.search); }
+        if(fid) ouvrirFamille(fid); else setAccess("famille");
+      }catch(e){ console.error(e); setAccess("locked", e.message && !e.code ? e.message : "Le compte ne se charge pas. Réessayez.", "Me déconnecter"); }
     });
+    store.ouvrirFamille=ouvrirFamille;
   }catch(e){
-    setAccess("locked", "L'app ne se charge pas. Vérifie ta connexion internet.", "Réessayer");
+    console.error(e);
+    setAccess("locked", "L'app ne se charge pas. Vérifiez votre connexion internet.", "Réessayer");
   }
+}
+function messageAuth(e){
+  const c=e && e.code || "";
+  if(c==="auth/popup-closed-by-user" || c==="auth/cancelled-popup-request") return "Connexion annulée.";
+  if(c==="auth/email-already-in-use") return "Un compte existe déjà avec ce courriel : utilisez « Me connecter ».";
+  if(c==="auth/weak-password") return "Le mot de passe doit avoir au moins 6 caractères.";
+  if(c==="auth/invalid-email") return "Ce courriel n'est pas valide.";
+  if(c==="auth/invalid-credential" || c==="auth/wrong-password" || c==="auth/user-not-found") return "Courriel ou mot de passe incorrect.";
+  if(c==="auth/unauthorized-domain") return "Ce site n'est pas autorisé dans Firebase (Authentication → Paramètres → Domaines autorisés).";
+  if(c==="auth/operation-not-allowed") return "Cette méthode de connexion n'est pas activée dans Firebase.";
+  return "La connexion n'a pas fonctionné"+(c?" ("+c+")":"")+".";
 }
 // Première connexion sur un téléphone : les rappels gardés sur ce téléphone deviennent partagés.
 // Ils restent aussi dans la mémoire du téléphone, en copie de sécurité.
@@ -201,25 +362,59 @@ function choisirEnfant(id){
   const k=kidsAll.find(x=>x.id===id); if(!k || id===kidId) return;
   try{ localStorage.setItem(LS_KID, id); }catch(e){}
   kidId=id; chargerEnfant(k); current=null;
-  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent="Classe "+ENFANT.classe;
+  $("kid-name").textContent=ENFANT.prenom; $("kid-class").textContent="";
   paintKids(); render(); loadWeather(false);
   toast("Horaire de "+ENFANT.prenom);
 }
 function paintKids(){
   $("kids-count").textContent=pad2(kidsAll.length);
-  $("kids-list").innerHTML=kidsAll.map(k=>`<button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
+  $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
     <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
-    <span class="tx"><b>${esc(k.prenom||"")}</b><span>${esc([k.classe?"Classe "+k.classe:"", k.ecole||""].filter(Boolean).join(" · "))}</span></span>
-    ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>`).join("");
+    <span class="tx"><b>${esc(k.prenom||"")}</b></span>
+    ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>
+    <button type="button" class="kid-gerer" data-gerer="${esc(k.id)}" aria-label="Gérer ${esc(k.prenom||"")} : nouvelle année, supprimer"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`).join("");
   document.querySelector(".kid").classList.toggle("multi", kidsAll.length>1);
 }
-$("kids-list").addEventListener("click", e=>{ const b=e.target.closest("[data-kid]"); if(b){ choisirEnfant(b.dataset.kid); $("compte").hidden=true; } });
-$("kid-add").addEventListener("click", ()=>{ $("kid-add-panel").hidden=!$("kid-add-panel").hidden; $("kid-err").hidden=true; });
+$("kids-list").addEventListener("click", e=>{
+  const g=e.target.closest("[data-gerer]"); if(g){ ouvrirGerer(g.dataset.gerer); return; }
+  const b=e.target.closest("[data-kid]"); if(b){ choisirEnfant(b.dataset.kid); $("compte").hidden=true; }
+});
+/* ---------- Gérer un enfant : mettre à jour l'horaire (nouvelle année) ou supprimer ---------- */
+let gererId=null, gererArme=false, gererTimer=null;
+function gererRemettre(){ gererArme=false; clearTimeout(gererTimer); const b=$("g-sup"); b.classList.remove("armed"); const k=kidsAll.find(x=>x.id===gererId); b.textContent="Supprimer "+(k?k.prenom:"cet enfant"); }
+function ouvrirGerer(id){
+  const k=kidsAll.find(x=>x.id===id); if(!k) return;
+  gererId=id; $("g-titre").textContent=k.prenom||"Enfant";
+  $("g-sous").textContent=[k.annee&&k.annee.debut?"Année "+k.annee.debut.slice(0,4)+"-"+(k.annee.fin||"").slice(0,4):""].filter(Boolean).join(" · ");
+  $("g-err").hidden=true; gererRemettre(); $("compte").hidden=true; $("gerer").hidden=false;
+}
+function fermerGerer(){ $("gerer").hidden=true; gererRemettre(); }
+$("g-x").addEventListener("click", fermerGerer);
+$("gerer").addEventListener("click", e=>{ if(e.target===$("gerer")) fermerGerer(); });
+$("g-maj").addEventListener("click", ()=>{ const k=kidsAll.find(x=>x.id===gererId); if(!k) return; fermerGerer(); lancerAssistant(true, k); });
+$("g-sup").addEventListener("click", async ()=>{
+  const k=kidsAll.find(x=>x.id===gererId); if(!k) return;
+  if(!gererArme){
+    gererArme=true; $("g-sup").classList.add("armed"); $("g-sup").textContent="Confirmer : supprimer "+k.prenom+" pour toujours";
+    clearTimeout(gererTimer); gererTimer=setTimeout(gererRemettre, 7000); return;
+  }
+  const premier=kidsAll[0] && kidsAll[0].id===k.id;
+  const ids=reminders.filter(r=> r.enfant===k.id || (!r.enfant && premier)).map(r=>r.id);
+  $("g-sup").disabled=true;
+  try{
+    await store.supprimerEnfant(k.id, ids);
+    try{ if(localStorage.getItem(LS_KID)===k.id) localStorage.removeItem(LS_KID); }catch(err){}
+    fermerGerer(); toast(k.prenom+" a été supprimé");
+  }catch(err){
+    console.error(err); $("g-err").textContent="La suppression n'a pas fonctionné. Réessayez."; $("g-err").hidden=false; gererRemettre();
+  }finally{ $("g-sup").disabled=false; }
+});
+$("kid-add").addEventListener("click", ()=>{ $("compte").hidden=true; lancerAssistant(true); });
 $("kid-pick").addEventListener("click", ()=>$("kid-file").click());
 $("kid-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text(), "kid-err"); e.target.value=""; });
 $("kid-paste").addEventListener("click", ()=>enregistrerEnfant($("kid-text").value, "kid-err"));
 // Toucher le prénom en haut : ouvre le profil pour changer d'enfant
-document.querySelector(".kid").addEventListener("click", ()=>{ if(access==="open"){ $("compte").hidden=false; } });
+document.querySelector(".kid").addEventListener("click", ()=>{ if(access==="open"){ $("compte").hidden=false; montrerImportRappels(); } });
 function paintAccount(){
   $("c-off").hidden = mode!=="local";
   $("c-out").hidden = mode!=="signedout";
@@ -228,8 +423,9 @@ function paintAccount(){
   $("c-title").textContent = mode==="shared" ? "Profil" : "Connexion";
   $("compte-badge").hidden = mode!=="signedout";
   $("banner-wrap").hidden=true;
+  const m=$("fam-membres"); if(m) m.textContent = famille && famille.courriels ? "Parents : "+famille.courriels.join(", ") : "";
 }
-$("btn-compte").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; });
+$("btn-compte").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; montrerImportRappels(); });
 $("banner-btn").addEventListener("click", e=>{
   if(e.currentTarget.textContent==="Réessayer"){ location.reload(); return; }
   $("l-err").hidden=true; $("compte").hidden=false;
@@ -299,6 +495,9 @@ const ICONS={
   music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   backpack:'<path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 10h8"/><path d="M8 18h8"/><path d="M8 22v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>',
   bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  photo:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  bulletin:'<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  communication:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>',
   camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   mail:'<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
   flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
@@ -317,7 +516,7 @@ const ICONS={
 };
 // Anciennes valeurs (émojis) -> icônes : événements, rappels déjà enregistrés, météo en cache
 const EMOJI_IC={"📌":"pin","🎉":"party","🚌":"bus","👕":"shirt","💰":"money","🍎":"apple","🎨":"palette","⚽":"ball","📝":"pencil","🎂":"cake","🏊":"waves","🎭":"ticket",
-  "🔔":"bell","📸":"camera","✉️":"mail","🏁":"flag","📄":"file","⚠️":"alert",
+  "🔔":"bell","📸":"photo","✉️":"communication","🏁":"flag","📄":"bulletin","⚠️":"alert",
   "☀️":"sun","🌤️":"cloudSun","☁️":"cloud","🌫️":"fog","🌧️":"rain","🌨️":"snow","⛈️":"storm","🧊":"hail",
   "🧤":"snow","🥾":"snow","🧥":"cloudSun","🧢":"sun","🧣":"cloud"};
 const PICK=["pin","party","bus","shirt","money","apple","palette","ball","pencil","cake","waves","ticket"];
@@ -512,17 +711,18 @@ function setAccess(state, msg, alt){
   access=state;
   if(state==="open") setTimeout(surprise, 700);
   const h=document.documentElement;
-  h.classList.remove("st-loading","st-locked","st-open","st-setup"); h.classList.add("st-"+(state==="setup"?"locked":state));
-  h.classList.toggle("st-setup", state==="setup");
-  $("gate-title").innerHTML = state==="setup" ? "Presque prêt!" : GATE_TITLE;
-  $("setup").hidden = state!=="setup";
-  if(state==="setup"){ msg = "Il reste à ajouter l'horaire de votre enfant. Choisissez le fichier de données qu'on vous a remis."; alt = "Me déconnecter"; }
+  h.classList.remove("st-loading","st-locked","st-open","st-setup","st-famille"); h.classList.add("st-"+(state==="setup"||state==="famille"?"locked":state));
+  h.classList.toggle("st-setup", state==="setup"); h.classList.toggle("st-famille", state==="famille");
+  $("gate-title").innerHTML = state==="setup" ? "Presque prêt!" : state==="famille" ? "Bienvenue!" : GATE_TITLE;
+  $("setup").hidden = true;
+  $("fam-box").hidden = state!=="famille"; $("as-box").hidden = state!=="setup";
+  if(state==="famille"){ msg = "Créez votre famille avec le code d'invitation reçu. Vous pourrez ensuite inviter l'autre parent."; alt = "Me déconnecter"; montrerImport(); }
+  if(state==="setup"){ msg = "Ajoutons votre enfant : son école, l'horaire de sa classe et le calendrier scolaire. Prévoyez 3 minutes et les deux feuilles à photographier."; alt = "Me déconnecter"; }
   const showKid = state==="open";
   $("kid-name").textContent = showKid ? ENFANT.prenom : "";
-  $("kid-class").textContent = showKid ? "Classe "+ENFANT.classe : "";
+  $("kid-class").textContent = "";
   $("gate-msg").textContent = msg || GATE_TXT;
-  $("gate-login").hidden = !!alt || state==="setup";
-  $("gate-google").hidden = $("gate-login").hidden;
+  $("gate-login").hidden = !!alt || state==="setup" || state==="famille";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
   if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; $("recherche").hidden=true; $("mois").hidden=true; }
   else render();
@@ -539,14 +739,76 @@ $("setup-pick").addEventListener("click", ()=>$("setup-file").click());
 $("setup-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text()); e.target.value=""; });
 $("setup-paste").addEventListener("click", ()=>enregistrerEnfant($("setup-text").value));
 $("gate-login").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; });
-// Connexion avec Google (le compte Google doit être celui d'un des deux parents)
 async function avecGoogle(){
-  if(!store || !store.google) return;
   try{ await store.google(); $("compte").hidden=true; }
-  catch(e){ if(e.code!=="auth/popup-closed-by-user") toast(authMessage(e)); }
+  catch(e){ toast(messageAuth(e)); }
 }
 $("gate-google").addEventListener("click", avecGoogle);
 $("l-google").addEventListener("click", avecGoogle);
+$("l-creer").addEventListener("click", async ()=>{
+  const em=$("l-email").value.trim().toLowerCase(), pw=$("l-pass").value, err=$("l-err");
+  if(!em || pw.length<6){ err.textContent="Entrez un courriel et un mot de passe d'au moins 6 caractères."; err.hidden=false; return; }
+  try{ await store.signUp(em,pw); $("l-pass").value=""; $("compte").hidden=true; toast("Compte créé"); }
+  catch(e){ err.textContent=messageAuth(e); err.hidden=false; }
+});
+// Profil : copier dans la famille les rappels de l'app principale qui n'y sont pas encore
+async function montrerImportRappels(){
+  const b=$("fam-import-rappels"); if(!b||!store||access!=="open") return;
+  const k=kidsAll.find(x=>x.id===kidId), nom=k?k.prenom:"cet enfant";
+  const n=(await store.rappelsAManquants()).length; b.hidden=!n; b.disabled=false;
+  if(n) b.textContent="Copier mes "+n+" rappel"+(n>1?"s":"")+" de l'app principale pour "+nom;
+  // Rappels copiés sans enfant : ils s'affichent sur le premier enfant de la liste. On propose de les mettre sur l'enfant affiché.
+  const a=$("fam-attribuer"), orph=reminders.filter(r=>r.id && !r.enfant);
+  a.hidden=!(orph.length && k && kidsAll[0] && k.id!==kidsAll[0].id); a.disabled=false;
+  if(!a.hidden) a.textContent="Mettre mes "+orph.length+" rappel"+(orph.length>1?"s":"")+" sur "+nom;
+}
+$("fam-attribuer").addEventListener("click", async ()=>{
+  const b=$("fam-attribuer"), k=kidsAll.find(x=>x.id===kidId); if(!k) return; b.disabled=true;
+  try{ const n=await store.attribuerRappels(reminders.filter(r=>r.id && !r.enfant).map(r=>r.id), k.id); toast(n+" rappel"+(n>1?"s":"")+" mis sur "+k.prenom); b.hidden=true; }
+  catch(e){ console.error(e); toast("Ça n'a pas fonctionné. Réessayez."); b.disabled=false; }
+});
+$("fam-import-rappels").addEventListener("click", async ()=>{
+  const b=$("fam-import-rappels"); b.disabled=true; b.textContent="Copie…";
+  try{ const n=await store.importerRappels(); toast(n+" rappel"+(n>1?"s":"")+" copié"+(n>1?"s":"")); b.hidden=true; }
+  catch(e){ console.error(e); toast("La copie n'a pas fonctionné. Réessayez."); montrerImportRappels(); }
+});
+// Famille : créer avec le code d'essai, ou importer celle de l'app principale
+async function montrerImport(){ const k=store && await store.ancienneFamille(); const b=$("fam-import"); b.hidden=!(k && k.length); if(k && k.length) b.textContent="Importer ma famille de l'app principale ("+k.map(x=>x.prenom).join(", ")+")"; }
+$("fam-creer").addEventListener("click", async ()=>{
+  const code=$("fam-code").value.trim().toUpperCase(), err=$("fam-err"); err.hidden=true;
+  if(!code){ err.textContent="Entrez le code d'invitation."; err.hidden=false; return; }
+  try{ const fid=await store.creerFamille(code); store.ouvrirFamille(fid); }
+  catch(e){ err.textContent = e.code==="permission-denied" ? "Ce code d'invitation n'est pas valide." : "La famille n'a pas pu être créée. Réessayez."; err.hidden=false; }
+});
+$("fam-import").addEventListener("click", async ()=>{
+  const err=$("fam-err"), b=$("fam-import"); err.hidden=true; b.disabled=true; b.textContent="Importation…";
+  try{
+    const fid=await store.creerFamille($("fam-code").value.trim().toUpperCase() || "FAMILLE-ORIGINE");
+    store.ouvrirFamille(fid);
+    const n=await store.importerAncienne();
+    toast(`Importé : ${n.enfants} enfant(s) et ${n.rappels} rappels`);
+  }catch(e){ console.error(e); err.textContent = e.code==="permission-denied" ? "Entrez d'abord le code d'invitation, puis réessayez." : "L'importation n'a pas fonctionné. Réessayez."; err.hidden=false; b.disabled=false; montrerImport(); }
+});
+// Assistant : ajouter un enfant (photo de l'horaire et du calendrier, lues par l'IA)
+function lancerAssistant(annulable, ancien){
+  demarrerAssistant({ icone:icon, lireIA:(c,img,o)=>store.lireIA(c,img,o), enfant:ancien||null, signaler:r=>store.signaler(r),
+    enregistrer: ancien
+      ? async d=>{ await store.majKid(ancien.id,d,ancien); current=null; setTimeout(()=>loadWeather(false),600); }
+      : d=>store.saveKid(d),
+    toast, annuler: annulable ? ()=>{} : null });
+}
+$("as-go").addEventListener("click", ()=>lancerAssistant(true));
+// Inviter l'autre parent : un lien à envoyer par texto ou courriel
+$("fam-inviter").addEventListener("click", async ()=>{
+  const b=$("fam-inviter"), out=$("fam-lien"); b.disabled=true;
+  try{
+    const lien=await store.inviter();
+    if(navigator.share){ try{ await navigator.share({title:"Allez Hop", text:"Rejoins notre famille dans Allez Hop :", url:lien}); }catch(e){} }
+    else { try{ await navigator.clipboard.writeText(lien); toast("Lien copié"); }catch(e){} }
+    out.innerHTML="Lien d'invitation à envoyer à l'autre parent :<br><a href=\""+esc(lien)+"\">"+esc(lien)+"</a>"; out.hidden=false;
+  }catch(e){ toast("Le lien n'a pas pu être créé. Réessayez."); }
+  finally{ b.disabled=false; }
+});
 $("gate-alt").addEventListener("click", async e=>{
   if(e.currentTarget.textContent==="Me déconnecter" && store){ await store.signOut(); return; }
   location.reload();
@@ -725,13 +987,31 @@ function paintMois(){
     ev.forEach(([ic,tt,n])=>liste.push({date:k, ic, t:tt, n, tag:"École"}));
   }
   CONGES.forEach(c=>{ if(c.du.slice(0,7)===moisVue || c.au.slice(0,7)===moisVue) liste.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
+  // Toujours 6 rangées de semaines : la fenêtre garde la même hauteur d'un mois à l'autre (utile quand on balaie)
+  for(let i=Math.ceil((lead+dim)/7); i<6; i++) h+='<button type="button" class="vide" tabindex="-1" aria-hidden="true"><b>0</b><i>&nbsp;</i><span class="pts"></span></button>'.repeat(7);
   $("m-grid").innerHTML=h;
+  { const f=$("mois").querySelector(".sheet"); if(f) f.scrollTop=0; }   // la fenêtre repart toujours du haut : même position du titre d'un mois à l'autre
   liste.sort((x,y)=>x.date.localeCompare(y.date));
   $("m-list").innerHTML = liste.length ? `<div class="grp">Ce mois-ci</div>`+liste.map(ligneHit).join("") : `<div class="vide">Aucun rappel ni événement ce mois-ci.</div>`;
 }
 tap($("btn-month"), ()=>{ moisVue=(current||todayKey()).slice(0,7); paintMois(); $("mois").hidden=false; });
 $("m-prev").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,-1); paintMois(); });
 $("m-next").addEventListener("click", ()=>{ moisVue=shiftMonth(moisVue,1); paintMois(); });
+// Glisser le doigt sur le calendrier du mois : à gauche = mois suivant, à droite = mois précédent
+(function(){
+  const feuille=$("mois").querySelector(".sheet"); if(!feuille) return;
+  let x0=null,y0=null,t0=0;
+  feuille.addEventListener("touchstart", e=>{ if(e.touches.length!==1){ x0=null; return; } x0=e.touches[0].clientX; y0=e.touches[0].clientY; t0=Date.now(); }, {passive:true});
+  feuille.addEventListener("touchend", e=>{
+    if(x0===null) return;
+    const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; x0=null;
+    if(Math.abs(dx)<50 || Math.abs(dx)<Math.abs(dy)*1.5 || Date.now()-t0>800) return;   // trop court, trop vertical ou trop lent
+    const sens=dx<0?1:-1, cible=shiftMonth(moisVue,sens);
+    if(cible<FIRST.slice(0,7) || cible>END.slice(0,7)) return;
+    moisVue=cible; paintMois();
+    const g=$("m-grid"); g.classList.remove("glisse-g","glisse-d"); void g.offsetWidth; g.classList.add(sens>0?"glisse-g":"glisse-d");
+  }, {passive:true});
+})();
 $("m-close").addEventListener("click", ()=>$("mois").hidden=true);
 $("mois").addEventListener("click", e=>{
   if(e.target===$("mois")){ $("mois").hidden=true; return; }
@@ -1127,6 +1407,7 @@ function buildICS(){
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
   const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Allez Hop//FR","CALSCALE:GREGORIAN","X-WR-CALNAME:Allez Hop · "+ENFANT.prenom];
   const start=todayKey()>FIRST?todayKey():FIRST;
+  const uid=String(kidId||"enfant").replace(/[^A-Za-z0-9]/g,"");   // un calendrier par enfant : les identifiants ne se mélangent pas
   for(let k=start; k<=LAST; k=addDays(k,1)){
     const inf=infoFor(k); if(inf.kind!=="ecole") continue;
     const ymd=k.replace(/-/g,""), sp=specialsOf(inf.jour), rem=remindersOn(k);
@@ -1136,13 +1417,26 @@ function buildICS(){
     sp.filter(s=>s.apporter).forEach(s=>desc.push("À apporter : "+s.apporter));
     (EVENTS[k]||[]).forEach(e=>desc.push(e[0]+" "+e[1]));
     rem.forEach(r=>desc.push("📌 "+r.titre+(r.notes?" : "+r.notes:"")));
-    L.push("BEGIN:VEVENT","UID:allezhop-"+ymd+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T070000","DTEND:"+ymd+"T071000",
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-"+ymd+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T070000","DTEND:"+ymd+"T071000",
       fold("SUMMARY:"+icsEsc(sum)),fold("DESCRIPTION:"+icsEsc(desc.join("\n"))),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(sum)),"TRIGGER:PT0M","END:VALARM","END:VEVENT");
   }
+  // Activités de la semaine (karaté, soccer…) : un événement qui se répète chaque semaine jusqu'à sa fin
+  const JC=["SU","MO","TU","WE","TH","FR","SA"], hm=h=>(h||"").replace(":","").padEnd(4,"0")+"00";
+  activites().forEach(a=>{
+    if(!a.debut || !(a.jours||[]).length) return;
+    const fin=a.au||LAST; let d=(a.du && a.du>todayKey()) ? a.du : todayKey();
+    for(let i=0;i<7 && !(a.jours.includes(parse(d).getDay()));i++) d=addDays(d,1);
+    if(d>fin) return;
+    const ymd=d.replace(/-/g,""), [hh,mm]=a.debut.split(":").map(Number), fh=a.fin?a.fin:String(Math.min(hh+1,23)).padStart(2,"0")+":"+String(mm).padStart(2,"0");
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-act-"+String(a.id).replace(/[^A-Za-z0-9]/g,"")+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T"+hm(a.debut),"DTEND:"+ymd+"T"+hm(fh),
+      "RRULE:FREQ=WEEKLY;BYDAY="+[...a.jours].sort().map(j=>JC[j]).join(",")+";UNTIL="+fin.replace(/-/g,"")+"T235959",
+      fold("SUMMARY:"+icsEsc("⭐ "+ENFANT.prenom+" : "+a.titre)),fold("DESCRIPTION:"+icsEsc(a.apporter?"À apporter : "+a.apporter:"")),
+      "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(a.titre+" dans 1 h")),"TRIGGER:-PT1H","END:VALARM","END:VEVENT");
+  });
   mine().filter(r=>r.date>=todayKey()).forEach(r=>{
     const ymd=r.date.replace(/-/g,""), nxt=addDays(r.date,1).replace(/-/g,"");
-    L.push("BEGIN:VEVENT","UID:allezhop-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt,
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt,
       fold("SUMMARY:"+icsEsc("📌 "+ENFANT.prenom+" : "+r.titre)),fold("DESCRIPTION:"+icsEsc(r.notes||"")),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc("Demain : "+r.titre)),"TRIGGER:-PT5H","END:VALARM","END:VEVENT");
   });

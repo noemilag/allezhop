@@ -16,7 +16,7 @@ import webpush from "web-push";
 import { pathToFileURL } from "node:url";
 import {
   chargerEnfant, ENFANT, LAST, EVENTS, addDays, parse, infoFor, specialsOf,
-} from "../beta/school.js";   // version complète (cycles A/B, pédagogiques d'école, matières libres) ; compatible avec l'ancienne fiche
+} from "../school.js";   // version complète (cycles A/B, pédagogiques d'école, matières libres) ; compatible avec l'ancienne fiche
 
 const TZ = "America/Toronto";
 const env = process.env;
