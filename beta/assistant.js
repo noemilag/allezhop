@@ -1,7 +1,7 @@
 /* Allez Hop, essai B : assistant d'accueil d'une famille.
    Étapes : l'enfant → photo de l'horaire → photo du calendrier scolaire → vérification → enregistrement.
    L'IA (Gemini, par Firebase AI Logic) lit les photos ; tout se vérifie et se corrige avant d'enregistrer. */
-import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611051149";
+import { SUBJ, cleMatiere, matiere } from "./school.js?v=202611051153";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -238,6 +238,18 @@ export function demarrerAssistant({ icone, lireIA, enregistrer, toast, annuler, 
       if (res === null){ pageHoraire(); return; }   // pas de réseau : la ville sera vérifiée à l'enregistrement
       const exact = res.find(r => norm(r.name) === norm(e.ville));
       if (exact){ e.lieu = exact; pageHoraire(); return; }
+      // Aucune réponse (faute de frappe, ex. « Monréal ») : on cherche les villes qui commencent pareil et on garde les plus ressemblantes
+      if (!res.length){
+        const base = norm(e.ville), debuts = [...new Set([base.slice(0, 3), base.slice(0, 4)].filter(d => d.length >= 3))];
+        const dist = (a, b) => { const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]); for (let j = 1; j <= n; j++) d[0][j] = j;
+          for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[m][n]; };
+        const vus = new Map();
+        for (const d of debuts){
+          try { ((await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(d)}&count=60&language=fr&countryCode=CA`).then(r => r.json())).results || []).forEach(r => vus.set(r.id || r.name + r.admin1, r)); } catch (x){}
+        }
+        res = [...vus.values()].map(r => ({ r, d: dist(base, norm(r.name)) })).filter(x => x.d <= 3 && x.d <= Math.ceil(base.length / 3))
+          .sort((x, y) => x.d - y.d || (y.r.population || 0) - (x.r.population || 0)).map(x => x.r);
+      }
       if (!res.length){ err.textContent = `La ville « ${e.ville} » est introuvable. Vérifiez l'orthographe (ex. : Sherbrooke).`; err.hidden = false; return; }
       // Aucune ville exactement de ce nom : on propose les plus proches
       const lib = r => [r.name, r.admin1].filter(Boolean).join(", ");
