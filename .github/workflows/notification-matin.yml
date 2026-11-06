@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       test:
-        description: "Envoyer une notification test maintenant à tous les téléphones"
+        description: "Envoyer une notification test maintenant à tous les téléphones (laisser décoché pour un passage normal)"
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
