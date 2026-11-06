@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611060150"></script>
+<script src="config.js?v=202611060204"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -25,14 +25,14 @@
 /* Layout: une carte du jour sur une pile (cartes derrière visibles en bas), swipe dans les 4 sens, barre ← + → */
 :root{
   --bg:#FAFCFA; --card:#FFFFFF; --tint:#EEF3F3; --pool:#D3F3F9; --pool-line:rgba(37,63,82,.14); --soft:#FFEEE3; --ink:#253F52; --muted:#5B6E7C; --line:#E3EAEC;
-  --accent:#FF5B00; --accent-ink:#D24800; --accent-2:#F57E25; --on-accent:#FFFFFF; --danger:#D7261E;
+  --accent:#FF5B00; --accent-ink:#D24800; --accent-2:#F57E25; --on-accent:#FFFFFF; --danger:#D7261E; --act:#2F7DE1;
   --shadow:0 1px 2px rgba(37,63,82,.05), 0 24px 48px -28px rgba(37,63,82,.30);
   --font:"Inter Tight",system-ui,-apple-system,"Helvetica Neue",sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0E1820; --card:#16242F; --tint:#1E2F3B; --pool:#1C4A57; --pool-line:rgba(234,243,246,.14); --soft:#3A1F0C; --ink:#EAF3F6; --muted:#9DB2BE; --line:#26394A;
-  --accent:#FF6B1A; --accent-ink:#FF8F4D; --accent-2:#F7924A; --on-accent:#FFFFFF; --danger:#FF6B5E;
+  --accent:#FF6B1A; --accent-ink:#FF8F4D; --accent-2:#F7924A; --on-accent:#FFFFFF; --danger:#FF6B5E; --act:#6FA8FF;
   --shadow:0 0 0 1px rgba(255,255,255,.03), 0 24px 48px -28px rgba(0,0,0,.9); color-scheme:dark}}
 
 html,body{height:100%;margin:0}
@@ -276,7 +276,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .mgrid button b{font-size:17px}
 .mgrid button .pts{display:flex;gap:3px;height:6px;margin-top:3px}
 .pt{display:inline-block;width:6px;height:6px;border-radius:50%}
-.pt.r{background:var(--accent)} .pt.e{background:var(--ink)} .pt.c{background:var(--muted)}
+.pt.r{background:var(--accent)} .pt.e{background:var(--ink)} .pt.c{background:var(--muted)} .pt.a{background:var(--act)}
 .mgrid button.offd{background:var(--tint)}
 .mgrid button.passe{opacity:.4}
 .legende{display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--muted);font-weight:600}
@@ -425,9 +425,14 @@ html.st-loading .week{visibility:hidden}
 .wd b{font-size:20px}
 .wd span{display:block;min-height:13px;font-size:10.5px}
 .wd .pt{position:absolute;left:50%;bottom:4px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent);display:none}
-.wd.prevu .pt{display:block}
-.wd.sel .pt{background:#fff}
-.wd.prevu:not(.we):not(.off) .pt{bottom:2px}
+.wd .pt.pa{background:var(--act)}
+.wd.prevu .pt:not(.pa){display:block}
+.wd.acti .pt.pa{display:block}
+.wd.prevu.acti .pt:not(.pa){margin-left:-7px}
+.wd.prevu.acti .pt.pa{margin-left:2px}
+.wd.sel .pt,.wd.sel .pt.pa{background:#fff}
+.wd.prevu:not(.we):not(.off) .pt,.wd.acti:not(.we):not(.off) .pt{bottom:2px}
+.wd.acti.we,.wd.acti.off{opacity:.85}
 /* fins de semaine : même apparence que les congés */
 .wd.passe,.wd.off,.wd.we{opacity:.5}
 .wd.sel{opacity:1}
@@ -796,7 +801,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       <button type="button" id="m-next" aria-label="Mois suivant"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
     </div>
     <div class="grid mgrid" id="m-grid"></div>
-    <div class="legende"><span><i class="pt r"></i>Rappel</span><span><i class="pt e"></i>École</span><span><i class="pt c"></i>Congé</span></div>
+    <div class="legende"><span><i class="pt r"></i>Rappel</span><span><i class="pt e"></i>École</span><span><i class="pt c"></i>Congé</span><span><i class="pt a"></i>Activité</span></div>
     <div id="m-list" class="res"></div>
   </div>
 </div>
@@ -922,6 +927,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611060150"></script>
+<script type="module" src="app.js?v=202611060204"></script>
 </body>
 </html>

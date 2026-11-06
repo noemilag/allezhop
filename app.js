@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611060150";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611060150";
+import { demarrerAssistant } from "./assistant.js?v=202611060204";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611060204";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611060150";
+const VERSION = "202611060204";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -868,7 +868,7 @@ function buildWeeks(){
     const k=addDays(l,i), x=parse(k), inf=infoFor(k);
     const sub=inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : inf.kind==="inconnu" ? "?" : "";
     const cls=["wd"]; if(inf.kind==="off") cls.push("off"); if(inf.kind==="weekend") cls.push("we");
-    return `<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}${sub?", "+sub:""}"><small>${JOURS_COURTS[x.getDay()]}</small><b>${x.getDate()}</b><span>${sub}</span><i class="pt"></i></button>`;
+    return `<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}${sub?", "+sub:""}"><small>${JOURS_COURTS[x.getDay()]}</small><b>${x.getDate()}</b><span>${sub}</span><i class="pt"></i><i class="pt pa"></i></button>`;
   }).join("")}</div>`).join("");
 }
 function titreSemaine(l){
@@ -891,6 +891,7 @@ function paintWeek(){
   $("wk-pages").querySelectorAll(".wd").forEach(b=>{
     const k=b.dataset.semaine;
     b.classList.toggle("sel", k===current); b.classList.toggle("auj", k===t); b.classList.toggle("passe", k<t);
+    b.classList.toggle("acti", activitesLe(k).length>0);   // point bleu : activité récurrente ce jour-là
     b.classList.toggle("prevu", remindersOn(k).length>0);   // point : rappel ce jour-là (pas les activités, qui reviennent chaque semaine)
     if(k===current) b.setAttribute("aria-current","date"); else b.removeAttribute("aria-current");
   });
@@ -951,12 +952,27 @@ function quand(k){
 
 /* ---------- Recherche : rappels, événements de l'école et congés ---------- */
 const norm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+// « Tous les samedis · 10 h » pour une activité récurrente
+function reglageActivite(a){
+  const js=(a.jours||[]).slice().sort((x,y)=>((x+6)%7)-((y+6)%7)).map(j=>JOURS[j]+"s");
+  const quand=js.length===1 ? "Tous les "+js[0] : "Les "+js.slice(0,-1).join(", ")+" et "+js.at(-1);
+  return quand+(a.debut?" · "+heureFr(a.debut)+(a.fin?" à "+heureFr(a.fin):""):"");
+}
+// Prochaine date de l'activité (à partir d'aujourd'hui) ; sinon la dernière, si elle est terminée
+function dateActivite(a){
+  const t=todayKey(), has=k=>(a.jours||[]).includes(parse(k).getDay()) && (!a.du || k>=a.du) && (!a.au || k<=a.au);
+  for(let k=a.du && a.du>t ? a.du : t, i=0; i<400 && (!a.au || k<=a.au); k=addDays(k,1), i++) if(has(k)) return k;
+  for(let k=a.au && a.au<t ? a.au : addDays(t,-1), i=0; i<400 && (!a.du || k>=a.du); k=addDays(k,-1), i++) if(has(k)) return k;
+  return null;
+}
 function chercher(q){
   const n=norm(q).trim(); if(n.length<2) return null;
   const out=[], ok=(...t)=>t.some(x=>norm(x).includes(n));
   mine().forEach(r=>{ if(ok(r.titre,r.notes)) out.push({date:r.date, ic:r.ic||r.em, t:r.titre, n:r.notes, tag:"Rappel"}); });
   Object.entries(EVENTS).forEach(([d,l])=>l.forEach(([ic,t,note])=>{ if(ok(t,note)) out.push({date:d, ic, t, n:note, tag:"École"}); }));
   CONGES.forEach(c=>{ if(ok(c.label,"congé")) out.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
+  // Activités récurrentes : une seule ligne par activité, qui mène à sa prochaine date
+  activites().forEach(a=>{ if(ok(a.titre,a.apporter,"activité")){ const d=dateActivite(a); if(d) out.push({date:d, ic:a.ic||"star", t:a.titre, n:reglageActivite(a)+(a.apporter?" · "+a.apporter:""), tag:"Activité"}); } });
   return out;
 }
 function ligneHit(h){
@@ -1000,12 +1016,15 @@ function paintMois(){
     if(k<t) cls.push("passe"); if(k===t) cls.push("today");
     const sub = inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : inf.kind==="inconnu" ? "?" : "";
     const r=rem[k]||[], ev=EVENTS[k]||[];
-    const pts=(r.length?'<i class="pt r"></i>':"")+(ev.length?'<i class="pt e"></i>':"");
-    h+=`<button type="button" class="${cls.join(" ")}" data-aller="${k}" aria-label="${esc(longDate(k))}${sub?", "+sub:""}${r.length?", "+r.length+" rappel(s)":""}"><b>${d}</b><i>${sub||"&nbsp;"}</i><span class="pts">${pts}</span></button>`;
+    const act=activitesLe(k).length>0;
+    const pts=(r.length?'<i class="pt r"></i>':"")+(ev.length?'<i class="pt e"></i>':"")+(act?'<i class="pt a"></i>':"");
+    h+=`<button type="button" class="${cls.join(" ")}" data-aller="${k}" aria-label="${esc(longDate(k))}${sub?", "+sub:""}${r.length?", "+r.length+" rappel(s)":""}${act?", activité":""}"><b>${d}</b><i>${sub||"&nbsp;"}</i><span class="pts">${pts}</span></button>`;
     r.forEach(x=>liste.push({date:k, ic:x.ic||x.em, t:x.titre, n:x.notes, tag:"Rappel"}));
     ev.forEach(([ic,tt,n])=>liste.push({date:k, ic, t:tt, n, tag:"École"}));
   }
   CONGES.forEach(c=>{ if(c.du.slice(0,7)===moisVue || c.au.slice(0,7)===moisVue) liste.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
+  // Activités récurrentes : une ligne par activité qui a lieu ce mois-ci
+  activites().forEach(a=>{ for(let d=1; d<=dim; d++){ const k=key(new Date(y,m-1,d)); if(activitesLe(k).some(x=>x.id===a.id)){ liste.push({date:k, ic:a.ic||"star", t:a.titre, n:reglageActivite(a), tag:"Activité"}); break; } } });
   // Toujours 6 rangées de semaines : la fenêtre garde la même hauteur d'un mois à l'autre (utile quand on balaie)
   for(let i=Math.ceil((lead+dim)/7); i<6; i++) h+='<button type="button" class="vide" tabindex="-1" aria-hidden="true"><b>0</b><i>&nbsp;</i><span class="pts"></span></button>'.repeat(7);
   $("m-grid").innerHTML=h;
