@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061600";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061600";
+import { demarrerAssistant } from "./assistant.js?v=202611061831";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061831";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061600";
+const VERSION = "202611061831";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -364,14 +364,14 @@ async function importLocal(){
 async function saveReminder(r){
   if(mode==="shared"){
     // Firestore applique le changement tout de suite sur le téléphone, puis le synchronise.
-    store.save(r).catch(()=>toast("Le rappel n'a pas pu être partagé. Réessaie."));
+    store.save(r).catch(()=>toast("Le rappel n'a pas pu être partagé. Réessayez."));
     return;
   }
   if(r.id) reminders=reminders.map(x=>x.id===r.id?r:x); else { r.id="r"+Date.now(); reminders.push(r); }
   lsSave(); render();
 }
 async function deleteReminder(id){
-  if(mode==="shared"){ store.del(id).catch(()=>toast("La suppression n'a pas pu être partagée. Réessaie.")); return; }
+  if(mode==="shared"){ store.del(id).catch(()=>toast("La suppression n'a pas pu être partagée. Réessayez.")); return; }
   reminders=reminders.filter(x=>x.id!==id); lsSave(); render();
 }
 // Rappels de l'enfant affiché. Les anciens rappels (sans enfant) appartiennent au premier enfant ajouté.
@@ -484,7 +484,7 @@ $("login").addEventListener("submit", async e=>{
   e.preventDefault();
   if(mode!=="signedout") return;
   const em=$("l-email").value.trim().toLowerCase(), pw=$("l-pass").value;
-  if(!em || !pw){ $("l-err").textContent="Entre ton courriel et ton mot de passe."; $("l-err").hidden=false; return; }
+  if(!em || !pw){ $("l-err").textContent="Entrez votre courriel et votre mot de passe."; $("l-err").hidden=false; return; }
   $("l-go").disabled=true;
   try{ await store.signIn(em,pw); $("l-pass").value=""; $("compte").hidden=true; toast("Connecté. Les rappels sont partagés."); }
   catch(err){
@@ -495,24 +495,24 @@ $("login").addEventListener("submit", async e=>{
 function authMessage(err){
   const c=(err && err.code)||"";
   const m={
-    "auth/invalid-credential":"Courriel ou mot de passe incorrect. Vérifie les majuscules, ou touche « Mot de passe oublié? ».",
-    "auth/wrong-password":"Mot de passe incorrect. Vérifie les majuscules, ou touche « Mot de passe oublié? ».",
-    "auth/user-not-found":"Aucun compte avec ce courriel. Vérifie l'adresse.",
-    "auth/invalid-email":"Ce courriel n'est pas valide. Vérifie l'adresse.",
-    "auth/missing-password":"Entre ton mot de passe.",
-    "auth/too-many-requests":"Trop d'essais. Attends quelques minutes, ou touche « Mot de passe oublié? ».",
+    "auth/invalid-credential":"Courriel ou mot de passe incorrect. Vérifiez les majuscules, ou touchez « Mot de passe oublié? ».",
+    "auth/wrong-password":"Mot de passe incorrect. Vérifiez les majuscules, ou touchez « Mot de passe oublié? ».",
+    "auth/user-not-found":"Aucun compte avec ce courriel. Vérifiez l'adresse.",
+    "auth/invalid-email":"Ce courriel n'est pas valide. Vérifiez l'adresse.",
+    "auth/missing-password":"Entrez votre mot de passe.",
+    "auth/too-many-requests":"Trop d'essais. Attendez quelques minutes, ou touchez « Mot de passe oublié? ».",
     "auth/user-disabled":"Ce compte est désactivé dans Firebase.",
     "auth/operation-not-allowed":"La connexion par courriel n'est pas activée dans Firebase (Authentication → Mode de connexion).",
-    "auth/network-request-failed":"Pas de connexion internet. Réessaie dans un instant.",
+    "auth/network-request-failed":"Pas de connexion internet. Réessayez dans un instant.",
   }[c];
   return (m || "La connexion n'a pas fonctionné.") + (c ? " (code : "+c.replace("auth/","")+")" : "");
 }
 $("l-reset").addEventListener("click", async ()=>{
   const em=$("l-email").value.trim(), info=$("l-info");
   $("l-err").hidden=true;
-  if(!em){ $("l-err").textContent="Écris d'abord ton courriel, puis touche « Mot de passe oublié? »."; $("l-err").hidden=false; return; }
+  if(!em){ $("l-err").textContent="Écrivez d'abord votre courriel, puis touchez « Mot de passe oublié? »."; $("l-err").hidden=false; return; }
   if(mode!=="signedout" || !store){ return; }
-  try{ await store.reset(em); info.textContent="Courriel envoyé à "+em+". Ouvre le lien pour choisir un nouveau mot de passe (regarde aussi dans les courriels indésirables)."; info.hidden=false; }
+  try{ await store.reset(em); info.textContent="Courriel envoyé à "+em+". Ouvrez le lien pour choisir un nouveau mot de passe (regardez aussi dans les courriels indésirables)."; info.hidden=false; }
   catch(err){ $("l-err").textContent=authMessage(err); $("l-err").hidden=false; }
 });
 $("c-logout").addEventListener("click", async ()=>{ await store.signOut(); $("compte").hidden=true; });
@@ -781,10 +781,10 @@ function setAccess(state, msg, alt){
 // Première configuration : la fiche de l'enfant (fichier JSON remis à part) est enregistrée dans Firebase.
 async function enregistrerEnfant(txt, errId="setup-err"){
   const err=$(errId); err.hidden=true;
-  let d; try{ d=JSON.parse(txt); }catch(e){ err.textContent="Ce fichier n'est pas lisible. Vérifie que c'est bien le fichier de données (.json)."; err.hidden=false; return; }
+  let d; try{ d=JSON.parse(txt); }catch(e){ err.textContent="Ce fichier n'est pas lisible. Vérifiez que c'est bien le fichier de données (.json)."; err.hidden=false; return; }
   const pb=validerEnfant(d); if(pb){ err.textContent=pb; err.hidden=false; return; }
   try{ await store.saveKid(d); toast("Horaire de "+d.prenom+" ajouté"); $("kid-add-panel").hidden=true; $("compte").hidden=true; }
-  catch(e){ err.textContent = e.code==="permission-denied" ? "Firebase refuse l'enregistrement : vérifie les règles de sécurité (collection enfants)." : "L'enregistrement n'a pas fonctionné. Réessaie."; err.hidden=false; }
+  catch(e){ err.textContent = e.code==="permission-denied" ? "Firebase refuse l'enregistrement : vérifiez les règles de sécurité (collection enfants)." : "L'enregistrement n'a pas fonctionné. Réessayez."; err.hidden=false; }
 }
 $("setup-pick").addEventListener("click", ()=>$("setup-file").click());
 $("setup-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text()); e.target.value=""; });
@@ -1316,8 +1316,8 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSheet(); ac
 form.addEventListener("submit", async e=>{
   e.preventDefault();
   const titre=fT.value.trim();
-  if(!titre){ fE.textContent="Écris le nom de l'activité."; fE.hidden=false; fT.focus(); return; }
-  if(!selDate){ fE.textContent="Choisis une date dans le calendrier."; fE.hidden=false; return; }
+  if(!titre){ fE.textContent="Écrivez le nom de l'activité."; fE.hidden=false; fT.focus(); return; }
+  if(!selDate){ fE.textContent="Choisissez une date dans le calendrier."; fE.hidden=false; return; }
   await saveReminder({id:editing, titre, date:selDate, notes:fN.value.trim(), ic});
   closeSheet(); current=selDate; render();
   toast("Rappel ajouté pour "+longDate(selDate));
@@ -1358,8 +1358,8 @@ async function paintPush(){
   if(isIOS && !installed){ st.textContent="Sur iPhone, les notifications marchent seulement depuis l'écran d'accueil : Partager → Sur l'écran d'accueil, puis ouvre Allez Hop avec son icône."; return; }
   if(!pushOK){ st.textContent="Ce navigateur ne reçoit pas les notifications."; return; }
   if(!VAPID_PUBLIC){ st.textContent="Les notifications sont presque prêtes : il reste à installer les clés."; return; }
-  if(!store || !store.getSub){ st.textContent="Connecte-toi pour activer les notifications."; return; }
-  if(Notification.permission==="denied"){ st.textContent="Les notifications sont bloquées pour Allez Hop. Autorise-les dans les réglages du téléphone (Notifications → Allez Hop ou Chrome)."; return; }
+  if(!store || !store.getSub){ st.textContent="Connectez-vous pour activer les notifications."; return; }
+  if(Notification.permission==="denied"){ st.textContent="Les notifications sont bloquées pour Allez Hop. Autorisez-les dans les réglages du téléphone (Notifications → Allez Hop ou Chrome)."; return; }
   const sub = await (await getReg()).pushManager.getSubscription();
   let doc=null; if(sub){ try{ doc=await store.getSub(await subId(sub)); }catch(e){} }
   const h = (doc && doc.heure) || "07:00";
@@ -1402,7 +1402,7 @@ $("push-h").addEventListener("change", async ()=>{
   const h=$("push-h").value; $("push-quand").textContent=pourQuand(h);
   const sub = await (await getReg()).pushManager.getSubscription(); if(!sub) return;
   try{ await store.saveSub(await subId(sub), {heure:h}); toast("Heure enregistrée : "+hFr(h)); paintPush(); }
-  catch(e){ toast("L'heure n'a pas pu être enregistrée. Réessaie."); }
+  catch(e){ toast("L'heure n'a pas pu être enregistrée. Réessayez."); }
 });
 // Options de ce téléphone : jours sans école, alertes avant les activités choisies
 function paintPushOptions(sub, doc){
@@ -1485,7 +1485,7 @@ async function enablePush(heure){
     const sub=(await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToBytes(VAPID_PUBLIC)});
     await store.saveSub(await subId(sub), {abonnement:sub.toJSON(), heure, actif:true, appareil:isIOS?"iPhone":/Android/.test(navigator.userAgent)?"Android":"Autre"});
     toast("Notifications activées");
-  }catch(e){ st.textContent="L'activation n'a pas fonctionné. Ferme l'app, rouvre-la et réessaie."; return; }
+  }catch(e){ st.textContent="L'activation n'a pas fonctionné. Fermez l'app, rouvrez-la et réessayez."; return; }
   paintPush();
 }
 
@@ -1629,14 +1629,14 @@ $("btn-ics").addEventListener("click", async ()=>{
   const file=new File([buildICS()], "allez-hop-2026-2027.ics", {type:"text/calendar"});
   // Sur iPhone, le partage ouvre directement « Ajouter au calendrier ».
   if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:"Allez Hop"}); $("ics-msg").textContent="Choisis Calendrier pour ajouter les journées."; return; }
+    try{ await navigator.share({files:[file], title:"Allez Hop"}); $("ics-msg").textContent="Choisissez Calendrier pour ajouter les journées."; return; }
     catch(e){ if(e.name==="AbortError") return; }
   }
   const a=document.createElement("a");
   a.href=URL.createObjectURL(file); a.download=file.name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-  $("ics-msg").textContent="Fichier téléchargé. Ouvre-le pour l'ajouter à ton calendrier.";
+  $("ics-msg").textContent="Fichier téléchargé. Ouvrez-le pour l'ajouter à votre calendrier.";
 });
 
 render();
