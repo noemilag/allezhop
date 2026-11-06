@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611060111"></script>
+<script src="config.js?v=202611060150"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -358,6 +358,11 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .ptitre .j b{font-size:54px;font-weight:800;line-height:.9;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
 .ptitre .j.off{width:auto;height:auto;border-radius:999px;padding:6px 14px;font-size:15px;font-weight:800;background:var(--tint);color:var(--ink)}
 
+
+/* ===== Famille sans enfant : jours « ? » et invitation ===== */
+.ptitre .j.inconnu{background:var(--tint);color:var(--muted);box-shadow:inset 0 0 0 2px var(--line)}
+.inconnu-cta{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.inconnu-cta p{margin:0;color:var(--muted);font-size:15px}
 /* ===== Menu : sections claires ===== */
 .profil{gap:14px}
 .psec{background:var(--tint);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -645,6 +650,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
     </div>
     <div class="setup" id="as-box" hidden>
       <button class="add" id="as-go" type="button">Commencer</button>
+      <button class="btn ghost" id="as-plustard" type="button">Plus tard</button>
     </div>
     <div class="setup" id="setup" hidden>
       <input type="file" id="setup-file" accept=".json,application/json,text/plain" hidden>
@@ -916,6 +922,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611060111"></script>
+<script type="module" src="app.js?v=202611060150"></script>
 </body>
 </html>

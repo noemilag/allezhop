@@ -51,6 +51,8 @@ let ENFANT = {prenom:"", classe:""};
 let FIRST = "", LAST = "", END = "";
 let PERIODES = {}, CYCLE = {}, EVENTS = {}, OFF = {}, CYCLE_OF = {}, CONGES = [];
 let LAT = 0, LON = 0, METEO_URL = "", WX_URL = "";
+let VIDE = false;   // famille sans enfant : on montre l'app avec des jours « ? » en attendant l'horaire
+function estVide(){ return VIDE; }
 
 /* ---------- Dates ---------- */
 function parse(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
@@ -63,7 +65,15 @@ function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function todayKey(){ return key(new Date()); }
 function daysFromToday(k){ return Math.round((parse(k)-parse(todayKey()))/864e5); }
 
+// Aucun enfant (« Plus tard » à l'accueil) : une année scolaire générique, sans cycle ni météo
+function chargerVide(){
+  const t=new Date(), y=t.getMonth()>=7 ? t.getFullYear() : t.getFullYear()-1;
+  VIDE=true; ENFANT={prenom:"", classe:"", ecole:"", ville:""};
+  FIRST=`${y}-08-25`; LAST=`${y+1}-06-24`; END=`${y+1}-08-31`;
+  PERIODES={}; CYCLE={}; EVENTS={}; OFF={}; CYCLE_OF={}; CONGES=[]; LAT=0; LON=0; METEO_URL=""; WX_URL="";
+}
 function chargerEnfant(d){
+  VIDE=false;
   ENFANT = {prenom:d.prenom||"", classe:d.classe||"", ecole:d.ecole||"", ville:d.ville||""};
   FIRST = d.annee.debut; LAST = d.annee.fin; END = d.annee.finEte || d.annee.fin;
   PERIODES = d.periodes || {};
@@ -103,6 +113,7 @@ function validerEnfant(d){
 function infoFor(k){
   const w=parse(k).getDay(), j=CYCLE_OF[k];
   if(j) return {kind:"ecole", jour:j};
+  if(VIDE && w>0 && w<6) return {kind:"inconnu", label:"Horaire à compléter"};
   if(w===0||w===6) return {kind:"weekend", label:"Fin de semaine"};
   if(OFF[k]) return {kind:"off", ...OFF[k]};
   if(k>LAST) return {kind:"off", type:"conge", label:"Vacances d'été"};
@@ -191,4 +202,4 @@ function wxSub(w){
 }
 
 
-export { cleMatiere, matiere, CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES };
+export { cleMatiere, matiere, CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES };

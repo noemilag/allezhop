@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611060111";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611060111";
+import { demarrerAssistant } from "./assistant.js?v=202611060150";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611060150";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611060111";
+const VERSION = "202611060150";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -68,7 +68,7 @@ async function loadWeather(force){
 /* ---------- Rappels : Firebase si configuré, sinon ce téléphone seulement ---------- */
 let reminders=[], store=null, mode="local", userEmail=null;
 let kidsAll=[], kidId=null;          // enfants de la famille (triés par date d'ajout) et enfant affiché
-const LS_KID="allezhop.enfant";
+const LS_KID="allezhop.enfant", LS_PLUSTARD="allezhop.plustard";
 const LS="allezhop.rappels", LS_ANCIEN="goleo.rappels";   // ancien nom, encore lu pour ne perdre aucun rappel
 function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||localStorage.getItem(LS_ANCIEN)||"[]"); }catch(e){ return []; } }
 function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(reminders)); }catch(e){} }
@@ -259,10 +259,16 @@ async function initStore(){
         if(!haveKid || !haveRem) return;
         if(access!=="open"){ setAccess("open"); loadWeather(false); } else render();
       };
+      const entrerVide=()=>{ kidId=null; chargerVide(); paintKids(); haveKid=true; if(access==="open"){ current=null; render(); } else ready(); };
+      store.plusTard=()=>{ try{ localStorage.setItem(LS_PLUSTARD,"1"); }catch(e){} entrerVide(); };
       unsubF=F.onSnapshot(F.doc(db,"familles",fid), s=>{ famille=s.exists()?s.data():null; paintAccount(); }, ()=>{});
       unsubK=F.onSnapshot(famColl("enfants"), snap=>{
         kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
-        if(!kidsAll.length){ haveKid=false; setAccess("setup"); return; }
+        if(!kidsAll.length){
+          let tard=false; try{ tard=localStorage.getItem(LS_PLUSTARD)==="1"; }catch(e){}
+          if(tard){ entrerVide(); return; }   // « Plus tard » déjà choisi sur ce téléphone : on ouvre l'app sans enfant
+          haveKid=false; setAccess("setup"); return;
+        }
         let want=null; try{ want=localStorage.getItem(LS_KID); }catch(e){}
         const k=kidsAll.find(x=>x.id===want) || kidsAll.find(x=>x.id===kidId) || kidsAll[0];
         const changed=k.id!==kidId; kidId=k.id; chargerEnfant(k);
@@ -346,6 +352,7 @@ function activitesLe(k){
   return activites().filter(a=>(a.jours||[]).includes(w) && (!a.du || k>=a.du) && (!a.au || k<=a.au)).sort((x,y)=>(x.debut||"").localeCompare(y.debut||""));
 }
 async function enregistrerActivites(list){
+  if(estVide()){ toast("Ajoutez d'abord un enfant pour créer une activité."); return; }
   if(mode==="local"){ try{ localStorage.setItem(LS_ACT, JSON.stringify(list)); }catch{} render(); return; }
   const e=kidsAll.find(x=>x.id===kidId); if(e) e.activites=list;   // affichage immédiat
   render();
@@ -367,6 +374,7 @@ function choisirEnfant(id){
   toast("Horaire de "+ENFANT.prenom);
 }
 function paintKids(){
+  if(estVide() && access==="open") $("kid-name").textContent="+ Enfant";
   $("kids-count").textContent=pad2(kidsAll.length);
   $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item${k.id===kidId?" on":""}"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
     <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
@@ -529,6 +537,7 @@ function icon(n){ return `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">
 
 /* ---------- Météo : affichage ---------- */
 function weatherHTML(k){
+  if(estVide()) return "";
   const w=wx[k];
   if(w){
     const sub=wxSub(w);
@@ -586,7 +595,7 @@ function cardHTML(k){
   // Essai C : titre de la page (la date) et pastille du jour du cycle
   const dateTxt=`${cap(JOURS[d.getDay()])} ${d.getDate()===1?"1er":d.getDate()} ${MOIS_LONG[d.getMonth()]}`;
   let h=`<div class="ptitre"><div><span class="when">${esc(eyebrowFor(k))}</span><h2>${esc(dateTxt)}</h2></div>`;
-  h+= school ? `<span class="j" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></span>` : `<span class="j conge" role="img" aria-label="Congé${inf.kind==="weekend"?"":" : "+esc(inf.label||"")}">${CONGE_LOGO}</span>`;
+  h+= inf.kind==="inconnu" ? `<span class="j inconnu" aria-label="Jour du cycle inconnu : l'horaire n'est pas encore ajouté"><small>Jour</small><b>?</b></span>` : school ? `<span class="j" aria-label="Jour ${inf.jour} du cycle"><small>Jour</small><b>${inf.jour}</b></span>` : `<span class="j conge" role="img" aria-label="Congé${inf.kind==="weekend"?"":" : "+esc(inf.label||"")}">${CONGE_LOGO}</span>`;
   h+=`</div>`;
 
   if(school){
@@ -598,6 +607,9 @@ function cardHTML(k){
     h+=`</div>`;
   }
 
+  if(inf.kind==="inconnu"){
+    h+=`<div class="sec"><div class="sec-h"><span>À l'école</span></div><div class="inconnu-cta"><p>L'horaire n'est pas encore ajouté : le jour du cycle, les cours et la météo apparaîtront ici.</p><button type="button" class="btn primary" data-ajouter-enfant>Ajouter un enfant</button></div></div>`;
+  }
   // Activités de la semaine (parascolaire) : « En soirée » les jours d'école, « Activités » sinon
   const acts=activitesLe(k);
   if(acts.length){
@@ -605,7 +617,7 @@ function cardHTML(k){
     h+=acts.map(a=>`<button type="button" class="line cours act" data-act="${esc(a.id)}" aria-label="Modifier : ${esc(a.titre)}"><span class="ic">${icon(a.ic||"star")}</span><b class="nom">${esc(a.titre)}</b><span class="per">${heureFr(a.debut)}</span>${a.fin?`<time>jusqu'à ${heureFr(a.fin)}</time>`:"<time></time>"}</button>`).join("");
     h+=`</div>`;
   }
-  if(!school && !acts.length && !remindersOn(k).length && !(EVENTS[k]||[]).length){
+  if(!school && inf.kind!=="inconnu" && !acts.length && !remindersOn(k).length && !(EVENTS[k]||[]).length){
     h+=`<div class="rien">${inf.kind==="weekend"?"Rien de prévu cette journée-là.":"Pas d'école."} Touchez <b>+</b> pour ajouter un rappel ou une activité.</div>`;
   }
 
@@ -721,9 +733,9 @@ function setAccess(state, msg, alt){
   $("setup").hidden = true;
   $("fam-box").hidden = state!=="famille"; $("as-box").hidden = state!=="setup";
   if(state==="famille"){ msg = "Créez votre famille avec le code d'invitation reçu. Vous pourrez ensuite inviter l'autre parent."; alt = "Me déconnecter"; montrerImport(); }
-  if(state==="setup"){ msg = "Ajoutons votre enfant : son école, l'horaire de sa classe et le calendrier scolaire. Prévoyez 3 minutes et les deux feuilles à photographier."; alt = "Me déconnecter"; }
+  if(state==="setup"){ msg = "Ajoutons votre enfant : son prénom, l'horaire de sa classe et le calendrier scolaire. Prévoyez 3 minutes et les deux feuilles à photographier. Pas le temps? Vous pourrez le faire plus tard, depuis le menu."; alt = "Me déconnecter"; }
   const showKid = state==="open";
-  $("kid-name").textContent = showKid ? ENFANT.prenom : "";
+  $("kid-name").textContent = showKid ? (estVide() ? "+ Enfant" : ENFANT.prenom) : "";
   $("kid-class").textContent = "";
   $("gate-msg").textContent = msg || GATE_TXT;
   $("gate-login").hidden = !!alt || state==="setup" || state==="famille";
@@ -802,6 +814,9 @@ function lancerAssistant(annulable, ancien){
     toast, annuler: annulable ? ()=>{} : null });
 }
 $("as-go").addEventListener("click", ()=>lancerAssistant(true));
+$("as-plustard").addEventListener("click", ()=>{ if(store && store.plusTard) store.plusTard(); });
+// Bouton « Ajouter un enfant » de la fiche du jour (quand il n'y a pas encore d'enfant)
+document.addEventListener("click", e=>{ if(e.target.closest("[data-ajouter-enfant]")) lancerAssistant(true); });
 // Inviter l'autre parent : un lien à envoyer par texto ou courriel
 $("fam-inviter").addEventListener("click", async ()=>{
   const b=$("fam-inviter"), out=$("fam-lien"); b.disabled=true;
@@ -825,7 +840,7 @@ function render(){
   paint();
 }
 function paint(){
-  card.className="card"+(infoFor(current).kind==="ecole"?"":" off");
+  card.className="card"+(["ecole","inconnu"].includes(infoFor(current).kind)?"":" off");
   card.innerHTML=cardHTML(current); card.scrollTop=0;
   card.setAttribute("aria-label", cap(longDate(current)));
   fit(card); chrome();
@@ -851,7 +866,7 @@ function buildWeeks(){
   for(let l=lundiDe(todayKey()); l<=fin; l=addDays(l,7)) semaines.push(l);
   $("wk-pages").innerHTML=semaines.map(l=>`<div class="wk" data-lundi="${l}">${[0,1,2,3,4,5,6].map(i=>{
     const k=addDays(l,i), x=parse(k), inf=infoFor(k);
-    const sub=inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : "";
+    const sub=inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : inf.kind==="inconnu" ? "?" : "";
     const cls=["wd"]; if(inf.kind==="off") cls.push("off"); if(inf.kind==="weekend") cls.push("we");
     return `<button type="button" class="${cls.join(" ")}" data-semaine="${k}" aria-label="${esc(cap(longDate(k)))}${sub?", "+sub:""}"><small>${JOURS_COURTS[x.getDay()]}</small><b>${x.getDate()}</b><span>${sub}</span><i class="pt"></i></button>`;
   }).join("")}</div>`).join("");
@@ -983,7 +998,7 @@ function paintMois(){
     const k=key(new Date(y,m-1,d)), inf=infoFor(k), cls=[];
     if(inf.kind==="weekend") cls.push("we"); if(inf.kind==="off") cls.push("offd");
     if(k<t) cls.push("passe"); if(k===t) cls.push("today");
-    const sub = inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : "";
+    const sub = inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : inf.kind==="inconnu" ? "?" : "";
     const r=rem[k]||[], ev=EVENTS[k]||[];
     const pts=(r.length?'<i class="pt r"></i>':"")+(ev.length?'<i class="pt e"></i>':"");
     h+=`<button type="button" class="${cls.join(" ")}" data-aller="${k}" aria-label="${esc(longDate(k))}${sub?", "+sub:""}${r.length?", "+r.length+" rappel(s)":""}"><b>${d}</b><i>${sub||"&nbsp;"}</i><span class="pts">${pts}</span></button>`;
@@ -1135,7 +1150,7 @@ function paintCal(){
     const k=key(new Date(y,m-1,d)), inf=infoFor(k), cls=[];
     if(inf.kind==="weekend") cls.push("we"); if(inf.kind==="off") cls.push("offd");
     if(k<t) cls.push("past"); if(k===t) cls.push("today"); if(k===selDate) cls.push("sel");
-    const sub = inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : "";
+    const sub = inf.kind==="ecole" ? "J"+inf.jour : inf.kind==="off" ? "congé" : inf.kind==="inconnu" ? "?" : "";
     h+=`<button type="button" class="${cls.join(" ")}" data-d="${k}" ${k<t?"disabled":""} aria-label="${esc(longDate(k))}${sub?", "+sub:""}">${remDates.has(k)?'<span class="dot"></span>':""}<b>${d}</b><i>${sub||"&nbsp;"}</i></button>`;
   }
   $("cal-grid").innerHTML=h;
@@ -1469,6 +1484,7 @@ function buildICS(){
   return L.join("\r\n");
 }
 $("btn-ics").addEventListener("click", async ()=>{
+  if(estVide()){ toast("Ajoutez d'abord un enfant."); return; }
   const file=new File([buildICS()], "allez-hop-2026-2027.ics", {type:"text/calendar"});
   // Sur iPhone, le partage ouvre directement « Ajouter au calendrier ».
   if(navigator.canShare && navigator.canShare({files:[file]})){
