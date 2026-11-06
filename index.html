@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611060213"></script>
+<script src="config.js?v=202611060216"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -25,14 +25,14 @@
 /* Layout: une carte du jour sur une pile (cartes derrière visibles en bas), swipe dans les 4 sens, barre ← + → */
 :root{
   --bg:#FAFCFA; --card:#FFFFFF; --tint:#EEF3F3; --pool:#D3F3F9; --pool-line:rgba(37,63,82,.14); --soft:#FFEEE3; --ink:#253F52; --muted:#5B6E7C; --line:#E3EAEC;
-  --accent:#FF5B00; --accent-ink:#D24800; --accent-2:#F57E25; --on-accent:#FFFFFF; --danger:#D7261E; --act:#25B0D2;
+  --accent:#FF5B00; --accent-ink:#D24800; --accent-2:#F57E25; --on-accent:#FFFFFF; --danger:#D7261E; --act:#5CC9E3;
   --shadow:0 1px 2px rgba(37,63,82,.05), 0 24px 48px -28px rgba(37,63,82,.30);
   --font:"Inter Tight",system-ui,-apple-system,"Helvetica Neue",sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0E1820; --card:#16242F; --tint:#1E2F3B; --pool:#1C4A57; --pool-line:rgba(234,243,246,.14); --soft:#3A1F0C; --ink:#EAF3F6; --muted:#9DB2BE; --line:#26394A;
-  --accent:#FF6B1A; --accent-ink:#FF8F4D; --accent-2:#F7924A; --on-accent:#FFFFFF; --danger:#FF6B5E; --act:#25B0D2;
+  --accent:#FF6B1A; --accent-ink:#FF8F4D; --accent-2:#F7924A; --on-accent:#FFFFFF; --danger:#FF6B5E; --act:#5CC9E3;
   --shadow:0 0 0 1px rgba(255,255,255,.03), 0 24px 48px -28px rgba(0,0,0,.9); color-scheme:dark}}
 
 html,body{height:100%;margin:0}
@@ -927,6 +927,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611060213"></script>
+<script type="module" src="app.js?v=202611060216"></script>
 </body>
 </html>
