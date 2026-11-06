@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061846";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061846";
+import { demarrerAssistant } from "./assistant.js?v=202611061906";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061906";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061846";
+const VERSION = "202611061906";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -281,7 +281,11 @@ async function initStore(){
       oublierFamille(); setAccess("famille", action==="quitter" ? "Vous avez quitté la famille. Créez une famille, ou ouvrez un lien d'invitation." : "La famille a été supprimée. Créez une famille, ou ouvrez un lien d'invitation.");
     };
     const fail=err=>{
-      if(err.code==="permission-denied") setAccess("locked", `Le compte ${userEmail} n'a pas accès à cette famille.`, "Me déconnecter");
+      if(err.code==="permission-denied"){
+        // Famille supprimée ou plus accessible (ex. profil resté lié à une famille effacée) : on propose d'en créer une ou de rejoindre un lien
+        oublierFamille();
+        setAccess("famille", "Ce compte n'est lié à aucune famille accessible. Créez une famille, ou ouvrez un lien d'invitation.");
+      }
       else setAccess("locked", "L'horaire ne se charge pas. Vérifiez votre connexion internet.", "Réessayer");
     };
     function ouvrirFamille(fid){
