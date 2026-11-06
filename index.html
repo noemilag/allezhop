@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611052352"></script>
+<script src="config.js?v=202611060045"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -457,6 +457,8 @@ html.st-loading .week{visibility:hidden}
 .switch input:disabled+span{opacity:.45}
 .switch input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 /* petit lien discret (calendrier .ics) */
+.legal{margin:10px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.legal a{color:inherit;text-underline-offset:3px}
 .lien{border:0;background:none;padding:6px 0 0;font:inherit;font-size:14px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer;align-self:flex-start;text-align:left}
 /* X pour fermer, en haut à droite */
 #login,#recherche .sheet,#mois .sheet{position:relative}
@@ -609,6 +611,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
     <p id="gate-msg">Suivez l'horaire scolaire de votre enfant : le jour du cycle, les spécialistes, quoi glisser dans le sac et la météo du jour. Ajoutez vos rappels et partagez-les avec l'autre parent.</p>
     <button class="btn-google" id="gate-google" type="button"><svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.2 0-11.5-4.2-13.4-9.8l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continuer avec Google</button>
     <button class="add" id="gate-login" type="button">Se connecter avec un courriel</button>
+    <p class="legal" id="gate-legal"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d'utilisation</a></p>
     <div class="setup" id="fam-box" hidden>
       <div class="field"><label for="fam-code">Code d'invitation</label><input type="text" id="fam-code" autocomplete="off" autocapitalize="characters" placeholder="Reçu de la personne qui vous a invité"></div>
       <button class="add" id="fam-creer" type="button">Créer ma famille</button>
@@ -822,6 +825,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
       <button type="button" class="lien" id="btn-ics">Ajouter l'année scolaire à mon calendrier (.ics)</button>
       <p class="note" id="ics-msg"></p>
+      <p class="legal"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d'utilisation</a></p>
     </div>
     <div class="actions" hidden><button type="button" class="btn ghost" id="c-close">Fermer</button></div>
   </form>
@@ -872,6 +876,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611052352"></script>
+<script type="module" src="app.js?v=202611060045"></script>
 </body>
 </html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Politique de confidentialité · Allez Hop</title>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+:root{--bg:#F6F9F9;--card:#FFFFFF;--ink:#1F3A4D;--muted:#5B6F7E;--line:#DCE5EA;--accent:#E8590C;--warn:#FFF4E5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1A22;--card:#16252F;--ink:#E7EEF2;--muted:#9DB0BD;--line:#2A3D4A;--accent:#FF8A4C;--warn:#2B2418;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(40px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+main{max-width:680px;margin:0 auto}
+a{color:var(--accent)}
+.retour{display:inline-block;margin:6px 0 18px;font-weight:700;text-decoration:none}
+h1{font-size:30px;line-height:1.15;margin:0 0 6px;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:20px;margin:30px 0 6px;letter-spacing:-.01em}
+.date{color:var(--muted);margin:0 0 18px;font-size:15px}
+.note{background:var(--warn);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px}
+ul{padding-left:22px;margin:8px 0}li{margin:4px 0}
+.pied{margin-top:36px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
+</style></head><body><main>
+<a class="retour" href="./">‹ Retour à Allez Hop</a>
+<h1>Politique de confidentialité</h1>
+<p class="date">Version provisoire du 6 novembre 2026</p>
+
+<p class="note">Allez Hop est un projet personnel, en période d'essai, partagé avec un petit nombre de familles. Ce texte décrit ce que l'application fait réellement avec les renseignements. Il sera complété avant toute ouverture au grand public.</p>
+
+<h2>Qui est responsable</h2>
+<p>Allez Hop est géré par <b>[nom du responsable : à compléter]</b>. Pour toute question ou demande au sujet de vos renseignements : <b>[adresse courriel de contact : à compléter]</b>, ou le bouton « Signaler un bug » dans l'application.</p>
+
+<h2>Ce que l'application recueille</h2>
+<ul>
+<li><b>Votre compte :</b> votre courriel, et votre mot de passe si vous en avez choisi un. Le mot de passe est géré par le service de connexion de Google (Firebase) : l'application ne peut pas le lire. Si vous vous connectez avec Google, l'application reçoit seulement votre courriel.</li>
+<li><b>Votre famille :</b> la liste des parents qui en font partie (leurs courriels).</li>
+<li><b>Chaque enfant :</b> le prénom, la ville (pour la météo) et ses coordonnées arrondies, l'année scolaire, le cycle, l'horaire, les congés, les événements de l'école et les activités.</li>
+<li><b>Vos rappels :</b> le titre, la date, les notes et l'icône.</li>
+<li><b>Les notifications :</b> l'adresse d'envoi de votre appareil, son type (par exemple « iPhone »), l'heure choisie et vos options.</li>
+<li><b>Les signalements de bug :</b> l'étape, le message d'erreur, la version de l'application, le type d'appareil et votre courriel.</li>
+</ul>
+<p>L'application ne demande ni le nom de famille, ni le nom de l'école, ni l'adresse, ni la date de naissance de l'enfant. Évitez d'écrire des renseignements sensibles (santé, par exemple) dans les notes des rappels.</p>
+
+<h2>Les photos de l'horaire et du calendrier</h2>
+<p>Quand vous créez un enfant, la photo est envoyée au service d'intelligence artificielle de Google (Gemini, par Firebase) pour être lue. <b>L'application ne conserve pas la photo</b> : seul le résultat, que vous vérifiez, est enregistré. Cachez avant la photo toute information personnelle (nom, courriel, mot de passe, numéro d'élève). Google traite la photo selon ses propres conditions.</p>
+
+<h2>Les services utilisés</h2>
+<ul>
+<li><b>Firebase (Google) :</b> connexion, stockage des données, protection contre les abus et lecture des photos par l'IA.</li>
+<li><b>GitHub :</b> héberge le site et fait tourner l'envoi des notifications. Les journaux de ces tâches ne contiennent ni courriel, ni prénom, ni contenu de message.</li>
+<li><b>Open-Meteo :</b> reçoit les coordonnées arrondies de la ville pour fournir la météo.</li>
+<li><b>Les services de notification</b> d'Apple, de Google ou de votre navigateur acheminent les messages jusqu'à votre appareil.</li>
+</ul>
+<p>Il n'y a ni publicité, ni outil de mesure d'audience, ni vente de renseignements.</p>
+
+<h2>Qui peut voir vos renseignements</h2>
+<p>Seuls les parents d'une même famille voient les données de cette famille. Le responsable de l'application peut aussi y accéder techniquement, dans la console Firebase, pour dépanner ou répondre à une demande.</p>
+
+<h2>Combien de temps ils sont gardés</h2>
+<p>Tant que la famille existe. Supprimer un enfant dans l'application efface sa fiche, son horaire, ses activités et ses rappels, de façon définitive. Pour supprimer un compte ou une famille complète, écrivez au contact ci-dessus. Les signalements de bug sont gardés jusqu'à la correction du problème.</p>
+
+<h2>Vos droits</h2>
+<p>Vous pouvez demander d'accéder à vos renseignements, de les corriger, de les faire supprimer ou de retirer votre consentement. Écrivez au contact ci-dessus : une réponse sera donnée dans un délai raisonnable.</p>
+
+<h2>Sécurité</h2>
+<p>Les échanges sont chiffrés. Chaque famille n'a accès qu'à ses propres données, et l'application est protégée contre les usages abusifs. Aucun système n'est infaillible : en cas d'incident touchant vos renseignements, vous seriez avisé comme la loi l'exige.</p>
+
+<h2>Les enfants</h2>
+<p>L'application s'adresse aux parents. Elle ne recueille pas de renseignements directement auprès des enfants : c'est le parent qui écrit le prénom et téléverse la photo.</p>
+
+<h2>Changements</h2>
+<p>Ce texte peut changer, surtout pendant la période d'essai. La date de la version est indiquée en haut.</p>
+
+<p class="pied">Voir aussi : <a href="conditions.html">Conditions d'utilisation</a></p>
+</main></body></html>

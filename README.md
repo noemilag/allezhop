@@ -1,96 +1,76 @@
 # Allez Hop
 
-La fiche du jour d'un enfant : jour du cycle, cours spécialisés, quoi apporter, météo de 7 h 30 à 18 h et rappels partagés entre les parents.
+La journée d'école de votre enfant en un coup d'œil : jour du cycle, cours spécialisés, quoi apporter, météo et rappels partagés entre parents. Application web installable sur l'écran d'accueil (PWA), en français.
 
-**Aucune donnée personnelle dans ce dépôt.** Le prénom, la classe, l'école, la ville, le calendrier et l'horaire de l'enfant sont dans Firebase (collection `enfants`), lisibles seulement par les membres de la famille.
+Adresse : <https://noemilag.github.io/allezhop/>
+
+> **Aucun renseignement personnel dans ce dépôt (il est public).** Pas de prénoms, de courriels, de classes, d'écoles ni de clés secrètes. Les données des familles sont dans Firebase ; les secrets sont dans les *Secrets* de GitHub.
+
+## Comment ça marche
+
+- Chaque **famille** a ses données : `familles/{id}` (parents, courriels), avec les sous-collections `enfants`, `rappels` et `abonnements`. Un parent invite l'autre par un lien personnel.
+- Un **assistant** crée l'enfant : on photographie la grille de l'horaire et le calendrier scolaire, une IA (Gemini, par Firebase AI Logic) les lit, puis le parent vérifie chaque étape. Les photos ne sont pas conservées.
+- Prise en charge des **cycles** de 5, 9 ou 10 jours, des semaines A et B, des journées pédagogiques (de l'école ou non), des congés et des **journées de reprise** (congés qui deviennent des jours de classe en cas de fermeture).
+- La **météo** vient d'[Open-Meteo](https://open-meteo.com/) (sans clé), à la position de la ville de l'enfant.
+- Le **calendrier** de l'année peut être exporté en `.ics`.
 
 ## Fichiers
 
 | Fichier | Rôle |
 | --- | --- |
 | `index.html` | La page et son style |
-| `app.js` | Affichage, rappels, notifications |
-| `school.js` | Mécanique du cycle, du calendrier et de la météo (partagée avec la notification) |
+| `app.js` | Affichage, connexion, familles, rappels, notifications |
+| `assistant.js` | Assistant de création d'un enfant (photos, vérifications) |
+| `school.js` | Cycle, calendrier scolaire, météo (partagé avec les notifications) |
 | `sw.js` | Reçoit les notifications push |
-| `scripts/notifier.js`, `.github/workflows/` | Notification du matin |
-| `config.js` | Configuration Firebase (projet allez-hop-6aecd) |
-| `firestore.rules` | Règles de sécurité Firebase (à copier, étape 2) |
-| `manifest.webmanifest`, `icons/` | Icône et installation sur l'écran d'accueil |
+| `config.js` | Configuration Firebase (publique par nature) |
+| `firestore.rules` | Règles de sécurité Firestore (modèle, voir plus bas) |
+| `scripts/notifier.js`, `.github/workflows/notification-matin.yml` | Envoi des notifications |
+| `confidentialite.html`, `conditions.html` | Politique de confidentialité et conditions (versions provisoires) |
+| `manifest.webmanifest`, `icons/` | Installation sur l'écran d'accueil |
+| `beta/`, `essai-b/` | Redirections vers l'adresse principale (anciennes adresses) |
+| `outils/cles.html` | Création des clés des notifications |
+| `bump.sh` | Change le numéro de version avant chaque mise en ligne |
 
-### Fiche de l'enfant (Firebase, collection `enfants`)
+## Mettre en place (une seule fois)
 
-À la première connexion, l'app demande le fichier de données de l'enfant (`.json`, remis à part) et l'enregistre dans Firebase. Forme attendue (exemple fictif) :
+### 1. Hébergement
 
-```json
-{
-  "prenom": "Alex", "classe": "101", "ecole": "École Exemple", "ville": "Ville",
-  "lat": 45.5, "lon": -73.6,
-  "annee": { "debut": "2026-08-31", "fin": "2027-06-23", "finEte": "2027-06-30" },
-  "joursCycle": 6,
-  "periodes": { "1": "7 h 55", "2": "8 h 45" },
-  "cycle": { "1": { "1": "educ" }, "2": { "2": "angl" } },
-  "conges": [ { "du": "2026-09-07", "au": "2026-09-07", "type": "conge", "label": "Fête du Travail" } ],
-  "evenements": [ { "date": "2026-09-10", "ic": "📸", "titre": "Photo scolaire" } ]
-}
-```
+GitHub : Settings → Pages → *Deploy from a branch* → `main`, dossier `/ (root)`.
 
-Matières possibles dans `cycle` : voir `SUBJ` dans `school.js`. Pour corriger la fiche plus tard : console Firebase → Firestore → `enfants`.
+### 2. Firebase
 
-## 1. Mettre l'app en ligne (GitHub Pages)
+1. Créer un projet sur <https://console.firebase.google.com>.
+2. **Authentication** : activer *Adresse e-mail / Mot de passe* et *Google*.
+3. **Firestore** : créer la base, puis publier les règles inspirées de `firestore.rules`. Le dépôt contient des valeurs d'exemple : le **code d'invitation** de la période d'essai et les adresses de l'ancienne version ne doivent figurer que dans la console.
+4. **Application Web** : enregistrer l'app et coller l'objet de configuration dans `config.js`.
+5. **App Check** (obligatoire pour l'IA) : clé reCAPTCHA Enterprise ; protection contre la répétition appliquée ; l'app demande des jetons à usage unique.
+6. **AI Logic** : activer l'API Gemini. Au palier gratuit, les limites sont très serrées ; au palier payant, régler un plafond de dépenses (AI Studio → Dépenses) et une alerte de budget (Google Cloud).
 
-Settings → Pages → *Deploy from a branch* → branche `main`, dossier `/ (root)`.
-L'app est ensuite à l'adresse `https://noemilag.github.io/allezhop/`.
+### 3. Notifications
 
-## 2. Partager les rappels (Firebase, gratuit)
+Une tâche GitHub Actions lance `scripts/notifier.js` aux 15 minutes. Chaque téléphone abonné reçoit sa notification une fois par jour, à l'heure choisie dans l'app.
 
-> Configuré pour le projet `allez-hop-6aecd`. À la première connexion sur un téléphone, les rappels déjà gardés sur ce téléphone deviennent partagés.
+Secrets GitHub (Settings → Secrets and variables → Actions) :
 
-1. Sur <https://console.firebase.google.com>, crée un projet (ex. `allezhop`). Google Analytics n'est pas nécessaire.
-2. **Authentication** → Get started → **Email/Password** → Enable.
-   Onglet **Users** → *Add user* : crée un compte pour chaque parent (courriel + mot de passe).
-3. **Firestore Database** → Create database → région `northamerica-northeast1 (Montréal)` → mode production.
-   Onglet **Rules** : colle le contenu de `firestore.rules`, remplace les deux adresses par celles des parents, puis *Publish*.
-4. Roue dentée → **Project settings** → *Your apps* → icône Web `</>` → enregistre l'app (pas besoin de Hosting).
-   Copie l'objet `firebaseConfig` et colle-le dans `config.js` à la place de `null` :
+| Secret | Contenu |
+| --- | --- |
+| `VAPID_PRIVATE_KEY` | Clé privée créée avec `outils/cles.html` (la clé publique est dans `app.js` et dans la tâche) |
+| `FIREBASE_SERVICE_ACCOUNT` | Fichier JSON complet d'un compte de service Firebase |
+| `ADMIN_EMAIL` | (facultatif) courriel(s) du ou des comptes qui reçoivent les alertes de bugs, séparés par une virgule |
 
-   ```js
-   window.ALLEZHOP_FIREBASE = {
-     apiKey: "…",
-     authDomain: "….firebaseapp.com",
-     projectId: "…",
-     storageBucket: "…",
-     messagingSenderId: "…",
-     appId: "…"
-   };
-   ```
+Test : onglet **Actions → Notifications → Run workflow**.
 
-5. Ouvre l'app et connecte-toi. La première fois, ajoute le fichier de données de l'enfant.
+Les journaux de la tâche sont publics : le programme n'y écrit ni courriel, ni prénom, ni contenu de message. Sur iPhone (iOS 16.4 ou plus), l'app doit être ouverte depuis l'icône de l'écran d'accueil. GitHub met en pause les tâches planifiées après 60 jours sans commit.
 
-## 3. Installer sur l'iPhone
+### 4. Signalement de bugs
 
-Ouvre l'adresse dans Safari → bouton Partager → **Sur l'écran d'accueil**.
-
-## Météo
-
-Prévisions horaires d'[Open-Meteo](https://open-meteo.com/) à la position de l'école (`lat`, `lon` dans la fiche de l'enfant), chargées par le téléphone à l'ouverture de l'app (gardées 30 minutes). Aucune clé n'est nécessaire.
-
-## Notifications (push)
-
-Chaque parent choisit dans l'app (icône de cloche) l'heure de sa notification. Heure avant midi : la journée même. Heure à partir de midi : le lendemain. Contenu : jour du cycle, spécialistes, quoi apporter, rappels du jour et météo. Envoyée les jours d'école, le premier jour d'un congé et tout jour qui a un rappel.
-
-Chaque téléphone abonné est enregistré dans Firebase (collection `abonnements`, avec l'heure choisie). Une tâche GitHub Actions (`.github/workflows/notification-matin.yml`) lance `scripts/notifier.js` aux 15 minutes ; chaque téléphone reçoit sa notification une seule fois par jour.
-
-**À faire une seule fois :**
-
-1. Ouvrir `https://noemilag.github.io/allezhop/outils/cles.html` sur un ordinateur → **Créer les clés**.
-   - Clé **privée** → secret GitHub `VAPID_PRIVATE_KEY` (Settings → Secrets and variables → Actions).
-   - Clé **publique** → `VAPID_PUBLIC` dans `app.js` et dans la tâche.
-2. Firebase → ⚙ Paramètres du projet → **Comptes de service** → **Générer une nouvelle clé privée** → coller tout le contenu du fichier dans le secret GitHub `FIREBASE_SERVICE_ACCOUNT`.
-3. Règles Firestore : ajouter la collection `abonnements` (voir `firestore.rules`).
-4. Test : onglet **Actions → Notifications → Run workflow**.
-
-Sur iPhone (iOS 16.4 ou plus), l'app doit être ouverte depuis l'icône de l'écran d'accueil. GitHub met en pause les tâches planifiées d'un dépôt public après 60 jours sans commit ; un clic sur *Enable workflow* les relance.
+Le bouton « Signaler un bug » (dans les erreurs de l'assistant) écrit un rapport dans la collection `signalements` (lisible seulement dans la console Firebase). Les règles doivent contenir le bloc `signalements` de `firestore.rules`. Une notification est envoyée aux téléphones de `ADMIN_EMAIL`.
 
 ## Mises à jour
 
-Les téléphones gardent l'app en mémoire. Avant chaque mise en ligne, lance `./bump.sh` : il change le numéro de version (`version.json`, `app.js`, `index.html`). À l'ouverture suivante (ou au retour dans l'app), une fenêtre « Nouvelle version disponible » propose de mettre à jour : l'app retélécharge ses fichiers et se recharge, sans réinstaller l'icône.
+Les téléphones gardent l'app en mémoire. Avant chaque mise en ligne, lancer `./bump.sh` : il change le numéro de version (`version.json`, `app.js`, `assistant.js`, `index.html`). À l'ouverture suivante, une fenêtre propose la mise à jour.
+
+## Sauvegarde
+
+La branche `avant-le-saut` contient l'ancienne application à un seul enfant, avant le passage au mode familles ; la branche `version-fiches` en est une version antérieure.
