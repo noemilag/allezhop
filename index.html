@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611061254"></script>
+<script src="config.js?v=202611061535"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -365,7 +365,9 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .inconnu-cta p{margin:0;color:var(--muted);font-size:15px}
 
 /* ===== Quitter la famille, supprimer le compte ===== */
-#quitter .sheet{position:relative}
+#quitter .sheet,#signaler .sheet{position:relative}
+#signaler h2{padding-right:52px}
+#sg-texte{width:100%;box-sizing:border-box;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);resize:vertical}
 #quitter h2{padding-right:52px}
 .qt-corps{display:flex;flex-direction:column;gap:12px}
 .qt-corps p{margin:0}
@@ -886,11 +888,27 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
         <h3 class="ps-h" id="ps-compte">Compte</h3>
         <p class="who" id="c-email"></p>
         <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
+        <button type="button" class="btn ghost outline" id="c-signaler">Signaler un problème…</button>
         <button type="button" class="lien danger" id="c-supprimer">Supprimer mon compte…</button>
         <p class="legal"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d'utilisation</a></p>
       </section>
     </div>
     <div class="actions" hidden><button type="button" class="btn ghost" id="c-close">Fermer</button></div>
+  </form>
+</div>
+
+<div class="scrim" id="signaler" hidden>
+  <form class="sheet pad" id="sg-form" novalidate>
+    <div class="grab"></div>
+    <button type="button" class="x-fermer" id="sg-x" aria-label="Fermer"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    <h2>Signaler un problème</h2>
+    <div class="field">
+      <label for="sg-texte">Qu'est-ce qui ne va pas?</label>
+      <textarea id="sg-texte" rows="5" maxlength="1000" placeholder="Ex. : la notification du matin est arrivée à 9 h au lieu de 7 h"></textarea>
+    </div>
+    <p class="note">Votre courriel et le type d'appareil sont joints pour permettre de vous répondre et de corriger. Ne mettez pas de renseignements personnels sur votre enfant.</p>
+    <p class="err" id="sg-err" hidden></p>
+    <button type="submit" class="btn primary" id="sg-go">Envoyer</button>
   </form>
 </div>
 
@@ -952,6 +970,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611061254"></script>
+<script type="module" src="app.js?v=202611061535"></script>
 </body>
 </html>

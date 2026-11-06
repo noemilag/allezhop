@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061254";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061254";
+import { demarrerAssistant } from "./assistant.js?v=202611061535";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061535";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061254";
+const VERSION = "202611061535";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -1551,6 +1551,29 @@ quitter.addEventListener("click", async e=>{
       quitter.hidden=true; toast(id==="qt-go-quitter"?"Vous avez quitté la famille":"Famille supprimée");
     }
   }catch(err){ erreurQuitter(err, id); b.disabled=false; b.textContent=txt; }
+});
+
+
+/* ---------- Signaler un problème (message libre, envoyé dans la même collection que les bugs) ---------- */
+const signalerFeuille=$("signaler");
+$("c-signaler").addEventListener("click", ()=>{ $("sg-texte").value=""; $("sg-err").hidden=true; $("sg-go").disabled=false; $("sg-go").textContent="Envoyer"; $("compte").hidden=true; signalerFeuille.hidden=false; setTimeout(()=>$("sg-texte").focus(),60); });
+$("sg-x").addEventListener("click", ()=>signalerFeuille.hidden=true);
+$("sg-texte").addEventListener("input", ()=>{ $("sg-err").hidden=true; });
+signalerFeuille.addEventListener("click", e=>{ if(e.target===signalerFeuille) signalerFeuille.hidden=true; });
+$("sg-form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const t=$("sg-texte").value.trim(), err=$("sg-err");
+  if(t.length<3){ err.textContent="Décrivez le problème en quelques mots."; err.hidden=false; return; }
+  const b=$("sg-go"); b.disabled=true; b.textContent="Envoi…"; err.hidden=true;
+  try{
+    if(!store || !store.signaler) throw new Error("hors ligne");
+    await store.signaler({etape:"message", code:"", detail:t.slice(0,1000)});
+    signalerFeuille.hidden=true; toast("Merci, c'est envoyé");
+  }catch(x){
+    console.error(x);
+    err.innerHTML=(x&&x.code==="permission-denied" ? "L'envoi est refusé (règles de sécurité à mettre à jour)." : "L'envoi n'a pas fonctionné.")+' Vous pouvez écrire à <a href="mailto:noemi@noemilaganiere.com">noemi@noemilaganiere.com</a>.';
+    err.hidden=false; b.disabled=false; b.textContent="Envoyer";
+  }
 });
 
 /* ---------- Calendrier (.ics) ---------- */
