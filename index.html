@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611061221"></script>
+<script src="config.js?v=202611061232"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -378,7 +378,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 /* ===== Menu : sections claires ===== */
 .profil{gap:14px}
 .psec{background:var(--tint);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.psec .ps-h{margin:0;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.psec .ps-h{margin:0;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-ink)}
 .psec .note{margin:0}
 .psec .who{margin:0;margin-top:0}
 .psec .actions{margin:0}
@@ -856,6 +856,15 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       </div>
       </section>
 
+      <section class="psec" aria-labelledby="ps-notifs">
+        <h3 class="ps-h" id="ps-notifs">Notifications</h3>
+      <div class="notif-row">
+        <button type="button" class="notif-ouvrir" id="c-notifs"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="tx"><b>Notifications</b><small id="c-notif-etat">…</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        <label class="switch" aria-label="Notifications activées"><input type="checkbox" role="switch" id="c-notif-sw"><span></span></label>
+      </div>
+      </section>
+
+
       <section class="psec" aria-labelledby="ps-famille">
         <h3 class="ps-h" id="ps-famille">Famille</h3>
         <p class="note" id="fam-membres"></p>
@@ -865,14 +874,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
         <p class="note" id="fam-lien" hidden></p>
         <button type="button" class="btn ghost outline" id="fam-import-rappels" hidden>Copier mes rappels de l'app principale</button>
         <button type="button" class="btn ghost outline" id="fam-attribuer" hidden>Mettre mes rappels sur l'enfant affiché</button>
-      </section>
-
-      <section class="psec" aria-labelledby="ps-notifs">
-        <h3 class="ps-h" id="ps-notifs">Notifications</h3>
-      <div class="notif-row">
-        <button type="button" class="notif-ouvrir" id="c-notifs"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="tx"><b>Notifications</b><small id="c-notif-etat">…</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-        <label class="switch" aria-label="Notifications activées"><input type="checkbox" role="switch" id="c-notif-sw"><span></span></label>
-      </div>
       </section>
 
       <section class="psec" aria-labelledby="ps-cal">
@@ -951,6 +952,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611061221"></script>
+<script type="module" src="app.js?v=202611061232"></script>
 </body>
 </html>
