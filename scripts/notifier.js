@@ -142,8 +142,8 @@ async function main(){
       const admin = admins.length > 0;
       const tous = familles.flatMap(f => f.abonnements);
       let appareils = admin ? tous.filter(d => admins.includes(String(d.data().par || "").toLowerCase()))
-                            : (familles.find(f => f.id === "origine") || familles.find(f => f.abonnements.length) || { abonnements: [] }).abonnements;
-      if (!appareils.length) console.log(`${nouveaux.length} bug(s) signalé(s), mais aucun téléphone à prévenir (activez les notifications dans l'app).`);
+                            : (familles.find(f => f.id === "origine" && f.abonnements.length) || familles.find(f => f.abonnements.length) || { abonnements: [] }).abonnements;
+      if (!appareils.length) console.log(`${nouveaux.length} bug(s) signalé(s), mais aucun téléphone à prévenir : ${admins.length ? "ADMIN_EMAIL est défini, mais aucun des " + tous.length + " téléphone(s) abonné(s) ne correspond" : "ADMIN_EMAIL n'est pas défini et aucun téléphone n'est abonné"}.`);
       else for (const doc of nouveaux) {
         const b = doc.data();
         const m = { title: "🐞 Bug signalé", body: [b.etape, b.code, String(b.detail || "").replace(/\s+/g, " ").slice(0, 110)].filter(Boolean).join(" · ") || "Ouvrez la console Firebase", tag: "bug-" + doc.id, url: "./" };

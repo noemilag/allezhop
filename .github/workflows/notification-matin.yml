@@ -35,3 +35,4 @@ jobs:
           VAPID_PUBLIC: "BPLiguWy_GAbMeOOUjC9ntf_WBSRb2ZOqvyhVmsx0YjaQcQFF5CeNYreHaQhU2vBBEaLouXgbRqnamHY9YVx-eM"   # même clé publique que dans app.js
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}   # facultatif : courriel(s) des comptes qui reçoivent les alertes de bugs
