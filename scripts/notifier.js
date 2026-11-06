@@ -143,6 +143,7 @@ async function main(){
       const tous = familles.flatMap(f => f.abonnements);
       let appareils = admin ? tous.filter(d => admins.includes(String(d.data().par || "").toLowerCase()))
                             : (familles.find(f => f.id === "origine" && f.abonnements.length) || familles.find(f => f.abonnements.length) || { abonnements: [] }).abonnements;
+      console.log(`Alertes de bugs : ${nouveaux.length} à envoyer ; ADMIN_EMAIL ${admins.length ? "défini (" + admins.length + " adresse(s))" : "absent ou vide"} ; ${appareils.length} appareil(s) retenu(s) sur ${tous.length} abonné(s).`);
       if (!appareils.length) console.log(`${nouveaux.length} bug(s) signalé(s), mais aucun téléphone à prévenir : ${admins.length ? "ADMIN_EMAIL est défini, mais aucun des " + tous.length + " téléphone(s) abonné(s) ne correspond" : "ADMIN_EMAIL n'est pas défini et aucun téléphone n'est abonné"}.`);
       else for (const doc of nouveaux) {
         const b = doc.data();
