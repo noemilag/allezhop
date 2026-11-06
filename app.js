@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611060051";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611060051";
+import { demarrerAssistant } from "./assistant.js?v=202611060111";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611060111";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611060051";
+const VERSION = "202611060111";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -368,7 +368,7 @@ function choisirEnfant(id){
 }
 function paintKids(){
   $("kids-count").textContent=pad2(kidsAll.length);
-  $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
+  $("kids-list").innerHTML=kidsAll.map(k=>`<div class="kid-item${k.id===kidId?" on":""}"><button type="button" class="kid-row${k.id===kidId?" on":""}" data-kid="${esc(k.id)}">
     <span class="av" aria-hidden="true">${esc((k.prenom||"?").charAt(0).toUpperCase())}</span>
     <span class="tx"><b>${esc(k.prenom||"")}</b></span>
     ${k.id===kidId?`<span class="chk">Affiché</span>`:""}</button>
@@ -414,7 +414,11 @@ $("kid-pick").addEventListener("click", ()=>$("kid-file").click());
 $("kid-file").addEventListener("change", async e=>{ const f=e.target.files[0]; if(f) enregistrerEnfant(await f.text(), "kid-err"); e.target.value=""; });
 $("kid-paste").addEventListener("click", ()=>enregistrerEnfant($("kid-text").value, "kid-err"));
 // Toucher le prénom en haut : ouvre le profil pour changer d'enfant
-document.querySelector(".kid").addEventListener("click", ()=>{ if(access==="open"){ $("compte").hidden=false; montrerImportRappels(); } });
+document.querySelector(".kid").addEventListener("click", ()=>{
+  if(access!=="open") return;
+  if(kidsAll.length>1){ const i=kidsAll.findIndex(x=>x.id===kidId); choisirEnfant(kidsAll[(i+1)%kidsAll.length].id); return; }   // 2 enfants ou plus : on passe au suivant
+  $("compte").hidden=false; montrerImportRappels();
+});
 function paintAccount(){
   $("c-off").hidden = mode!=="local";
   $("c-out").hidden = mode!=="signedout";
@@ -1281,7 +1285,7 @@ function hFr(v){ return v.replace(/^0/,"").replace(":"," h ").replace(" h 00"," 
 function pourQuand(hh){ return +hh.slice(0,2)<12 ? "Notification sur la journée même." : "Après midi, la notification parle du lendemain : pratique pour préparer le sac la veille."; }
 async function paintPush(){
   const st=$("push-state"), act=$("push-actions"), box=$("push-heure");
-  act.innerHTML=""; box.hidden=true; $("push-options").hidden=true;
+  act.innerHTML=""; box.hidden=true; $("push-options").hidden=true; $("push-row").hidden=true;
   if(isIOS && !installed){ st.textContent="Sur iPhone, les notifications marchent seulement depuis l'écran d'accueil : Partager → Sur l'écran d'accueil, puis ouvre Allez Hop avec son icône."; return; }
   if(!pushOK){ st.textContent="Ce navigateur ne reçoit pas les notifications."; return; }
   if(!VAPID_PUBLIC){ st.textContent="Les notifications sont presque prêtes : il reste à installer les clés."; return; }
@@ -1293,21 +1297,27 @@ async function paintPush(){
   box.hidden=false;
   $("push-h").innerHTML=heures(h);
   $("push-quand").textContent=pourQuand(h);
+  $("push-row").hidden=false;
   if(!sub || !doc){
     st.textContent="Chaque jour d'école : le jour du cycle, les spécialistes, quoi apporter, les rappels et la météo.";
-    act.innerHTML=`<button type="button" class="btn primary" id="push-on">Activer les notifications</button>`;
-    $("push-on").addEventListener("click", ()=>enablePush($("push-h").value));
+    $("push-etat").textContent="Désactivées"; $("push-sw").checked=false; $("push-sw").disabled=false;
     return;
   }
   paintPushOptions(sub, doc);
-  if(enPause(doc)){
-    st.textContent = doc.actif===false ? "En pause : aucune notification sur ce téléphone." : "En pause aujourd'hui : elles reprennent demain.";
-    act.innerHTML=`<button type="button" class="btn primary" id="push-reprendre">Reprendre</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
-    $("push-reprendre").addEventListener("click", async ()=>{ await reglerPause(sub, false); paintPush(); });
+  const off=doc.actif===false, saut=sauteLaProchaine(doc), pn=prochaineNotif(doc);
+  $("push-etat").textContent = off ? "Désactivées" : "Activées · "+hFr(h)+(saut ? " · prochaine sautée" : "");
+  $("push-sw").checked=!off; $("push-sw").disabled=false;
+  if(off){
+    st.textContent="Aucune notification n'est envoyée à ce téléphone tant que l'interrupteur est éteint.";
+    box.hidden=true; $("push-options").hidden=true;
+  } else if(saut){
+    st.textContent=`La notification ${pn.mot} est sautée. Les suivantes arrivent normalement : la pause se termine toute seule.`;
+    act.innerHTML=`<button type="button" class="btn primary" id="push-reprendre">Annuler la pause</button><button type="button" class="btn outline" id="push-test">Envoyer un test</button>`;
+    $("push-reprendre").addEventListener("click", async ()=>{ await reglerPause(sub, false); paintPush(); paintNotifRow(); });
   } else {
     st.textContent=`Activées sur ce téléphone, vers ${hFr(h)}.`;
-    act.innerHTML=`<button type="button" class="btn outline" id="push-test">Envoyer un test</button><button type="button" class="btn ghost" id="push-pause">Pause aujourd'hui</button><button type="button" class="btn ghost" id="push-off">Désactiver</button>`;
-    $("push-pause").addEventListener("click", async ()=>{ await reglerPause(sub, "jour"); paintPush(); });
+    act.innerHTML=`<button type="button" class="btn outline" id="push-test">Envoyer un test</button><button type="button" class="btn outline" id="push-pause">Sauter la notification ${pn.mot}</button><p class="pause-aide">Une seule notification est sautée (par exemple en vacances ou un jour de congé). Les suivantes reprennent automatiquement.</p>`;
+    $("push-pause").addEventListener("click", async ()=>{ await reglerPause(sub, pn.date); paintPush(); paintNotifRow(); });
   }
   if($("push-test")) $("push-test").addEventListener("click", async ()=>{
     const inf=infoFor(todayKey()), sp=inf.kind==="ecole"?specialsOf(inf.jour):[];
@@ -1316,10 +1326,6 @@ async function paintPush(){
       icon:"icons/icon-192.png", tag:"test" });
     // L'iPhone n'affiche pas les notifications d'une app ouverte à l'écran : on le dit.
     toast(isIOS ? "Test envoyé. Sur iPhone, il n'apparaît pas quand l'app est ouverte : regardez le centre de notifications." : "Test envoyé");
-  });
-  $("push-off").addEventListener("click", async ()=>{
-    try{ await store.delSub(await subId(sub)); }catch(e){}
-    await sub.unsubscribe(); toast("Notifications désactivées"); paintPush(); paintNotifRow();
   });
 }
 // Changer l'heure : enregistrée tout de suite si le téléphone est déjà abonné
@@ -1347,11 +1353,20 @@ function paintPushOptions(sub, doc){
   }));
   const av=$("po-avance"); if(av) av.addEventListener("change", ()=>sauver({avance:+av.value}, "Alerte "+av.selectedOptions[0].textContent));
 }
-// Pause : « jour » = aujourd'hui seulement ; true = jusqu'à ce qu'on la retire ; false = reprendre
-const enPause = doc => !!doc && (doc.actif===false || doc.pauseLe===todayKey());
+// Interrupteur éteint = notifications désactivées (actif:false). Pause = on saute UNE notification (pauseLe = sa date) ;
+// la pause se termine toute seule, car le programme ne regarde que la date du jour.
+const desactivee = doc => !!doc && doc.actif===false;
+// Prochaine notification de ce téléphone : aujourd'hui si elle n'est pas encore partie (le programme l'envoie jusqu'à 3 h après l'heure choisie), sinon demain
+function prochaineNotif(doc){
+  const [H,M]=String((doc&&doc.heure)||"07:00").split(":").map(Number), d=new Date(), nowMin=d.getHours()*60+d.getMinutes();
+  const aujourdhui = !(doc&&doc.dernierEnvoi===todayKey()) && nowMin <= H*60+M+180;
+  return aujourdhui ? {date:todayKey(), mot:"d'aujourd'hui"} : {date:addDays(todayKey(),1), mot:"de demain"};
+}
+const sauteLaProchaine = doc => !!doc && !!doc.pauseLe && doc.pauseLe===prochaineNotif(doc).date;
 async function reglerPause(sub, p){
-  const champs = p==="jour" ? {actif:true, pauseLe:todayKey()} : p ? {actif:false, pauseLe:null} : {actif:true, pauseLe:null};
-  try{ await store.saveSub(await subId(sub), champs); toast(p==="jour"?"Pause pour aujourd'hui":p?"Notifications en pause":"Notifications reprises"); }
+  // p : une date (sauter la notification de ce jour) ; true = désactiver ; false = réactiver / annuler la pause
+  const champs = typeof p==="string" ? {actif:true, pauseLe:p} : p ? {actif:false, pauseLe:null} : {actif:true, pauseLe:null};
+  try{ await store.saveSub(await subId(sub), champs); toast(typeof p==="string"?"Notification sautée":p?"Notifications désactivées":"Notifications activées"); }
   catch(e){ toast("Pas pu enregistrer. Réessayez."); }
 }
 // Rangée « Notifications » du menu : état en un coup d'œil + interrupteur
@@ -1363,8 +1378,8 @@ async function etatNotif(){
   const sub=await (await getReg()).pushManager.getSubscription();
   let doc=null; if(sub){ try{ doc=await store.getSub(await subId(sub)); }catch(e){} }
   if(!sub || !doc) return {dispo:true, on:false, sub, txt:"Désactivées"};
-  if(enPause(doc)) return {dispo:true, on:false, sub, doc, txt: doc.actif===false ? "En pause" : "En pause aujourd'hui"};
-  return {dispo:true, on:true, sub, doc, txt:"Activées · "+hFr(doc.heure||"07:00")};
+  if(desactivee(doc)) return {dispo:true, on:false, sub, doc, txt:"Désactivées"};
+  return {dispo:true, on:true, sub, doc, txt:"Activées · "+hFr(doc.heure||"07:00")+(sauteLaProchaine(doc)?" · prochaine sautée":"")};
 }
 let etatCourant=null;
 async function paintNotifRow(){
@@ -1379,6 +1394,16 @@ $("c-notif-sw").addEventListener("change", async e=>{
     else await enablePush((et.doc && et.doc.heure) || "07:00");
   } else if(et.sub) await reglerPause(et.sub, true);
   paintNotifRow();
+});
+$("push-sw").addEventListener("change", async e=>{
+  const on=e.target.checked;
+  try{
+    const sub=await (await getReg()).pushManager.getSubscription();
+    let doc=null; if(sub){ try{ doc=await store.getSub(await subId(sub)); }catch(x){} }
+    if(on){ if(sub && doc) await reglerPause(sub, false); else await enablePush($("push-h").value); }
+    else if(sub) await reglerPause(sub, true);
+  }catch(x){ toast("Pas pu enregistrer. Réessayez."); }
+  paintPush(); paintNotifRow();
 });
 // Le menu s'ouvre de plusieurs endroits : on met la rangée à jour chaque fois qu'il apparaît
 new MutationObserver(()=>{ if(!$("compte").hidden) paintNotifRow(); }).observe($("compte"), {attributes:true, attributeFilter:["hidden"]});
@@ -1399,7 +1424,7 @@ async function enablePush(heure){
 const info=$("info");
 $("c-notifs").addEventListener("click", ()=>{ $("compte").hidden=true; $("btn-info").click(); });
 $("btn-info").addEventListener("click", ()=>{ info.hidden=false; paintPush(); });
-$("info-close").addEventListener("click", ()=>info.hidden=true);
+$("info-back").addEventListener("click", ()=>{ info.hidden=true; $("compte").hidden=false; });
 info.addEventListener("click", e=>{ if(e.target===info) info.hidden=true; });
 function icsEsc(s){ return String(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"); }
 function fold(line){ const out=[]; while(line.length>70){ out.push(line.slice(0,70)); line=" "+line.slice(70); } out.push(line); return out.join("\r\n"); }

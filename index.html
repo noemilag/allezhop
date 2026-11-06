@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611060051"></script>
+<script src="config.js?v=202611060111"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -357,6 +357,30 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .ptitre .j small{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
 .ptitre .j b{font-size:54px;font-weight:800;line-height:.9;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
 .ptitre .j.off{width:auto;height:auto;border-radius:999px;padding:6px 14px;font-size:15px;font-weight:800;background:var(--tint);color:var(--ink)}
+
+/* ===== Menu : sections claires ===== */
+.profil{gap:14px}
+.psec{background:var(--tint);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.psec .ps-h{margin:0;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.psec .note{margin:0}
+.psec .who{margin:0;margin-top:0}
+.psec .actions{margin:0}
+.psec .legal{margin:2px 0 0;text-align:left}
+/* un enfant = un seul bouton, avec les trois points à l'intérieur */
+.kid-item{display:flex;align-items:stretch;gap:0;border:1px solid var(--line);background:var(--card);border-radius:16px;overflow:hidden}
+.kid-item.on{border-color:var(--accent);background:var(--soft)}
+.kid-item .kid-row{border:0;background:none;border-radius:0;flex:1;min-width:0}
+.kid-item .kid-row.on{background:none}
+.kid-item .kid-gerer{border:0;background:none;border-radius:0;width:48px;border-left:1px solid var(--line)}
+.kid-item.on .kid-gerer{border-left-color:rgba(0,0,0,.08)}
+/* panneau Notifications : bouton retour en cercle, comme la fermeture du menu */
+#info .sheet{position:relative}
+#info h2{padding-right:52px}
+#push-row .tx{flex:1;min-width:0}
+#push-row .tx b{display:block;font-size:17px}
+#push-row .tx small{display:block;font-size:13px;color:var(--muted);margin-top:1px}
+.pause-aide{margin:-4px 0 0;font-size:13px;color:var(--muted)}
+
 /* ===== Essai C, suite : en-tête sur une ligne, zone du haut teintée ===== */
 .cache{display:none!important}
 body,header{background:var(--tint)}
@@ -792,10 +816,9 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       </div>
     </div>
     <div id="c-in" hidden class="profil">
-      <p class="who" id="c-email"></p>
-
-      <div class="sec-h"><span>Enfants</span><span id="kids-count" hidden></span></div>
-      <div id="kids-list" class="kids-list"></div>
+      <section class="psec" aria-labelledby="ps-enfants">
+        <h3 class="ps-h" id="ps-enfants">Enfants <span id="kids-count" hidden></span></h3>
+        <div id="kids-list" class="kids-list"></div>
       <button type="button" class="btn ghost outline" id="kid-add">+ Ajouter un enfant</button>
       <div id="kid-add-panel" class="kid-add-panel" hidden>
         <p class="note">Ajoutez la fiche de l'enfant : un fichier de données (.json) avec son calendrier scolaire et son horaire.</p>
@@ -808,24 +831,38 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
         </details>
         <p class="err" id="kid-err" hidden></p>
       </div>
+      </section>
 
-      <div class="sec-h" style="margin-top:6px"><span>Famille</span></div>
-      <p class="note" id="fam-membres"></p>
-      <button type="button" class="btn ghost outline" id="fam-inviter">Inviter l'autre parent</button>
-      <p class="note" id="fam-lien" hidden></p>
-      <button type="button" class="btn ghost outline" id="fam-import-rappels" hidden>Copier mes rappels de l'app principale</button>
-      <button type="button" class="btn ghost outline" id="fam-attribuer" hidden>Mettre mes rappels sur l'enfant affiché</button>
-      <div class="notif-row" style="margin-top:6px">
+      <section class="psec" aria-labelledby="ps-famille">
+        <h3 class="ps-h" id="ps-famille">Famille</h3>
+        <p class="note" id="fam-membres"></p>
+        <p class="note">Les rappels que tu ajoutes apparaissent aussi chez l'autre parent.</p>
+        <button type="button" class="btn ghost outline" id="fam-inviter">Inviter l'autre parent</button>
+        <p class="note" id="fam-lien" hidden></p>
+        <button type="button" class="btn ghost outline" id="fam-import-rappels" hidden>Copier mes rappels de l'app principale</button>
+        <button type="button" class="btn ghost outline" id="fam-attribuer" hidden>Mettre mes rappels sur l'enfant affiché</button>
+      </section>
+
+      <section class="psec" aria-labelledby="ps-notifs">
+        <h3 class="ps-h" id="ps-notifs">Notifications</h3>
+      <div class="notif-row">
         <button type="button" class="notif-ouvrir" id="c-notifs"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="tx"><b>Notifications</b><small id="c-notif-etat">…</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         <label class="switch" aria-label="Notifications activées"><input type="checkbox" role="switch" id="c-notif-sw"><span></span></label>
       </div>
+      </section>
 
-      <div class="sec-h" style="margin-top:6px"><span>Compte</span></div>
-      <p class="note">Les rappels que tu ajoutes apparaissent aussi chez l'autre parent.</p>
-      <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
-      <button type="button" class="lien" id="btn-ics">Ajouter l'année scolaire à mon calendrier (.ics)</button>
-      <p class="note" id="ics-msg"></p>
-      <p class="legal"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d'utilisation</a></p>
+      <section class="psec" aria-labelledby="ps-cal">
+        <h3 class="ps-h" id="ps-cal">Calendrier</h3>
+        <button type="button" class="lien" id="btn-ics">Ajouter l'année scolaire à mon calendrier (.ics)</button>
+        <p class="note" id="ics-msg"></p>
+      </section>
+
+      <section class="psec" aria-labelledby="ps-compte">
+        <h3 class="ps-h" id="ps-compte">Compte</h3>
+        <p class="who" id="c-email"></p>
+        <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
+        <p class="legal"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d'utilisation</a></p>
+      </section>
     </div>
     <div class="actions" hidden><button type="button" class="btn ghost" id="c-close">Fermer</button></div>
   </form>
@@ -847,10 +884,14 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <div class="scrim" id="info" hidden>
   <div class="sheet pad">
     <div class="grab"></div>
+    <button type="button" class="x-fermer" id="info-back" aria-label="Retour au menu"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
     <h2>Notifications</h2>
 
-    <div class="sec" style="padding:0;gap:10px">
-      <div class="sec-h" style="margin:0"><span>Notification de l'école</span></div>
+    <div class="sec" style="padding:0;gap:12px">
+      <div class="notif-row" id="push-row" hidden>
+        <span class="tx"><b>Notification de l'école</b><small id="push-etat"></small></span>
+        <label class="switch" aria-label="Notifications activées"><input type="checkbox" role="switch" id="push-sw"><span></span></label>
+      </div>
       <p class="note" id="push-state"></p>
       <div class="field" id="push-heure" hidden>
         <label for="push-h">Heure de la notification</label>
@@ -861,7 +902,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       <div class="actions" id="push-actions"></div>
     </div>
 
-    <div class="actions"><button type="button" class="btn ghost" id="info-close">Fermer</button></div>
   </div>
 </div>
 
@@ -876,6 +916,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611060051"></script>
+<script type="module" src="app.js?v=202611060111"></script>
 </body>
 </html>
