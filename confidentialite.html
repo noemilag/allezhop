@@ -20,53 +20,60 @@ ul{padding-left:22px;margin:8px 0}li{margin:4px 0}
 </style></head><body><main>
 <a class="retour" href="./">‹ Retour à Allez Hop</a>
 <h1>Politique de confidentialité</h1>
-<p class="date">Version provisoire du 6 novembre 2026</p>
+<p class="date">Version provisoire, révisée le 6 novembre 2026</p>
 
 <p class="note">Allez Hop est un projet personnel, en période d'essai, partagé avec un petit nombre de familles. Ce texte décrit ce que l'application fait réellement avec les renseignements. Il sera complété avant toute ouverture au grand public.</p>
 
 <h2>Qui est responsable</h2>
-<p>Allez Hop est géré par <b>Noémi Laganière</b>. Pour toute question ou demande au sujet de vos renseignements : <b><a href="mailto:noemi@noemilaganiere.com">noemi@noemilaganiere.com</a></b>, ou le bouton « Signaler un bug » dans l'application.</p>
+<p>Allez Hop est exploité par <b>Noémi Laganière</b>, qui est aussi la <b>personne responsable de la protection des renseignements personnels</b>. Pour toute question ou demande : <b><a href="mailto:noemi@noemilaganiere.com">noemi@noemilaganiere.com</a></b>, ou le bouton « Signaler un bug » dans l'application.</p>
 
-<h2>Ce que l'application recueille</h2>
+<h2>Ce que l'application recueille, et pourquoi</h2>
 <ul>
-<li><b>Votre compte :</b> votre courriel, et votre mot de passe si vous en avez choisi un. Le mot de passe est géré par le service de connexion de Google (Firebase) : l'application ne peut pas le lire. Si vous vous connectez avec Google, l'application reçoit seulement votre courriel.</li>
-<li><b>Votre famille :</b> la liste des parents qui en font partie (leurs courriels).</li>
-<li><b>Chaque enfant :</b> le prénom, la ville (pour la météo) et ses coordonnées arrondies, l'année scolaire, le cycle, l'horaire, les congés, les événements de l'école et les activités.</li>
-<li><b>Vos rappels :</b> le titre, la date, les notes et l'icône.</li>
-<li><b>Les notifications :</b> l'adresse d'envoi de votre appareil, son type (par exemple « iPhone »), l'heure choisie et vos options.</li>
-<li><b>Les signalements de bug :</b> l'étape, le message d'erreur, la version de l'application, le type d'appareil et votre courriel.</li>
+<li><b>Votre compte</b> (obligatoire) : votre courriel, et votre mot de passe si vous en avez choisi un. Il sert à vous connecter et à relier les parents d'une même famille. Le mot de passe est géré par le service de connexion de Google (Firebase) : l'application ne peut pas le lire. Si vous vous connectez avec Google, Firebase reçoit aussi le nom et la photo de votre compte Google ; l'application n'utilise que le courriel et ne les affiche ni ne les conserve.</li>
+<li><b>Votre famille</b> (obligatoire) : la liste des parents qui en font partie (leurs courriels), pour partager les données entre eux.</li>
+<li><b>Chaque enfant</b> : le prénom, la ville (pour la météo) et ses coordonnées arrondies, l'année scolaire, le cycle, l'horaire, les congés, les événements de l'école et les activités. Ces renseignements servent uniquement à afficher la journée d'école, à calculer la météo et à composer les notifications.</li>
+<li><b>Vos rappels</b> (facultatifs) : le titre, la date, les notes et l'icône.</li>
+<li><b>Les notifications</b> (facultatives) : l'adresse d'envoi de votre appareil, son type (par exemple « iPhone »), l'heure choisie et vos options. Sans ces renseignements, les notifications ne peuvent pas fonctionner : vous pouvez les désactiver en tout temps, et l'application reste utilisable.</li>
+<li><b>Les signalements de bug</b> (facultatifs) : l'étape, le message d'erreur, la version de l'application, le type d'appareil et votre courriel, pour corriger le problème.</li>
+<li><b>Sur votre appareil :</b> l'application garde en mémoire locale des préférences (l'enfant affiché, l'état des mises à jour, la météo des 30 dernières minutes, certains choix comme « Plus tard »). Aucun témoin de suivi publicitaire.</li>
 </ul>
 <p>L'application ne demande ni le nom de famille, ni le nom de l'école, ni l'adresse, ni la date de naissance de l'enfant. Évitez d'écrire des renseignements sensibles (santé, par exemple) dans les notes des rappels.</p>
 
 <h2>Les photos de l'horaire et du calendrier</h2>
-<p>Quand vous créez un enfant, la photo est envoyée au service d'intelligence artificielle de Google (Gemini, par Firebase) pour être lue. <b>L'application ne conserve pas la photo</b> : seul le résultat, que vous vérifiez, est enregistré. Cachez avant la photo toute information personnelle (nom, courriel, mot de passe, numéro d'élève). Google traite la photo selon ses propres conditions.</p>
+<p><b>Ce que fait Allez Hop :</b> la photo est envoyée au service d'intelligence artificielle de Google (Gemini, par Firebase AI Logic) uniquement pour être lue. L'application n'enregistre pas la photo ; seul le résultat, que vous vérifiez, est gardé.</p>
+<p><b>Ce que fait Google :</b> c'est un fournisseur distinct. Il peut conserver temporairement les requêtes selon ses propres modalités, et traiter la photo dans ses centres de données, y compris hors Québec. Allez Hop ne contrôle pas ces délais ni ces lieux. Ne photographiez que ce qui est nécessaire, et cachez avant la photo toute information personnelle (nom, courriel, mot de passe, numéro d'élève).</p>
 
-<h2>Les services utilisés</h2>
+<h2>Les services utilisés et où vont les renseignements</h2>
 <ul>
-<li><b>Firebase (Google) :</b> connexion, stockage des données, protection contre les abus et lecture des photos par l'IA.</li>
-<li><b>GitHub :</b> héberge le site et fait tourner l'envoi des notifications. Les journaux de ces tâches ne contiennent ni courriel, ni prénom, ni contenu de message.</li>
+<li><b>Firebase (Google) :</b> connexion, base de données, protection contre les abus et lecture des photos par l'IA. Les renseignements sont hébergés par Google et peuvent être traités hors Québec, notamment aux États-Unis.</li>
+<li><b>GitHub (Microsoft) :</b> héberge le site et fait tourner le programme d'envoi des notifications. Ce programme lit, avec un accès administrateur, les horaires, rappels et abonnements de chaque famille pour composer le message du jour ; il ne les enregistre pas, et ses journaux ne contiennent ni courriel, ni prénom, ni contenu de message.</li>
 <li><b>Open-Meteo :</b> reçoit les coordonnées arrondies de la ville pour fournir la météo.</li>
 <li><b>Les services de notification</b> d'Apple, de Google ou de votre navigateur acheminent les messages jusqu'à votre appareil.</li>
 </ul>
-<p>Il n'y a ni publicité, ni outil de mesure d'audience, ni vente de renseignements.</p>
+<p>Il n'y a ni publicité, ni outil de mesure d'audience, ni vente de renseignements. Une évaluation des facteurs relatifs à la vie privée est requise avant de communiquer des renseignements hors Québec : le responsable s'engage à la faire avant d'ouvrir l'application au grand public.</p>
 
 <h2>Qui peut voir vos renseignements</h2>
-<p>Seuls les parents d'une même famille voient les données de cette famille. Le responsable de l'application peut aussi y accéder techniquement, dans la console Firebase, pour dépanner ou répondre à une demande.</p>
+<p>Seuls les parents d'une même famille voient les données de cette famille, et ils ont tous les mêmes droits dans l'application (voir les conditions d'utilisation). Le responsable de l'application peut aussi y accéder techniquement, dans la console Firebase, pour dépanner ou répondre à une demande.</p>
 
-<h2>Combien de temps ils sont gardés</h2>
-<p>Tant que la famille existe. Supprimer un enfant dans l'application efface sa fiche, son horaire, ses activités et ses rappels, de façon définitive. Pour supprimer un compte ou une famille complète, écrivez au contact ci-dessus. Les signalements de bug sont gardés jusqu'à la correction du problème.</p>
+<h2>Combien de temps ils sont gardés, et comment les supprimer</h2>
+<ul>
+<li><b>Supprimer un enfant</b> dans l'application efface, de la base de données active, sa fiche, son horaire, ses activités et ses rappels.</li>
+<li><b>Supprimer un compte ou une famille :</b> écrivez au contact ci-dessus. La suppression se fait dans la base de données active.</li>
+<li><b>Ce qui peut subsister un temps :</b> des copies de sauvegarde ou des journaux chez les fournisseurs (Google, GitHub), les copies gardées sur vos appareils, et les notifications déjà reçues.</li>
+<li><b>Les signalements de bug</b> sont gardés jusqu'à la correction du problème, et au plus 12 mois.</li>
+</ul>
 
 <h2>Vos droits</h2>
-<p>Vous pouvez demander d'accéder à vos renseignements, de les corriger, de les faire supprimer ou de retirer votre consentement. Écrivez au contact ci-dessus : une réponse sera donnée dans un délai raisonnable.</p>
-
-<h2>Sécurité</h2>
-<p>Les échanges sont chiffrés. Chaque famille n'a accès qu'à ses propres données, et l'application est protégée contre les usages abusifs. Aucun système n'est infaillible : en cas d'incident touchant vos renseignements, vous seriez avisé comme la loi l'exige.</p>
+<p>Vous pouvez demander d'accéder à vos renseignements, de les corriger, de les faire supprimer ou de retirer votre consentement. Retirer votre consentement peut empêcher l'utilisation de certaines fonctions, ou du service. Écrivez au contact ci-dessus : une réponse vous sera donnée <b>dans les 30 jours</b>.</p>
 
 <h2>Les enfants</h2>
-<p>L'application s'adresse aux parents. Elle ne recueille pas de renseignements directement auprès des enfants : c'est le parent qui écrit le prénom et téléverse la photo.</p>
+<p>L'application s'adresse aux parents et tuteurs. Elle ne crée pas de compte pour un enfant et ne recueille rien directement auprès de lui. Le parent saisit le prénom et téléverse les photos, et déclare par le fait même être autorisé à fournir ces renseignements. Ils servent seulement à la finalité décrite plus haut et ne sont partagés qu'avec les autres parents de la famille. Si un parent n'a pas l'autorisation de partager des renseignements concernant l'enfant, il ne doit pas les inscrire.</p>
+
+<h2>Sécurité</h2>
+<p>Les échanges sont chiffrés. Chaque famille n'a accès qu'à ses propres données, et l'application est protégée contre les usages abusifs. Aucun système n'est infaillible : en cas d'incident présentant un risque de préjudice sérieux, vous seriez avisé comme la loi l'exige.</p>
 
 <h2>Changements</h2>
-<p>Ce texte peut changer, surtout pendant la période d'essai. La date de la version est indiquée en haut.</p>
+<p>Ce texte peut changer, surtout pendant la période d'essai. Pour un changement important, un avis sera affiché dans l'application avant son entrée en vigueur, et un nouveau traitement de renseignements demandera au besoin votre consentement. La date de la version est indiquée en haut.</p>
 
 <p class="pied">Voir aussi : <a href="conditions.html">Conditions d'utilisation</a></p>
 </main></body></html>
