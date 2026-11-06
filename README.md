@@ -63,6 +63,10 @@ Test : onglet **Actions → Notifications → Run workflow**.
 
 Les journaux de la tâche sont publics : le programme n'y écrit ni courriel, ni prénom, ni contenu de message. Sur iPhone (iOS 16.4 ou plus), l'app doit être ouverte depuis l'icône de l'écran d'accueil. GitHub met en pause les tâches planifiées après 60 jours sans commit.
 
+### Quitter une famille, supprimer la famille ou le compte
+
+Dans le menu : « Quitter la famille… » (quitter, ou supprimer la famille pour tout le monde) et « Supprimer mon compte… ». Ces actions demandent des règles Firestore à jour : voir dans `firestore.rules` les blocs `invitations` (suppression d'un lien), `familles` (mise à jour limitée de la liste des parents, et suppression). Sans elles, l'app affiche « Firebase refuse cette action ». Supprimer le compte de connexion demande une connexion récente.
+
 ### 4. Signalement de bugs
 
 Le bouton « Signaler un bug » (dans les erreurs de l'assistant) écrit un rapport dans la collection `signalements` (lisible seulement dans la console Firebase). Les règles doivent contenir le bloc `signalements` de `firestore.rules`. Une notification est envoyée aux téléphones de `ADMIN_EMAIL`.

@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061215";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061215";
+import { demarrerAssistant } from "./assistant.js?v=202611061221";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061221";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061215";
+const VERSION = "202611061221";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -145,8 +145,30 @@ async function initStore(){
       inviter:async ()=>{
         const secret=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,"0")).join("").slice(0,20);
         await F.setDoc(F.doc(db,"invitations",secret), {famille:famId, creeLe:Date.now(), par:userEmail});
+        try{ await F.setDoc(fam("liens",secret), {creeLe:Date.now()}); }catch(e){}   // pour effacer le lien avec la famille
         return new URL("./?rejoindre="+secret, location.href).href;
       },
+      // Quitter la famille : ses abonnements aux notifications, puis son nom dans la liste des parents, puis son profil
+      quitterFamille:async ()=>{
+        const fid=famId;
+        try{ const sn=await F.getDocs(famColl("abonnements")); for(const d of sn.docs) if(d.data().par===userEmail) await F.deleteDoc(fam("abonnements",d.id)); }catch(e){ if(e.code==="permission-denied") throw e; }
+        await F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayRemove(user.uid), courriels:F.arrayRemove(userEmail)});
+        try{ await F.deleteDoc(F.doc(db,"profils",user.uid)); }catch(e){}
+      },
+      // Supprimer la famille pour tout le monde : sous-collections d'abord, puis la famille, puis son propre profil
+      supprimerFamille:async ()=>{
+        const fid=famId;
+        for(const nom of ["enfants","rappels","abonnements","liens"]){
+          const sn=await F.getDocs(famColl(nom));
+          for(const d of sn.docs){
+            if(nom==="liens"){ try{ await F.deleteDoc(F.doc(db,"invitations",d.id)); }catch(e){} }
+            await F.deleteDoc(fam(nom,d.id));
+          }
+        }
+        await F.deleteDoc(F.doc(db,"familles",fid));
+        try{ await F.deleteDoc(F.doc(db,"profils",user.uid)); }catch(e){}
+      },
+      supprimerCompte:async ()=>{ try{ await F.deleteDoc(F.doc(db,"profils",user.uid)); }catch(e){} await A.deleteUser(user); },
       rejoindre:async secret=>{
         const inv=await F.getDoc(F.doc(db,"invitations",secret));
         if(!inv.exists()) throw new Error("Ce lien d'invitation n'est plus valide.");
@@ -248,6 +270,15 @@ async function initStore(){
       },
     };
     const arreter=()=>{ [unsub,unsubK,unsubF].forEach(f=>f&&f()); unsub=unsubK=unsubF=null; };
+    // Plus de famille sur cet appareil : on vide ce qui était affiché
+    const oublierFamille=()=>{ arreter(); famId=null; famille=null; kidsAll=[]; kidId=null; reminders=[]; current=null;
+      try{ localStorage.removeItem(LS_KID); localStorage.removeItem(LS_PLUSTARD); }catch(e){} chargerVide(); paintKids(); };
+    store.sortirDeLaFamille=async (action)=>{   // action : "quitter" | "supprimer"
+      const fid=famId; arreter();
+      try{ await store[action==="quitter"?"quitterFamille":"supprimerFamille"](); }
+      catch(e){ ouvrirFamille(fid); throw e; }   // échec : on remet la famille en marche
+      oublierFamille(); setAccess("famille", action==="quitter" ? "Vous avez quitté la famille. Créez une famille, ou ouvrez un lien d'invitation." : "La famille a été supprimée. Créez une famille, ou ouvrez un lien d'invitation.");
+    };
     const fail=err=>{
       if(err.code==="permission-denied") setAccess("locked", `Le compte ${userEmail} n'a pas accès à cette famille.`, "Me déconnecter");
       else setAccess("locked", "L'horaire ne se charge pas. Vérifiez votre connexion internet.", "Réessayer");
@@ -261,7 +292,10 @@ async function initStore(){
       };
       const entrerVide=()=>{ kidId=null; chargerVide(); paintKids(); haveKid=true; if(access==="open"){ current=null; render(); } else ready(); };
       store.plusTard=()=>{ try{ localStorage.setItem(LS_PLUSTARD,"1"); }catch(e){} entrerVide(); };
-      unsubF=F.onSnapshot(F.doc(db,"familles",fid), s=>{ famille=s.exists()?s.data():null; paintAccount(); }, ()=>{});
+      unsubF=F.onSnapshot(F.doc(db,"familles",fid), s=>{
+        famille=s.exists()?s.data():null; paintAccount();
+        if(!s.exists() && famId===fid){ oublierFamille(); setAccess("famille", "Cette famille n'existe plus. Créez une famille, ou ouvrez un lien d'invitation."); }
+      }, ()=>{});
       unsubK=F.onSnapshot(famColl("enfants"), snap=>{
         kidsAll=snap.docs.map(d=>({id:d.id, ...d.data()})).sort((x,y)=>(x.creeLe||0)-(y.creeLe||0));
         if(!kidsAll.length){
@@ -1453,6 +1487,72 @@ async function enablePush(heure){
   }catch(e){ st.textContent="L'activation n'a pas fonctionné. Ferme l'app, rouvre-la et réessaie."; return; }
   paintPush();
 }
+
+
+/* ---------- Quitter la famille, supprimer la famille ou le compte ---------- */
+const quitter=$("quitter");
+function ouvrirQuitter(mode){
+  const nb=(famille&&famille.membres&&famille.membres.length)||1, seul=nb<=1;
+  $("qt-err").hidden=true;
+  const confirm=(id,mot)=>`<label class="fl" for="${id}">Pour confirmer, écrivez <b>${mot}</b></label><input type="text" id="${id}" autocomplete="off" autocapitalize="characters" spellcheck="false">`;
+  if(mode==="famille"){
+    $("qt-titre").textContent="Quitter la famille";
+    $("qt-corps").innerHTML = seul
+      ? `<div class="qt-bloc danger"><h3>Supprimer la famille</h3>
+          <p>Vous êtes le seul parent de cette famille : la quitter la supprime. Les enfants, les horaires, les activités et les rappels sont effacés définitivement.</p>
+          ${confirm("qt-mot1","SUPPRIMER")}
+          <button type="button" class="btn danger" id="qt-go-sup" disabled>Supprimer la famille</button></div>`
+      : `<div class="qt-bloc"><h3>Quitter la famille</h3>
+          <p>Vous perdez l'accès aux enfants et aux rappels, et vos notifications s'arrêtent. Les autres parents gardent tout.</p>
+          <button type="button" class="btn danger" id="qt-go-quitter">Quitter la famille</button></div>
+        <div class="qt-bloc danger"><h3>Supprimer la famille pour tout le monde</h3>
+          <p>Les enfants, les horaires, les activités et les rappels sont effacés définitivement pour <b>tous les parents</b>.</p>
+          ${confirm("qt-mot1","SUPPRIMER")}
+          <button type="button" class="btn danger" id="qt-go-sup" disabled>Supprimer la famille</button></div>`;
+  } else {
+    $("qt-titre").textContent="Supprimer mon compte";
+    const avantFamille = famId ? (seul ? "Votre famille, avec ses enfants, ses horaires et ses rappels, sera supprimée (vous en êtes le seul parent)." : "Vous quitterez votre famille : les autres parents gardent tout.") : "";
+    $("qt-corps").innerHTML=`<div class="qt-bloc danger"><h3>Supprimer définitivement mon compte</h3>
+      <p>${avantFamille} Votre compte de connexion sera effacé. Cette action est définitive. Les signalements de bug déjà envoyés sont gardés au plus 12 mois, et supprimés plus tôt sur demande.</p>
+      ${confirm("qt-mot1","SUPPRIMER")}
+      <button type="button" class="btn danger" id="qt-go-compte" disabled>Supprimer mon compte</button></div>`;
+  }
+  $("compte").hidden=true; quitter.hidden=false;
+}
+function erreurQuitter(e, ou){
+  const m=$("qt-err");
+  m.textContent = e&&e.code==="permission-denied"
+    ? "Firebase refuse cette action : les règles de sécurité doivent être mises à jour (voir le README)."
+    : e&&e.code==="auth/requires-recent-login" ? "Par sécurité, reconnectez-vous (Me déconnecter, puis connexion), puis recommencez."
+    : "Ça n'a pas fonctionné. Réessayez dans un instant.";
+  m.hidden=false; console.error(ou, e);
+}
+$("fam-quitter").addEventListener("click", ()=>ouvrirQuitter("famille"));
+$("c-supprimer").addEventListener("click", ()=>ouvrirQuitter("compte"));
+$("qt-x").addEventListener("click", ()=>quitter.hidden=true);
+quitter.addEventListener("click", e=>{ if(e.target===quitter) quitter.hidden=true; });
+quitter.addEventListener("input", e=>{
+  if(e.target.id!=="qt-mot1") return;
+  const ok=e.target.value.trim().toUpperCase()==="SUPPRIMER";
+  quitter.querySelectorAll("#qt-go-sup,#qt-go-compte").forEach(b=>b.disabled=!ok);
+});
+quitter.addEventListener("click", async e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const id=b.id; if(!["qt-go-quitter","qt-go-sup","qt-go-compte"].includes(id)) return;
+  b.disabled=true; $("qt-err").hidden=true; const txt=b.textContent; b.textContent="Un instant…";
+  try{
+    // Les notifications de cet appareil s'arrêtent dans tous les cas
+    try{ const sub=await (await getReg()).pushManager.getSubscription(); if(sub) await sub.unsubscribe(); }catch(x){}
+    if(id==="qt-go-compte"){
+      if(famId){ const nb=(famille&&famille.membres&&famille.membres.length)||1; await store.sortirDeLaFamille(nb<=1?"supprimer":"quitter"); }
+      await store.supprimerCompte();
+      quitter.hidden=true; toast("Compte supprimé");
+    } else {
+      await store.sortirDeLaFamille(id==="qt-go-quitter"?"quitter":"supprimer");
+      quitter.hidden=true; toast(id==="qt-go-quitter"?"Vous avez quitté la famille":"Famille supprimée");
+    }
+  }catch(err){ erreurQuitter(err, id); b.disabled=false; b.textContent=txt; }
+});
 
 /* ---------- Calendrier (.ics) ---------- */
 const info=$("info");

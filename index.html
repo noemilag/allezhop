@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611061215"></script>
+<script src="config.js?v=202611061221"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -363,6 +363,18 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .ptitre .j.inconnu{background:var(--tint);color:var(--muted);box-shadow:inset 0 0 0 2px var(--line)}
 .inconnu-cta{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .inconnu-cta p{margin:0;color:var(--muted);font-size:15px}
+
+/* ===== Quitter la famille, supprimer le compte ===== */
+#quitter .sheet{position:relative}
+#quitter h2{padding-right:52px}
+.qt-corps{display:flex;flex-direction:column;gap:12px}
+.qt-corps p{margin:0}
+.qt-bloc{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--card)}
+.qt-bloc.danger{border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
+.qt-bloc h3{margin:0;font-size:17px}
+.qt-bloc input[type=text]{width:100%;box-sizing:border-box}
+.btn:disabled{opacity:.45;cursor:default}
+.lien.danger{color:var(--danger)}
 /* ===== Menu : sections claires ===== */
 .profil{gap:14px}
 .psec{background:var(--tint);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -849,6 +861,7 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
         <p class="note" id="fam-membres"></p>
         <p class="note">Les rappels que tu ajoutes apparaissent aussi chez l'autre parent.</p>
         <button type="button" class="btn ghost outline" id="fam-inviter">Inviter l'autre parent</button>
+        <button type="button" class="btn ghost outline" id="fam-quitter">Quitter la famille…</button>
         <p class="note" id="fam-lien" hidden></p>
         <button type="button" class="btn ghost outline" id="fam-import-rappels" hidden>Copier mes rappels de l'app principale</button>
         <button type="button" class="btn ghost outline" id="fam-attribuer" hidden>Mettre mes rappels sur l'enfant affiché</button>
@@ -872,11 +885,22 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
         <h3 class="ps-h" id="ps-compte">Compte</h3>
         <p class="who" id="c-email"></p>
         <div class="actions"><button type="button" class="btn ghost outline" id="c-logout">Me déconnecter</button></div>
+        <button type="button" class="lien danger" id="c-supprimer">Supprimer mon compte…</button>
         <p class="legal"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d'utilisation</a></p>
       </section>
     </div>
     <div class="actions" hidden><button type="button" class="btn ghost" id="c-close">Fermer</button></div>
   </form>
+</div>
+
+<div class="scrim" id="quitter" hidden>
+  <div class="sheet pad">
+    <div class="grab"></div>
+    <button type="button" class="x-fermer" id="qt-x" aria-label="Fermer"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    <h2 id="qt-titre"></h2>
+    <div id="qt-corps" class="qt-corps"></div>
+    <p class="err" id="qt-err" hidden></p>
+  </div>
 </div>
 
 <div class="scrim" id="gerer" hidden>
@@ -927,6 +951,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611061215"></script>
+<script type="module" src="app.js?v=202611061221"></script>
 </body>
 </html>
