@@ -49,7 +49,7 @@ service cloud.firestore {
             && request.auth.uid in request.resource.data.membres
             && get(/databases/$(database)/documents/invitations/$(request.resource.data.parInvitation)).data.famille == fid));
       // Supprimer la famille : seulement par son dernier parent (les enfants, rappels et abonnements sont effacés d'abord par l'app).
-      allow delete: if connecte() && resource.data.membres == [request.auth.uid];
+      allow delete: if connecte() && resource.data.membres.size() == 1 && request.auth.uid in resource.data.membres;
       match /{sous}/{id} {
         allow read, write: if membre(fid);
       }
