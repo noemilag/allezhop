@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061911";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061911";
+import { demarrerAssistant } from "./assistant.js?v=202611061914";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061914";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061911";
+const VERSION = "202611061914";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -475,7 +475,8 @@ function paintAccount(){
   $("compte-badge").hidden = mode!=="signedout";
   $("banner-wrap").hidden=true;
   const m=$("fam-membres"); if(m) m.textContent = famille && famille.courriels ? "Parents : "+famille.courriels.join(", ") : "";
-  const q=$("fam-quitter"); if(q) q.textContent = (famille && famille.membres && famille.membres.length<=1) ? "Supprimer la famille…" : "Quitter la famille…";   // seul parent : on ne « quitte » pas, on supprime
+  // Seul parent : pas de bouton « Quitter la famille » (on ne peut pas quitter sa famille sans supprimer son compte). Avec un autre parent : on peut la quitter.
+  const q=$("fam-quitter"); if(q) q.hidden = !(famille && famille.membres && famille.membres.length>1);
 }
 $("btn-compte").addEventListener("click", ()=>{ $("l-err").hidden=true; $("compte").hidden=false; montrerImportRappels(); });
 $("banner-btn").addEventListener("click", e=>{
