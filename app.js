@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061921";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061921";
+import { demarrerAssistant } from "./assistant.js?v=202611061924";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061924";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061921";
+const VERSION = "202611061924";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -789,6 +789,7 @@ function setAccess(state, msg, alt){
   $("gate-login").hidden = !!alt || state==="setup" || state==="famille";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
   if($("gate-supprimer")) $("gate-supprimer").hidden = !(state==="famille" || state==="setup");
+  { const qui=$("gate-qui"); if(qui){ qui.hidden = !((state==="famille" || state==="setup") && userEmail); qui.innerHTML = userEmail ? "Connecté avec <b>"+esc(userEmail)+"</b>" : ""; } }
   if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; $("recherche").hidden=true; $("mois").hidden=true; }
   else render();
 }
@@ -1525,6 +1526,7 @@ function ouvrirQuitter(mode){
     $("qt-titre").textContent="Supprimer mon compte";
     const avantFamille = famId ? (seul ? "Votre famille, avec ses enfants, ses horaires et ses rappels, sera supprimée (vous en êtes le seul parent)." : "Vous quitterez votre famille : les autres parents gardent tout.") : "";
     $("qt-corps").innerHTML=`<div class="qt-bloc danger"><h3>Supprimer définitivement mon compte</h3>
+      <p class="qt-qui">Compte concerné : <b>${esc(userEmail||"")}</b></p>
       <p>${avantFamille} Votre compte de connexion sera effacé. Cette action est définitive. Les signalements de bug déjà envoyés sont gardés au plus 12 mois, et supprimés plus tôt sur demande.</p>
       ${store&&store.fournisseur&&store.fournisseur()==="password" ? `<label class="fl" for="qt-mdp">Votre mot de passe (vérification de sécurité)</label><input type="password" id="qt-mdp" autocomplete="current-password">` : `<p class="note">Une fenêtre Google s'ouvrira pour confirmer que c'est bien vous.</p>`}
       ${confirm("qt-mot1","SUPPRIMER")}
