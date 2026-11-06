@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061232";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061232";
+import { demarrerAssistant } from "./assistant.js?v=202611061254";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061254";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061232";
+const VERSION = "202611061254";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -158,6 +158,7 @@ async function initStore(){
       // Supprimer la famille pour tout le monde : sous-collections d'abord, puis la famille, puis son propre profil
       supprimerFamille:async ()=>{
         const fid=famId;
+        if(famille && famille.membres && famille.membres.length>1){ const e=new Error("Il reste d'autres parents."); e.code="autres-parents"; throw e; }
         for(const nom of ["enfants","rappels","abonnements","liens"]){
           const sn=await F.getDocs(famColl(nom));
           for(const d of sn.docs){
@@ -1505,10 +1506,7 @@ function ouvrirQuitter(mode){
       : `<div class="qt-bloc"><h3>Quitter la famille</h3>
           <p>Vous perdez l'accès aux enfants et aux rappels, et vos notifications s'arrêtent. Les autres parents gardent tout.</p>
           <button type="button" class="btn danger" id="qt-go-quitter">Quitter la famille</button></div>
-        <div class="qt-bloc danger"><h3>Supprimer la famille pour tout le monde</h3>
-          <p>Les enfants, les horaires, les activités et les rappels sont effacés définitivement pour <b>tous les parents</b>.</p>
-          ${confirm("qt-mot1","SUPPRIMER")}
-          <button type="button" class="btn danger" id="qt-go-sup" disabled>Supprimer la famille</button></div>`;
+        <p class="note">Une famille ne peut être supprimée que par son dernier parent : quand tous les autres l'ont quittée, le parent qui reste peut la supprimer.</p>`;
   } else {
     $("qt-titre").textContent="Supprimer mon compte";
     const avantFamille = famId ? (seul ? "Votre famille, avec ses enfants, ses horaires et ses rappels, sera supprimée (vous en êtes le seul parent)." : "Vous quitterez votre famille : les autres parents gardent tout.") : "";
@@ -1523,6 +1521,7 @@ function erreurQuitter(e, ou){
   const m=$("qt-err");
   m.textContent = e&&e.code==="permission-denied"
     ? "Firebase refuse cette action : les règles de sécurité doivent être mises à jour (voir le README)."
+    : e&&e.code==="autres-parents" ? "Il reste d'autres parents dans la famille : seul le dernier parent peut la supprimer."
     : e&&e.code==="auth/requires-recent-login" ? "Par sécurité, reconnectez-vous (Me déconnecter, puis connexion), puis recommencez."
     : "Ça n'a pas fonctionné. Réessayez dans un instant.";
   m.hidden=false; console.error(ou, e);
