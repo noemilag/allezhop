@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611061924";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611061924";
+import { demarrerAssistant } from "./assistant.js?v=202611171227";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611171227";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611061924";
+const VERSION = "202611171227";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -118,7 +118,7 @@ async function initStore(){
       reset:e=>A.sendPasswordResetEmail(auth,e),
       signOut:()=>A.signOut(auth),
       save:r=>{
-        const body={titre:r.titre, date:r.date, notes:r.notes, ic:r.ic, enfant:r.enfant||kidId||null, maj:Date.now(), par:userEmail};
+        const body={titre:r.titre, date:r.date, heure:r.heure||"", notes:r.notes, ic:r.ic, enfant:r.enfant||kidId||null, maj:Date.now(), par:userEmail};
         return r.id ? F.setDoc(fam("rappels",r.id), body) : F.addDoc(famColl("rappels"), body);
       },
       del:id=>F.deleteDoc(fam("rappels",id)),
@@ -405,7 +405,7 @@ async function enregistrerActivites(list){
   await store.saveActs(kidId, list);
 }
 const heureFr=h=>{ if(!h) return ""; const [a,b]=h.split(":"); return (+a)+" h"+(b && b!=="00" ? " "+b : ""); };
-function remindersOn(k){ return mine().filter(r=>r.date===k).sort((a,b)=>(a.titre||"").localeCompare(b.titre||"")); }
+function remindersOn(k){ return mine().filter(r=>r.date===k).sort((a,b)=>(a.heure||"").localeCompare(b.heure||"") || (a.titre||"").localeCompare(b.titre||"")); }
 
 /* ---------- Compte ---------- */
 const $=id=>document.getElementById(id);
@@ -671,11 +671,11 @@ function cardHTML(k){
 
   const items=[];
   (EVENTS[k]||[]).forEach(([e,t,n])=>items.push({ic:e, t, n}));
-  remindersOn(k).forEach(r=>items.push({ic:r.ic||r.em, t:r.titre, id:r.id}));
+  remindersOn(k).forEach(r=>items.push({ic:r.ic||r.em, t:r.titre, id:r.id, h:r.heure}));
   if(items.length){
     h+=`<div class="sec"><div class="sec-h"><span>À ne pas oublier</span></div>`;
     items.forEach(it=>{
-      const inner=`<span class="ic">${icon(it.ic)}</span><div class="tx"><b>${esc(it.t)}</b>${it.n?`<span class="note">${esc(it.n)}</span>`:""}</div>`;
+      const inner=`<span class="ic">${icon(it.ic)}</span><div class="tx"><b>${esc(it.t)}</b>${it.n?`<span class="note">${esc(it.n)}</span>`:""}</div>${it.h?`<time>${heureFr(it.h)}</time>`:""}`;
       h+= it.id ? `<button class="line" data-edit="${esc(it.id)}" aria-label="Modifier : ${esc(it.t)}">${inner}</button>` : `<div class="line">${inner}</div>`;
     });
     h+=`</div>`;
@@ -1189,6 +1189,14 @@ document.addEventListener("visibilitychange", ()=>{
 const scrim=$("scrim"), form=$("sheet");
 const fT=$("f-titre"), fN=$("f-notes"), fH=$("f-hint"), fE=$("f-err"), fDel=$("f-del");
 let editing=null, ic="pin", armed=false, selDate=null, calMonth=null;
+const fHeure=$("f-heure");
+function setHeureMode(precise){
+  document.querySelectorAll("#f-hmode button").forEach(b=>b.classList.toggle("on", (b.dataset.hm==="heure")===precise));
+  fHeure.hidden=!precise;
+  if(precise && !fHeure.value) fHeure.value="09:00";
+  if(!precise) fHeure.value="";
+}
+$("f-hmode").addEventListener("click", e=>{ const b=e.target.closest("[data-hm]"); if(b) setHeureMode(b.dataset.hm==="heure"); });
 
 $("icons").innerHTML=PICK.map(x=>`<button type="button" data-ic="${x}" aria-label="Icône ${x}">${icon(x)}</button>`).join("");
 $("icons").addEventListener("click", e=>{ const b=e.target.closest("[data-ic]"); if(b){ ic=b.dataset.ic; paintIc(); } });
@@ -1238,6 +1246,7 @@ function openSheet(r){
   editing=r?r.id:null; armed=false;
   $("sheet-title").textContent=r?"Modifier le rappel":"Nouveau rappel";
   fT.value=r?r.titre:""; fN.value=r?(r.notes||""):""; ic=r?icOf(r.ic||r.em):"pin";
+  fHeure.value=(r&&r.heure)||""; setHeureMode(!!(r&&r.heure));
   const t=todayKey();
   pick(r ? r.date : (current && current>t ? current : addDays(t,1)));
   fDel.hidden=!r; fDel.classList.remove("armed"); fDel.textContent="Supprimer";
@@ -1333,7 +1342,9 @@ form.addEventListener("submit", async e=>{
   const titre=fT.value.trim();
   if(!titre){ fE.textContent="Écrivez le nom de l'activité."; fE.hidden=false; fT.focus(); return; }
   if(!selDate){ fE.textContent="Choisissez une date dans le calendrier."; fE.hidden=false; return; }
-  await saveReminder({id:editing, titre, date:selDate, notes:fN.value.trim(), ic});
+  const heure=fHeure.hidden ? "" : fHeure.value;
+  if(!fHeure.hidden && !heure){ fE.textContent="Indiquez l'heure, ou choisissez « Toute la journée »."; fE.hidden=false; fHeure.focus(); return; }
+  await saveReminder({id:editing, titre, date:selDate, heure, notes:fN.value.trim(), ic});
   closeSheet(); current=selDate; render();
   toast("Rappel ajouté pour "+longDate(selDate));
 });

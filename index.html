@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611061924"></script>
+<script src="config.js?v=202611171227"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -479,8 +479,9 @@ html.st-loading .week{visibility:hidden}
 .heures label small{font-weight:600;letter-spacing:.05em;text-transform:none}
 .heures label{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 /* champs heure et date : l'iPhone leur donne une largeur minimale, on la retire pour qu'ils restent dans leur colonne */
-.heures input{-webkit-appearance:none;appearance:none;display:block;font:inherit;font-size:17px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:16px;padding:11px 12px;width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:50px;text-align:left}
-.heures input::-webkit-date-and-time-value{text-align:left}
+.heures input,#f-heure{-webkit-appearance:none;appearance:none;display:block;font:inherit;font-size:17px;color:var(--ink);background:var(--tint);border:2px solid transparent;border-radius:16px;padding:11px 12px;width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:50px;text-align:left}
+.heures input::-webkit-date-and-time-value,#f-heure::-webkit-date-and-time-value{text-align:left}
+#f-heure[hidden]{display:none}
 #a-duree{flex-wrap:wrap}
 /* tuile « Congé » (fins de semaine et congés) : le o souriant du logo */
 /* tuile « Congé » : même taille que la tuile du jour, avec le mot dessiné comme le logo */
@@ -736,6 +737,14 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
       </div>
     </div>
     <div class="field">
+      <span class="fl">Heure</span>
+      <div class="quick" id="f-hmode">
+        <button type="button" data-hm="jour" class="on">Toute la journée</button>
+        <button type="button" data-hm="heure">Heure précise</button>
+      </div>
+      <input type="time" id="f-heure" step="300" hidden style="margin-top:8px">
+    </div>
+    <div class="field">
       <span class="fl">Icône</span>
       <div class="icons" id="icons"></div>
     </div>
@@ -989,6 +998,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611061924"></script>
+<script type="module" src="app.js?v=202611171227"></script>
 </body>
 </html>

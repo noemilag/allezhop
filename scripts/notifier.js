@@ -59,7 +59,7 @@ function message(k, rappels, w, demain, activites = []){
   }
   const autres = [
     ...(EVENTS[k] || []).map(([, t]) => t),
-    ...rappels.map(r => r.titre),
+    ...rappels.map(r => r.titre + (r.heure ? " " + heureFr(r.heure) : "")),
     ...activites.map(a => `${a.titre} ${heureFr(a.debut)}`),
   ];
   if (autres.length) lines.push(autres.join(" – "));
@@ -193,7 +193,7 @@ async function main(){
       for (const e of enfants) {
         chargerEnfant(e);
         const siens = rappels.filter(r => r.date === jour && (r.enfant ? r.enfant === e.id : e.id === enfants[0].id))
-          .sort((a, b) => (a.titre || "").localeCompare(b.titre || ""));
+          .sort((a, b) => (a.heure || "").localeCompare(b.heure || "") || (a.titre || "").localeCompare(b.titre || ""));
         const acts = activitesLe(e, jour);
         if (!test && !aAnnoncer(jour, siens.length, acts.length)) continue;
         // Option dans l'app : pas de notification les jours sans école
