@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611272136";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611272136";
+import { demarrerAssistant } from "./assistant.js?v=202611272143";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611272143";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611272136";
+const VERSION = "202611272143";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -186,7 +186,15 @@ async function initStore(){
         lot.update(F.doc(db,"familles",fid), {membres:F.arrayUnion(user.uid), courriels:F.arrayUnion(userEmail), parInvitation:secret});
         lot.set(F.doc(db,"profils",user.uid), {famille:fid, courriel:userEmail}, {merge:true});
         lot.delete(F.doc(db,"invitations",secret));
-        try{ await lot.commit(); }catch(e){ if(e.code==="permission-denied") throw new Error(invalide); throw e; }
+        try{ await lot.commit(); }
+        catch(e){
+          if(e.code!=="permission-denied") throw e;
+          // Anciennes règles Firebase (pas encore mises à jour) : on entre sans effacer le lien. Avec les nouvelles règles, ce chemin est refusé.
+          try{
+            await F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayUnion(user.uid), courriels:F.arrayUnion(userEmail), parInvitation:secret});
+            await F.setDoc(F.doc(db,"profils",user.uid), {famille:fid, courriel:userEmail}, {merge:true});
+          }catch(e2){ if(e2.code==="permission-denied") throw new Error(invalide); throw e2; }
+        }
         try{ await F.deleteDoc(F.doc(db,"familles",fid,"liens",secret)); }catch(e){}
         return fid;
       },
