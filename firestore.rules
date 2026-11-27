@@ -25,12 +25,16 @@ service cloud.firestore {
     match /profils/{uid} {
       allow read, write: if connecte() && request.auth.uid == uid;
     }
-    // Liens d'invitation pour l'autre parent (le code du lien est secret).
+    // Liens d'invitation pour l'autre parent (le code du lien est secret). Un lien ne sert qu'une fois :
+    // le parent invité l'efface dans la même opération que celle qui l'ajoute à la famille.
     match /invitations/{secret} {
       allow get: if connecte();
       allow create: if membre(request.resource.data.famille);
-      // Un parent efface les liens de sa famille quand il supprime la famille.
-      allow delete: if connecte() && membre(resource.data.famille);
+      // Un parent efface les liens de sa famille quand il supprime la famille ;
+      // le parent invité efface le lien qu'il vient d'utiliser pour entrer dans la famille.
+      allow delete: if connecte() && (membre(resource.data.famille)
+        || (request.auth.uid in getAfter(/databases/$(database)/documents/familles/$(resource.data.famille)).data.membres
+            && getAfter(/databases/$(database)/documents/familles/$(resource.data.famille)).data.parInvitation == secret));
     }
     match /familles/{fid} {
       allow read: if connecte() && request.auth.uid in resource.data.membres;
@@ -47,7 +51,9 @@ service cloud.firestore {
             && request.resource.data.membres.hasAll(resource.data.membres)
             && request.resource.data.membres.size() == resource.data.membres.size() + 1
             && request.auth.uid in request.resource.data.membres
-            && get(/databases/$(database)/documents/invitations/$(request.resource.data.parInvitation)).data.famille == fid));
+            && get(/databases/$(database)/documents/invitations/$(request.resource.data.parInvitation)).data.famille == fid
+            // le lien est effacé dans la même opération : il ne pourra pas resservir
+            && !existsAfter(/databases/$(database)/documents/invitations/$(request.resource.data.parInvitation))));
       // Supprimer la famille : seulement par son dernier parent (les enfants, rappels et abonnements sont effacés d'abord par l'app).
       allow delete: if connecte() && resource.data.membres.size() == 1 && request.auth.uid in resource.data.membres;
       match /{sous}/{id} {

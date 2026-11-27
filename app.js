@@ -1,10 +1,10 @@
 /* Allez Hop : la fiche du jour de l'enfant. Ses données viennent de Firebase après la connexion (voir school.js). */
-import { demarrerAssistant } from "./assistant.js?v=202611171227";
-import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611171227";
+import { demarrerAssistant } from "./assistant.js?v=202611272136";
+import { CYCLE, CYCLE_OF, END, ENFANT, EVENTS, FIRST, FREEZING, JOURS, LAST, LAT, LON, METEO_URL, MOIS, OFF, PERIODES, SAISON, SUBJ, WX_URL, addDays, cap, chargerEnfant, chargerVide, estVide, codeEmoji, daysFromToday, deg, habits, hr, infoFor, key, longDate, nextSchoolDay, parse, precipShort, ranges, specialsOf, summarize, todayKey, validerEnfant, wxSub, CONGES } from "./school.js?v=202611272136";
 
 
 /* ---------- Version : à changer à chaque mise en ligne (voir bump.sh) ---------- */
-const VERSION = "202611171227";
+const VERSION = "202611272136";
 // Les téléphones gardent l'app en mémoire : on vérifie s'il existe une version plus récente et on recharge.
 // Une fois la page chargée, on retire le ?v=… de l'adresse pour qu'elle reste propre.
 if(new URL(location.href).searchParams.has("v")){
@@ -138,7 +138,7 @@ async function initStore(){
       creerFamille:async code=>{
         const ref=F.doc(F.collection(db,"familles"));
         await F.setDoc(ref, {membres:[user.uid], courriels:[userEmail], creeLe:Date.now(), invitation:code});
-        await F.setDoc(F.doc(db,"profils",user.uid), {famille:ref.id, courriel:userEmail});
+        await F.setDoc(F.doc(db,"profils",user.uid), {famille:ref.id, courriel:userEmail}, {merge:true});
         return ref.id;
       },
       // Lien pour inviter l'autre parent
@@ -153,7 +153,7 @@ async function initStore(){
         const fid=famId;
         try{ const sn=await F.getDocs(famColl("abonnements")); for(const d of sn.docs) if(d.data().par===userEmail) await F.deleteDoc(fam("abonnements",d.id)); }catch(e){ if(e.code==="permission-denied") throw e; }
         await F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayRemove(user.uid), courriels:F.arrayRemove(userEmail)});
-        try{ await F.deleteDoc(F.doc(db,"profils",user.uid)); }catch(e){}
+        try{ await F.updateDoc(F.doc(db,"profils",user.uid), {famille:F.deleteField()}); }catch(e){}   // le profil garde l'acceptation des conditions
       },
       // Supprimer la famille pour tout le monde : sous-collections d'abord, puis la famille, puis son propre profil
       supprimerFamille:async ()=>{
@@ -167,7 +167,7 @@ async function initStore(){
           }
         }
         await F.deleteDoc(F.doc(db,"familles",fid));
-        try{ await F.deleteDoc(F.doc(db,"profils",user.uid)); }catch(e){}
+        try{ await F.updateDoc(F.doc(db,"profils",user.uid), {famille:F.deleteField()}); }catch(e){}   // le profil garde l'acceptation des conditions
       },
       // Nouvelle vérification d'identité (exigée par Google pour supprimer un compte) : mot de passe, ou fenêtre Google
       fournisseur:()=>((user&&user.providerData&&user.providerData[0])||{}).providerId||"",
@@ -177,14 +177,21 @@ async function initStore(){
         await A.reauthenticateWithPopup(user, prov);
       },
       supprimerCompte:async ()=>{ try{ await F.deleteDoc(F.doc(db,"profils",user.uid)); }catch(e){} await A.deleteUser(user); },
+      // Rejoindre avec un lien : le lien est effacé dans la même opération, il ne sert donc qu'une fois
       rejoindre:async secret=>{
+        const invalide="Ce lien d'invitation a déjà servi ou n'est plus valide. Demandez un nouveau lien à l'autre parent.";
         const inv=await F.getDoc(F.doc(db,"invitations",secret));
-        if(!inv.exists()) throw new Error("Ce lien d'invitation n'est plus valide.");
-        const fid=inv.data().famille;
-        await F.updateDoc(F.doc(db,"familles",fid), {membres:F.arrayUnion(user.uid), courriels:F.arrayUnion(userEmail), parInvitation:secret});
-        await F.setDoc(F.doc(db,"profils",user.uid), {famille:fid, courriel:userEmail});
+        if(!inv.exists()) throw new Error(invalide);
+        const fid=inv.data().famille, lot=F.writeBatch(db);
+        lot.update(F.doc(db,"familles",fid), {membres:F.arrayUnion(user.uid), courriels:F.arrayUnion(userEmail), parInvitation:secret});
+        lot.set(F.doc(db,"profils",user.uid), {famille:fid, courriel:userEmail}, {merge:true});
+        lot.delete(F.doc(db,"invitations",secret));
+        try{ await lot.commit(); }catch(e){ if(e.code==="permission-denied") throw new Error(invalide); throw e; }
+        try{ await F.deleteDoc(F.doc(db,"familles",fid,"liens",secret)); }catch(e){}
         return fid;
       },
+      // Conditions d'utilisation acceptées (version), gardées dans le profil du compte
+      accepterConditions:()=>F.setDoc(F.doc(db,"profils",user.uid), {conditions:CONDITIONS_V, conditionsLe:Date.now(), courriel:userEmail}, {merge:true}),
       // Pour la famille d'origine : copie des données de l'app principale (enfants et rappels)
       ancienneFamille:async ()=>{ try{ const s=await F.getDocs(F.collection(db,"enfants")); return s.docs.map(d=>({id:d.id, ...d.data()})); }catch(e){ return null; } },
       // Rappels de l'app principale pas encore dans la famille (on ne touche ni aux enfants ni aux rappels déjà présents)
@@ -333,15 +340,29 @@ async function initStore(){
       paintAccount();
       if(!u){ setAccess("locked"); return; }
       setAccess("loading");
+      store.continuer();
+    });
+    // Après la connexion : conditions d'utilisation à accepter (une fois par compte et par version), puis lien d'invitation, puis la famille
+    store.continuer=async ()=>{
+      const u=user; if(!u) return;
+      const invite=new URLSearchParams(location.search).get("rejoindre");
+      const oublierLien=()=>{ if(invite){ const url=new URL(location.href); url.searchParams.delete("rejoindre"); history.replaceState(null,"",url.pathname+url.search); } };
       try{
-        const invite=new URLSearchParams(location.search).get("rejoindre");
         const p=await F.getDoc(F.doc(db,"profils",u.uid));
-        let fid=p.exists()?p.data().famille:null;
-        if(!fid && invite){ fid=await store.rejoindre(invite); toast("Bienvenue dans la famille!"); }
-        if(invite){ const url=new URL(location.href); url.searchParams.delete("rejoindre"); history.replaceState(null,"",url.pathname+url.search); }
+        if(user!==u) return;
+        if(!(p.exists() && p.data().conditions===CONDITIONS_V)){ setAccess("conditions"); return; }
+        let fid=p.data().famille||null;
+        if(!fid && invite){
+          try{ fid=await store.rejoindre(invite); toast("Bienvenue dans la famille!"); }
+          catch(e){
+            console.error(e); oublierLien(); setAccess("famille");
+            const m=$("fam-err"); m.textContent = e.message && !e.code ? e.message : "Le lien d'invitation n'a pas fonctionné. Réessayez."; m.hidden=false; return;
+          }
+        }
+        oublierLien();
         if(fid) ouvrirFamille(fid); else setAccess("famille");
       }catch(e){ console.error(e); setAccess("locked", e.message && !e.code ? e.message : "Le compte ne se charge pas. Réessayez.", "Me déconnecter"); }
-    });
+    };
     store.ouvrirFamille=ouvrirFamille;
   }catch(e){
     console.error(e);
@@ -705,6 +726,8 @@ let access="loading";
 $("gate-logo").innerHTML=document.querySelector("header .logo").outerHTML;
 const GATE_TXT=$("gate-msg").textContent;
 const GATE_TITLE=$("gate-title").innerHTML;
+// Version des conditions d'utilisation et de la politique de confidentialité. La changer redemande l'acceptation à tous les comptes.
+const CONDITIONS_V="2026-11-06";
 /* ---------- Petites surprises des fêtes, à l'ouverture de l'app ----------
    Halloween (30 et 31 octobre) : une chauve-souris traverse l'écran.
    Noël (dernier jour d'école de décembre, 24 et 25 décembre) : il neige quelques secondes.
@@ -775,11 +798,12 @@ function setAccess(state, msg, alt){
   access=state;
   if(state==="open") setTimeout(surprise, 700);
   const h=document.documentElement;
-  h.classList.remove("st-loading","st-locked","st-open","st-setup","st-famille"); h.classList.add("st-"+(state==="setup"||state==="famille"?"locked":state));
-  h.classList.toggle("st-setup", state==="setup"); h.classList.toggle("st-famille", state==="famille");
-  $("gate-title").innerHTML = state==="setup" ? "Presque prêt!" : state==="famille" ? "Bienvenue!" : GATE_TITLE;
+  h.classList.remove("st-loading","st-locked","st-open","st-setup","st-famille"); h.classList.add("st-"+(state==="setup"||state==="famille"||state==="conditions"?"locked":state));
+  h.classList.toggle("st-setup", state==="setup"); h.classList.toggle("st-famille", state==="famille"||state==="conditions");
+  $("gate-title").innerHTML = state==="setup" ? "Presque prêt!" : state==="famille" ? "Bienvenue!" : state==="conditions" ? "Avant de commencer" : GATE_TITLE;
   $("setup").hidden = true;
-  $("fam-box").hidden = state!=="famille"; $("as-box").hidden = state!=="setup";
+  $("fam-box").hidden = state!=="famille"; $("as-box").hidden = state!=="setup"; $("cond-box").hidden = state!=="conditions";
+  if(state==="conditions"){ msg = "Prenez un moment pour lire les conditions d'utilisation et la politique de confidentialité d'Allez Hop. Pour utiliser l'app, il faut les accepter."; alt = "Me déconnecter"; $("cond-ok").checked=false; $("cond-go").disabled=true; $("cond-err").hidden=true; }
   if(state==="famille"){ msg = "Créez votre famille avec le code d'invitation reçu. Vous pourrez ensuite inviter l'autre parent."; alt = "Me déconnecter"; montrerImport(); }
   if(state==="setup"){ msg = "Ajoutons votre enfant : son prénom, l'horaire de sa classe et le calendrier scolaire. Prévoyez 3 minutes et les deux feuilles à photographier. Pas le temps? Vous pourrez le faire plus tard, depuis le menu."; alt = "Me déconnecter"; }
   const showKid = state==="open";
@@ -788,8 +812,8 @@ function setAccess(state, msg, alt){
   $("gate-msg").textContent = msg || GATE_TXT;
   $("gate-login").hidden = !!alt || state==="setup" || state==="famille";
   $("gate-alt").hidden = !alt; $("gate-alt").textContent = alt || "";
-  if($("gate-supprimer")) $("gate-supprimer").hidden = !(state==="famille" || state==="setup");
-  { const qui=$("gate-qui"); if(qui){ qui.hidden = !((state==="famille" || state==="setup") && userEmail); qui.innerHTML = userEmail ? "Connecté avec <b>"+esc(userEmail)+"</b>" : ""; } }
+  if($("gate-supprimer")) $("gate-supprimer").hidden = !(state==="famille" || state==="setup" || state==="conditions");
+  { const qui=$("gate-qui"); if(qui){ qui.hidden = !((state==="famille" || state==="setup" || state==="conditions") &&userEmail); qui.innerHTML = userEmail ? "Connecté avec <b>"+esc(userEmail)+"</b>" : ""; } }
   if(state!=="open"){ card.innerHTML=""; peek.innerHTML=""; scrim.hidden=true; info.hidden=true; $("recherche").hidden=true; $("mois").hidden=true; }
   else render();
 }
@@ -864,6 +888,14 @@ function lancerAssistant(annulable, ancien){
     toast, annuler: annulable ? ()=>{} : null });
 }
 $("as-go").addEventListener("click", ()=>lancerAssistant(true));
+// Conditions d'utilisation : la case doit être cochée pour continuer
+$("cond-ok").addEventListener("change", e=>{ $("cond-go").disabled=!e.target.checked; });
+$("cond-go").addEventListener("click", async ()=>{
+  const b=$("cond-go"), err=$("cond-err"); if(!$("cond-ok").checked || !store) return;
+  b.disabled=true; err.hidden=true;
+  try{ await store.accepterConditions(); setAccess("loading"); store.continuer(); }
+  catch(e){ console.error(e); err.textContent="Votre acceptation n'a pas pu être enregistrée. Vérifiez votre connexion et réessayez."; err.hidden=false; b.disabled=false; }
+});
 $("as-plustard").addEventListener("click", ()=>{ if(store && store.plusTard) store.plusTard(); });
 // Bouton « Ajouter un enfant » de la fiche du jour (quand il n'y a pas encore d'enfant)
 document.addEventListener("click", e=>{ if(e.target.closest("[data-ajouter-enfant]")) lancerAssistant(true); });
@@ -874,7 +906,7 @@ $("fam-inviter").addEventListener("click", async ()=>{
     const lien=await store.inviter();
     if(navigator.share){ try{ await navigator.share({title:"Allez Hop", text:"Rejoins notre famille dans Allez Hop :", url:lien}); }catch(e){} }
     else { try{ await navigator.clipboard.writeText(lien); toast("Lien copié"); }catch(e){} }
-    out.innerHTML="Lien d'invitation à envoyer à l'autre parent :<br><a href=\""+esc(lien)+"\">"+esc(lien)+"</a>"; out.hidden=false;
+    out.innerHTML="Lien d'invitation à envoyer à l'autre parent :<br><a href=\""+esc(lien)+"\">"+esc(lien)+"</a><br>Il ne fonctionne qu'une seule fois. Pour inviter une autre personne, créez un nouveau lien."; out.hidden=false;
   }catch(e){ toast("Le lien n'a pas pu être créé. Réessayez."); }
   finally{ b.disabled=false; }
 });
@@ -1018,7 +1050,7 @@ function dateActivite(a){
 function chercher(q){
   const n=norm(q).trim(); if(n.length<2) return null;
   const out=[], ok=(...t)=>t.some(x=>norm(x).includes(n));
-  mine().forEach(r=>{ if(ok(r.titre,r.notes)) out.push({date:r.date, ic:r.ic||r.em, t:r.titre, n:r.notes, tag:"Rappel"}); });
+  mine().forEach(r=>{ if(ok(r.titre,r.notes)) out.push({date:r.date, h:r.heure, ic:r.ic||r.em, t:r.titre, n:r.notes, tag:"Rappel"}); });
   Object.entries(EVENTS).forEach(([d,l])=>l.forEach(([ic,t,note])=>{ if(ok(t,note)) out.push({date:d, ic, t, n:note, tag:"École"}); }));
   CONGES.forEach(c=>{ if(ok(c.label,"congé")) out.push({date:c.du, fin:c.au, ic:"home", t:c.label, tag:"Congé"}); });
   // Activités récurrentes : une seule ligne par activité, qui mène à sa prochaine date
@@ -1028,16 +1060,16 @@ function chercher(q){
 function ligneHit(h){
   const passe=(h.fin||h.date)<todayKey();
   const d = h.fin && h.fin!==h.date ? `du ${longDate(h.date)} au ${longDate(h.fin)}` : cap(longDate(h.date))+" · "+quand(h.date);
-  const inf=infoFor(h.date), j=inf.kind==="ecole" ? " · J"+inf.jour : "";
-  return `<button type="button" class="hit${passe?" passe":""}" data-aller="${h.date}"><span class="ic">${icon(h.ic)}</span><span class="tx"><b>${esc(h.t)}</b><span>${esc(d+j)}${h.n?" · "+esc(h.n):""}</span></span><span class="tag">${h.tag}</span></button>`;
+  const inf=infoFor(h.date), j=inf.kind==="ecole" ? " · J"+inf.jour : "", aQuelleHeure=h.h ? " · "+heureFr(h.h) : "";
+  return `<button type="button" class="hit${passe?" passe":""}" data-aller="${h.date}"><span class="ic">${icon(h.ic)}</span><span class="tx"><b>${esc(h.t)}</b><span>${esc(d+aQuelleHeure+j)}${h.n?" · "+esc(h.n):""}</span></span><span class="tag">${h.tag}</span></button>`;
 }
 function paintRecherche(){
   const res=chercher($("q").value), box=$("q-res");
   if(!res){ box.innerHTML=`<div class="vide">Tapez au moins 2 lettres : le titre d'un rappel, une note, un événement ou un congé.</div>`; return; }
   if(!res.length){ box.innerHTML=`<div class="vide">Aucun résultat pour « ${esc($("q").value.trim())} ».</div>`; return; }
   const t=todayKey();
-  const avenir=res.filter(h=>(h.fin||h.date)>=t).sort((x,y)=>x.date.localeCompare(y.date));
-  const passes=res.filter(h=>(h.fin||h.date)<t).sort((x,y)=>y.date.localeCompare(x.date));
+  const avenir=res.filter(h=>(h.fin||h.date)>=t).sort((x,y)=>x.date.localeCompare(y.date) || (x.h||"").localeCompare(y.h||""));
+  const passes=res.filter(h=>(h.fin||h.date)<t).sort((x,y)=>y.date.localeCompare(x.date) || (y.h||"").localeCompare(x.h||""));
   box.innerHTML=(avenir.length?`<div class="grp">À venir</div>`+avenir.map(ligneHit).join(""):"")+(passes.length?`<div class="grp">Passés</div>`+passes.slice(0,20).map(ligneHit).join(""):"");
 }
 tap($("btn-search"), ()=>{ $("recherche").hidden=false; paintRecherche(); setTimeout(()=>$("q").focus(),60); });
@@ -1626,11 +1658,11 @@ function buildICS(){
     const inf=infoFor(k); if(inf.kind!=="ecole") continue;
     const ymd=k.replace(/-/g,""), sp=specialsOf(inf.jour), rem=remindersOn(k);
     let sum=ENFANT.prenom+" · J"+inf.jour+(sp.length?" · "+sp.map(s=>s.court+" "+s.em).join(", "):"");
-    if(rem.length) sum+=" · "+rem.map(r=>r.titre).join(", ");
+    if(rem.length) sum+=" · "+rem.map(r=>r.titre+(r.heure?" ("+heureFr(r.heure)+")":"")).join(", ");
     const desc=[];
     sp.filter(s=>s.apporter).forEach(s=>desc.push("À apporter : "+s.apporter));
     (EVENTS[k]||[]).forEach(e=>desc.push(e[0]+" "+e[1]));
-    rem.forEach(r=>desc.push("📌 "+r.titre+(r.notes?" : "+r.notes:"")));
+    rem.forEach(r=>desc.push("📌 "+(r.heure?heureFr(r.heure)+" · ":"")+r.titre+(r.notes?" : "+r.notes:"")));
     L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-"+ymd+"@allezhop","DTSTAMP:"+stamp,"DTSTART:"+ymd+"T070000","DTEND:"+ymd+"T071000",
       fold("SUMMARY:"+icsEsc(sum)),fold("DESCRIPTION:"+icsEsc(desc.join("\n"))),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(sum)),"TRIGGER:PT0M","END:VALARM","END:VEVENT");
@@ -1648,11 +1680,21 @@ function buildICS(){
       fold("SUMMARY:"+icsEsc("⭐ "+ENFANT.prenom+" : "+a.titre)),fold("DESCRIPTION:"+icsEsc(a.apporter?"À apporter : "+a.apporter:"")),
       "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc(a.titre+" dans 1 h")),"TRIGGER:-PT1H","END:VALARM","END:VEVENT");
   });
+  // Rappels : à l'heure précise (30 min, alerte 1 h avant), ou toute la journée (alerte la veille à 19 h)
   mine().filter(r=>r.date>=todayKey()).forEach(r=>{
     const ymd=r.date.replace(/-/g,""), nxt=addDays(r.date,1).replace(/-/g,"");
-    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt,
+    let quand, alerte;
+    if(/^\d{2}:\d{2}$/.test(r.heure||"")){
+      const [hh,mm]=r.heure.split(":").map(Number), f=Math.min(hh*60+mm+30, 23*60+59);
+      quand=["DTSTART:"+ymd+"T"+hm(r.heure),"DTEND:"+ymd+"T"+hm(String(Math.floor(f/60)).padStart(2,"0")+":"+String(f%60).padStart(2,"0"))];
+      alerte=[fold("DESCRIPTION:"+icsEsc(r.titre+" à "+heureFr(r.heure))),"TRIGGER:-PT1H"];
+    }else{
+      quand=["DTSTART;VALUE=DATE:"+ymd,"DTEND;VALUE=DATE:"+nxt];
+      alerte=[fold("DESCRIPTION:"+icsEsc("Demain : "+r.titre)),"TRIGGER:-PT5H"];
+    }
+    L.push("BEGIN:VEVENT","UID:allezhop-"+uid+"-rappel-"+r.id+"@allezhop","DTSTAMP:"+stamp,...quand,
       fold("SUMMARY:"+icsEsc("📌 "+ENFANT.prenom+" : "+r.titre)),fold("DESCRIPTION:"+icsEsc(r.notes||"")),
-      "BEGIN:VALARM","ACTION:DISPLAY",fold("DESCRIPTION:"+icsEsc("Demain : "+r.titre)),"TRIGGER:-PT5H","END:VALARM","END:VEVENT");
+      "BEGIN:VALARM","ACTION:DISPLAY",...alerte,"END:VALARM","END:VEVENT");
   });
   L.push("END:VCALENDAR");
   return L.join("\r\n");
