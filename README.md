@@ -71,6 +71,17 @@ Dans le menu : « Quitter la famille… » (quitter, seulement s'il reste un aut
 
 Le bouton « Signaler un bug » (dans les erreurs de l'assistant) écrit un rapport dans la collection `signalements` (lisible seulement dans la console Firebase). Les règles doivent contenir le bloc `signalements` de `firestore.rules`. Une notification est envoyée aux téléphones de `ADMIN_EMAIL`.
 
+## Apps iPhone et Android (en préparation)
+
+Les apps des magasins (App Store, Google Play) sont faites avec [Capacitor](https://capacitorjs.com/) : elles contiennent la même app web. Le site actuel ne change pas.
+
+- `capacitor.config.json` : nom et identifiant de l'app (`ca.allezhop.app`).
+- `android/`, `ios/` : les projets des deux apps.
+- `npm run apps` : copie les fichiers web dans `www/` puis dans les deux apps.
+- `.github/workflows/apps.yml` : vérifie que les deux apps se fabriquent (onglet Actions). Rien n'est envoyé aux magasins.
+
+Encore à faire : connexion Google et Apple natives, notifications natives, App Check pour les apps, icônes et envoi aux magasins.
+
 ## Mises à jour
 
 Les téléphones gardent l'app en mémoire. Avant chaque mise en ligne, lancer `./bump.sh` : il change le numéro de version (`version.json`, `app.js`, `assistant.js`, `index.html`). À l'ouverture suivante, une fenêtre propose la mise à jour.

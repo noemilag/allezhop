@@ -2,5 +2,17 @@
   "name": "allez-hop",
   "private": true,
   "type": "module",
-  "description": "Notification du matin : node scripts/notifier.js (voir README)"
+  "description": "Notification du matin : node scripts/notifier.js. Apps iPhone et Android : npm run apps (voir README)",
+  "scripts": {
+    "web": "sh scripts/copier-web.sh",
+    "apps": "sh scripts/copier-web.sh && npx cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
+    "@capacitor/ios": "^8.6.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.3"
+  }
 }

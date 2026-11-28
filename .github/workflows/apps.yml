@@ -1,0 +1,32 @@
+name: Apps iPhone et Android
+
+# Fabrique les apps pour vérifier qu'elles se construisent. Rien n'est envoyé aux magasins.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['android/**', 'ios/**', 'capacitor.config.json', 'package.json', '.github/workflows/apps.yml']
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm install --no-audit --no-fund
+      - run: npm run apps
+      - run: cd android && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with: { name: allez-hop-android-essai, path: android/app/build/outputs/apk/debug/*.apk }
+
+  iphone:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - run: npm run apps
+      - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
