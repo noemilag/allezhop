@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allez Hop">
 <script>if(navigator.standalone)document.documentElement.classList.add("standalone")</script>
-<script src="config.js?v=202611272156"></script>
+<script src="config.js?v=202611280236"></script>
 <script>document.documentElement.classList.add(window.ALLEZHOP_FIREBASE?"st-loading":"st-open")</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -103,6 +103,9 @@ html.st-locked header .brand{visibility:hidden}
 .setup textarea{font:12px ui-monospace,Menlo,monospace!important}
 html.st-locked .kid, html.st-locked .ibtn, html.st-locked #banner-wrap, html.st-locked .stage, html.st-locked .dock{display:none!important}
 html.st-loading .kid, html.st-loading .ibtn, html.st-loading .stage, html.st-loading .dock{visibility:hidden}
+/* chargement lent (première visite, réseau lent) : un mot apparaît après un moment, pour ne pas laisser un écran vide */
+html.st-loading body::after{content:"Allez Hop, on charge votre horaire…";position:fixed;left:0;right:0;top:42%;text-align:center;font-weight:600;font-size:16px;color:var(--muted);opacity:0;animation:apparait .4s 1.2s forwards;pointer-events:none}
+@keyframes apparait{to{opacity:1}}
 /* pile */
 .stage{flex:1;min-height:0;padding-block:2px 12px}
 .stack{position:relative;height:100%}
@@ -1007,6 +1010,6 @@ html.st-famille .stage, html.st-famille .week, html.st-famille .kid, html.st-fam
 <button class="ibtn plus fab-bas" id="fab" aria-label="Ajouter un rappel ou une activité"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
 <div class="toast" id="toast" hidden></div>
 
-<script type="module" src="app.js?v=202611272156"></script>
+<script type="module" src="app.js?v=202611280236"></script>
 </body>
 </html>
